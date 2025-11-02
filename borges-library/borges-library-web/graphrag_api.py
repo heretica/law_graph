@@ -1,18 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from nano_graphrag import GraphRAG, QueryParam
+from nano_graphrag._llm import gpt_4o_mini_complete
 import asyncio
 import json
 import re
 from pathlib import Path
 import os
-import sys
-
-# Add nano-graphrag to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'nano-graphrag'))
-
-# Now import nano_graphrag
-from nano_graphrag import GraphRAG, QueryParam
-from nano_graphrag._llm import gpt_4o_mini_complete
 
 app = Flask(__name__)
 # Enhanced CORS configuration for local development and Vercel deployment
@@ -101,7 +95,7 @@ def health_check():
     return jsonify({"status": "healthy", "service": "GraphRAG API"})
 
 @app.route('/query', methods=['POST'])
-def query_graph():
+async def query_graph():
     try:
         data = request.json
         query = data.get('query', '')
@@ -129,14 +123,14 @@ def query_graph():
 
         # Get context first to extract search path
         context_param = QueryParam(mode=mode, only_need_context=True, top_k=30)
-        context = asyncio.run(graph_func.aquery(query, param=context_param))
+        context = await graph_func.aquery(query, param=context_param)
 
         # Parse context to extract entities and relations
         entities, relations, communities = parse_context_csv(context)
 
         # Get actual answer
         answer_param = QueryParam(mode=mode, top_k=30)
-        answer = asyncio.run(graph_func.aquery(query, param=answer_param))
+        answer = await graph_func.aquery(query, param=answer_param)
 
         # Build search path with traversal order
         search_path = {
@@ -185,5 +179,4 @@ def list_books():
 
 if __name__ == '__main__':
     # Run the Flask app
-    port = int(os.environ.get('PORT', 5001))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)

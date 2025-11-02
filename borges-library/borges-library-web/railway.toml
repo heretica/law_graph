@@ -1,0 +1,25 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "railway.dockerfile"
+
+[deploy]
+startCommand = "python start_production.py"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "graphrag-api"
+
+[services.variables]
+PORT = "5001"
+FLASK_ENV = "production"
+OPENAI_API_KEY = "${{OPENAI_API_KEY}}"
+PYTHONPATH = "/app"
+
+[services.healthcheck]
+path = "/health"
+port = 5001
+initialDelaySeconds = 30
+periodSeconds = 10

@@ -7,12 +7,8 @@ from pathlib import Path
 import os
 import sys
 
-# Add nano-graphrag to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'nano-graphrag'))
-
-# Now import nano_graphrag
-from nano_graphrag import GraphRAG, QueryParam
-from nano_graphrag._llm import gpt_4o_mini_complete
+# Add nano_graphrag to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'nano_graphrag'))
 
 app = Flask(__name__)
 # Enhanced CORS configuration for local development and Vercel deployment
@@ -21,7 +17,7 @@ CORS(app, origins=[
     "http://localhost:3001",
     "https://borges-library-web.vercel.app",
     "https://*.vercel.app",  # For preview deployments
-    "https://arthursrz-borges-graph.hf.space"  # HuggingFace Space if needed
+    "https://reconciliation-api-production.up.railway.app"
 ],
 methods=['GET', 'POST', 'OPTIONS'],
 allow_headers=['Content-Type', 'Authorization'],
@@ -32,17 +28,25 @@ graphrag_instances = {}
 
 def get_graphrag_instance(book_id=None):
     """Get or create a GraphRAG instance for a specific book"""
-    if book_id and book_id not in graphrag_instances:
-        working_dir = f"./{book_id}"
-        if os.path.exists(working_dir):
-            graphrag_instances[book_id] = GraphRAG(
-                working_dir=working_dir,
-                best_model_func=gpt_4o_mini_complete,
-                cheap_model_func=gpt_4o_mini_complete,
-                best_model_max_async=5,
-                cheap_model_max_async=5
-            )
-    return graphrag_instances.get(book_id)
+    try:
+        # Import here to avoid startup issues
+        from nano_graphrag import GraphRAG, QueryParam
+        from nano_graphrag._llm import gpt_4o_mini_complete
+
+        if book_id and book_id not in graphrag_instances:
+            working_dir = f"./{book_id}"
+            if os.path.exists(working_dir):
+                graphrag_instances[book_id] = GraphRAG(
+                    working_dir=working_dir,
+                    best_model_func=gpt_4o_mini_complete,
+                    cheap_model_func=gpt_4o_mini_complete,
+                    best_model_max_async=5,
+                    cheap_model_max_async=5
+                )
+        return graphrag_instances.get(book_id)
+    except ImportError as e:
+        print(f"Import error: {e}")
+        return None
 
 def parse_context_csv(context_str):
     """Parse the CSV context returned by GraphRAG to extract entities and relations"""
@@ -115,7 +119,7 @@ def query_graph():
         if not book_id:
             # Find first available book directory
             for item in os.listdir('.'):
-                if os.path.isdir(item) and not item.startswith('.') and item not in ['borges-library-web', 'graph', 'examples', 'tests', 'nano_graphrag', '__pycache__']:
+                if os.path.isdir(item) and not item.startswith('.') and item not in ['borges-library-web', 'graph', 'examples', 'tests', 'nano_graphrag', '__pycache__', 'reconciliation-api', 'test']:
                     book_id = item
                     break
 
@@ -125,7 +129,10 @@ def query_graph():
         # Get GraphRAG instance
         graph_func = get_graphrag_instance(book_id)
         if not graph_func:
-            return jsonify({"error": f"Book '{book_id}' not found"}), 404
+            return jsonify({"error": f"Book '{book_id}' not found or GraphRAG not available"}), 404
+
+        # Import QueryParam here
+        from nano_graphrag import QueryParam
 
         # Get context first to extract search path
         context_param = QueryParam(mode=mode, only_need_context=True, top_k=30)
@@ -186,4 +193,12 @@ def list_books():
 if __name__ == '__main__':
     # Run the Flask app
     port = int(os.environ.get('PORT', 5001))
+    print(f"Starting GraphRAG API on port {port}")
+    print("Available books:")
+    for item in os.listdir('.'):
+        if os.path.isdir(item) and not item.startswith('.'):
+            graph_path = f"{item}/graph_chunk_entity_relation.graphml"
+            status = "✅" if os.path.exists(graph_path) else "❌"
+            print(f"  {status} {item}")
+
     app.run(host='0.0.0.0', port=port, debug=True)

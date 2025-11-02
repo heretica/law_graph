@@ -1,0 +1,4 @@
+- ajoute la conversation en mémoire
+- always use agent.md for architecture plan.
+- the architecture should be : the interface Vercel listens to a reconcilation API that listens and harmonizes the entites coming coming from the Graph API (that listens to the Neo4j instance through the Neo4j API or the MCP if it can be integrated into the logic). and from the GraphRAG API (the one on Railway) that listens to the Book data on GDrive
+- ne simule jamais de données ou de succès. Si tu rencontres un bug au moment de tester quelque chose, creer un autre test de manière récursive.

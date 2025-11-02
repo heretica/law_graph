@@ -1,0 +1,1 @@
+web: python graphrag_railway_api.py

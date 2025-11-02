@@ -39,3 +39,30 @@ next-env.d.ts
 # IDE
 .vscode/
 .idea/
+
+# Book data directories (too large for git - contain GraphML and vector data)
+a_rebours_huysmans/
+chien_blanc_gary/
+peau_bison_frison/
+policeman_decoin/
+racines_ciel_gary/
+tilleul_soir_anglade/
+vallee_sans_hommes_frison/
+villa_triste_modiano/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
+.pytest_cache/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
