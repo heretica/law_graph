@@ -14,8 +14,20 @@ sys.path.insert(0, str(current_dir))
 os.environ.setdefault('FLASK_ENV', 'production')
 os.environ.setdefault('PORT', '5001')
 
-# Import and run the Flask app
-from graphrag_api import app
+# Try to import the best available GraphRAG API version
+try:
+    # Try v3 first (most robust)
+    from graphrag_railway_v3 import app
+    print("✅ Using GraphRAG API v3.0 (improved version)")
+except ImportError:
+    try:
+        # Fallback to production version
+        from graphrag_railway_production import app
+        print("⚠️  Using GraphRAG Railway production version")
+    except ImportError:
+        # Final fallback
+        from graphrag_api import app
+        print("⚠️  Using basic GraphRAG API")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
