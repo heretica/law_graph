@@ -137,7 +137,7 @@ export default function GraphVisualization({
     const types = new Set(processedNodes.map(n => n.type))
     setSelectedNodeTypes(types)
 
-  }, [neo4jGraphData])
+  }, [neo4jGraphData, entityColors])
 
   useEffect(() => {
     if (neo4jGraphData && !isLoadingGraph) {
@@ -326,7 +326,7 @@ export default function GraphVisualization({
 
           {/* Legend */}
           <div className="absolute top-4 left-4 bg-black bg-opacity-70 backdrop-blur-sm rounded-lg p-4 max-w-xs">
-            <h4 className="text-white font-semibold mb-3 text-sm">Types d'entités</h4>
+            <h4 className="text-white font-semibold mb-3 text-sm">Types d&apos;entités</h4>
             <div className="space-y-2">
               {entityTypes.map(entityType => (
                 <button

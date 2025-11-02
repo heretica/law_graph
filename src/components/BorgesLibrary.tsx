@@ -42,7 +42,7 @@ export default function BorgesLibrary() {
   useEffect(() => {
     loadBooks()
     loadNeo4jGraph()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadBooks = async () => {
     try {
