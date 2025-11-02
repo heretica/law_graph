@@ -153,7 +153,7 @@ export default function GraphVisualization({
     if (neo4jGraphData && !isLoadingGraph) {
       processNeo4jData()
     }
-  }, [neo4jGraphData, isLoadingGraph, processNeo4jData])
+  }, [neo4jGraphData, isLoadingGraph]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const drawGraph = useCallback(() => {
     if (!svgRef.current || isLoadingGraph || nodes.length === 0) return
@@ -329,7 +329,7 @@ export default function GraphVisualization({
 
     setSimulation(newSimulation)
 
-  }, [isLoadingGraph, nodes, links, selectedNodeTypes, onNodeVisibilityChange])
+  }, [isLoadingGraph, nodes, links, selectedNodeTypes]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Toggle entity type visibility
   const toggleEntityType = (entityType: string) => {
@@ -346,7 +346,7 @@ export default function GraphVisualization({
     if (!isLoadingGraph && nodes.length > 0) {
       drawGraph()
     }
-  }, [isLoadingGraph, nodes, links, selectedNodeTypes, drawGraph])
+  }, [isLoadingGraph, nodes, links, selectedNodeTypes]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle search path highlighting
   useEffect(() => {
