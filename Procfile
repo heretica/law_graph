@@ -1,1 +1,1 @@
-web: python graphrag_railway_api_fixed_v2.py
+web: python graphrag_railway_production.py
