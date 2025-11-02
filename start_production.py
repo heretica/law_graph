@@ -15,7 +15,7 @@ os.environ.setdefault('FLASK_ENV', 'production')
 os.environ.setdefault('PORT', '5001')
 
 # Import and run the Flask app
-from graphrag_api import app
+from graphrag_railway_production import app
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
