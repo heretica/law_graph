@@ -67,34 +67,15 @@ __pycache__/
 *.tmp
 *.temp
 
-# Heavy data files
-*.graphml
-*.parquet
-*.csv
-*.zip
-*.tar.gz
-*.7z
-
-# Google Drive responses
-gdrive_response*.html
-
-# Nested repositories and components that should be separate
-nano-graphrag/
-reconciliation-api/
-test/
-borges-library/
-
-# API files that shouldn't be in frontend repo
-graphrag_*.py
-requirements.txt
-runtime.txt
-Procfile
-start_production.py
-railway.dockerfile
-
-# Documentation that belongs in main repo
-agent.md
-CLAUDE.md
-
-# Random files
-zir0Tiii
+# Build artifacts and generated files
+.next/cache/
+.next/trace
+.next/server/
+.next/static/
+.next/types/
+*.tsbuildinfo
+build-manifest.json
+app-build-manifest.json
+prerender-manifest.js
+react-loadable-manifest.json
+routes-manifest.json
