@@ -114,19 +114,36 @@ export class ReconciliationService {
   /**
    * Get relationships for specific node IDs
    */
-  async getRelationships(nodeIds: string[]): Promise<{
+  async getRelationships(nodeIds: string[], limit: number = 10000): Promise<{
     success: boolean;
     relationships: Neo4jRelationship[];
     count: number;
+    input_nodes: number;
+    limit_applied: number;
+    filtered: boolean;
   }> {
     const params = new URLSearchParams();
     params.append('node_ids', nodeIds.join(','));
+    params.append('limit', limit.toString());
+
+    console.log(`🔍 Fetching relationships for ${nodeIds.length} nodes with limit ${limit}`);
 
     const response = await fetch(`${this.apiUrl}/graph/relationships?${params}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch relationships: ${response.status}`);
     }
-    return response.json();
+
+    const result = await response.json();
+
+    // Log performance metrics
+    if (result.success) {
+      console.log(`✅ Relationships fetched: ${result.count} out of ${nodeIds.length} nodes`);
+      if (result.filtered) {
+        console.warn(`⚠️ Relationship limit reached (${limit}). Some relationships may be missing.`);
+      }
+    }
+
+    return result;
   }
 
   /**

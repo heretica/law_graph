@@ -78,11 +78,25 @@ export default function BorgesLibrary() {
       const nodesData = await reconciliationService.getNodes({ limit: 300 })
       if (nodesData.success && nodesData.nodes.length > 0) {
         const nodeIds = nodesData.nodes.map(node => node.id)
-        const relationshipsData = await reconciliationService.getRelationships(nodeIds)
+        console.log(`📊 Loading graph with ${nodeIds.length} nodes...`)
+
+        // Use a reasonable limit for relationships to avoid performance issues
+        const relationshipsData = await reconciliationService.getRelationships(nodeIds, 5000)
+
+        const relationships = relationshipsData.success ? relationshipsData.relationships : []
+
+        console.log(`📈 Graph loaded successfully:`)
+        console.log(`  • Nodes: ${nodesData.nodes.length}`)
+        console.log(`  • Relationships: ${relationships.length}`)
+        console.log(`  • Ratio: ${(relationships.length / nodesData.nodes.length).toFixed(2)} relationships per node`)
+
+        if (relationshipsData.filtered) {
+          console.warn(`⚠️ Relationship count was limited to ${relationshipsData.limit_applied}`)
+        }
 
         setNeo4jGraphData({
           nodes: nodesData.nodes,
-          relationships: relationshipsData.success ? relationshipsData.relationships : []
+          relationships
         })
 
         // Set initial visible nodes (top 50 by centrality)
