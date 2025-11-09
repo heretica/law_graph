@@ -358,7 +358,7 @@ export default function BorgesLibrary() {
               <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
                 <div className="text-center">
                   <h2 className="text-2xl font-light text-borges-accent mb-8">
-                    Il suffit qu'un livre soit possible pour qu'il existe
+                    Il suffit qu&apos;un livre soit possible pour qu&apos;il existe
                   </h2>
 
                   {/* Star Constellation Loading Animation */}
