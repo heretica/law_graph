@@ -321,28 +321,40 @@ export class ReconciliationService {
   /**
    * Perform multi-book GraphRAG query sequentially across all available books
    * Returns aggregated results with book-source metadata
+   * Falls back to reconciled query if endpoint not available
    */
   async multiBookQuery(options: {
     query: string;
     mode?: 'local' | 'global';
     debug_mode?: boolean;
   }): Promise<any> {
-    const response = await fetch(`${this.apiUrl}/query/multi-book`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: options.query,
-        mode: options.mode || 'local',
-        debug_mode: options.debug_mode || true
-      }),
-    });
+    try {
+      const response = await fetch(`${this.apiUrl}/query/multi-book`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: options.query,
+          mode: options.mode || 'local',
+          debug_mode: options.debug_mode || true
+        }),
+      });
 
-    if (!response.ok) {
+      if (response.ok) {
+        return response.json();
+      }
+
+      if (response.status === 404) {
+        console.warn('⚠️ Multi-book endpoint not deployed yet, falling back to reconciled query');
+        return this.reconciledQuery(options);
+      }
+
       throw new Error(`Multi-book query failed: ${response.status}`);
+    } catch (error) {
+      console.warn(`Multi-book query error: ${error}, falling back to reconciled query`);
+      return this.reconciledQuery(options);
     }
-    return response.json();
   }
 
   /**

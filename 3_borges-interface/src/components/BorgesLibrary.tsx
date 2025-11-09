@@ -121,6 +121,7 @@ export default function BorgesLibrary() {
     // Start processing animation
     setIsProcessing(true)
     setCurrentProcessingPhase('🔍 Analyse multi-livre')
+    setCurrentQuery(query)
 
     try {
       const phases = [
@@ -139,17 +140,18 @@ export default function BorgesLibrary() {
         debug_mode: true
       })
 
-      for (let i = 0; i < phases.length; i++) {
+      // Run first 4 phases while API is processing
+      for (let i = 0; i < 4; i++) {
         setCurrentProcessingPhase(phases[i].name)
         await new Promise(resolve => setTimeout(resolve, phases[i].duration))
       }
 
+      // Wait for API response
       const result = await apiCallPromise
 
       if (result.success) {
         console.log('📊 Multi-book query result:', result)
-        console.log(`📚 Books queried: ${result.books_queried.join(', ')}`)
-        console.log(`✅ Books with results: ${result.books_with_results}/${result.books_queried.length}`)
+        console.log(`📚 Books queried: ${result.books_queried?.join(', ') || 'N/A'}`)
 
         const aggregated = result.aggregated || {}
         const entities = aggregated.entities || []
@@ -160,8 +162,25 @@ export default function BorgesLibrary() {
         console.log(`   👥 Total unique entities: ${entities.length}`)
         console.log(`   🔗 Total unique relationships: ${relationships.length}`)
         console.log(`   🏘️ Total communities: ${communities.length}`)
-        console.log(`   📈 Entities in multiple books: ${result.summary?.entities_in_multiple_books || 0}`)
 
+        // IMPORTANT: Show nodes FIRST before answer
+        if (entities.length > 0) {
+          const searchPath = {
+            entities: entities.slice(0, 50),
+            relations: relationships.slice(0, 100),
+            communities: communities.slice(0, 20)
+          }
+
+          console.log('🎯 Setting search path to highlight selected nodes')
+          setSearchPath(searchPath)
+          handleHighlightPath(searchPath)
+
+          // Show the nodes visualization with phase animation
+          setCurrentProcessingPhase('📍 Mise en évidence des nœuds sélectionnés')
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        }
+
+        // THEN show the answer text
         let combinedAnswer = ''
         if (result.book_results && result.book_results.length > 0) {
           combinedAnswer = result.book_results
@@ -170,31 +189,18 @@ export default function BorgesLibrary() {
             .join('\n\n---\n\n')
         }
 
-        setCurrentQuery(query)
         setQueryAnswer(combinedAnswer || 'Pas de résultats trouvés')
         setShowAnswer(true)
 
-        if (entities.length > 0) {
-          const searchPath = {
-            entities: entities.slice(0, 50),
-            relations: relationships.slice(0, 100),
-            communities: communities.slice(0, 20)
-          }
-
-          console.log('🎯 Search path with book metadata:', searchPath)
-          setSearchPath(searchPath)
-          handleHighlightPath(searchPath)
-        } else {
-          console.warn('⚠️ No entities found in any book')
-        }
+        // Show final synthesis phase
+        setCurrentProcessingPhase(phases[4].name)
+        await new Promise(resolve => setTimeout(resolve, phases[4].duration))
       } else {
-        setCurrentQuery(query)
         setQueryAnswer(`Erreur: ${result.error || 'Erreur lors du traitement de la requête'}`)
         setShowAnswer(true)
       }
     } catch (error) {
       console.error('Error processing query:', error)
-      setCurrentQuery(query)
       setQueryAnswer(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
       setShowAnswer(true)
     } finally {
