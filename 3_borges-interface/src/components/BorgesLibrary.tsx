@@ -344,7 +344,7 @@ export default function BorgesLibrary() {
           </div>
 
           {/* 3D Force Graph Visualization */}
-          <div className="flex-1 bg-black">
+          <div className="flex-1 bg-black relative">
             <GraphVisualization3DForce
               reconciliationData={reconciliationData}
               searchPath={searchPath}
@@ -352,6 +352,80 @@ export default function BorgesLibrary() {
               isProcessing={isProcessing}
               currentProcessingPhase={currentProcessingPhase}
             />
+
+            {/* Loading Overlay with Star Animation */}
+            {isLoadingGraph && (
+              <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+                <div className="text-center">
+                  <h2 className="text-2xl font-light text-borges-accent mb-8">
+                    Il suffit qu'un livre soit possible pour qu'il existe
+                  </h2>
+
+                  {/* Star Constellation Loading Animation */}
+                  <div className="relative w-64 h-64 mx-auto mb-6">
+                    <svg viewBox="0 0 100 100" className="w-full h-full">
+                      {/* Constellation of stars that light up in sequence */}
+                      {[
+                        { x: 20, y: 15, delay: 0 },
+                        { x: 35, y: 25, delay: 0.2 },
+                        { x: 50, y: 20, delay: 0.4 },
+                        { x: 65, y: 30, delay: 0.6 },
+                        { x: 80, y: 18, delay: 0.8 },
+                        { x: 15, y: 40, delay: 1.0 },
+                        { x: 30, y: 50, delay: 1.2 },
+                        { x: 50, y: 45, delay: 1.4 },
+                        { x: 70, y: 55, delay: 1.6 },
+                        { x: 85, y: 45, delay: 1.8 },
+                        { x: 25, y: 70, delay: 2.0 },
+                        { x: 45, y: 75, delay: 2.2 },
+                        { x: 65, y: 80, delay: 2.4 },
+                        { x: 80, y: 70, delay: 2.6 },
+                      ].map((star, index) => (
+                        <g key={index}>
+                          {/* Star shape */}
+                          <path
+                            d={`M${star.x},${star.y - 2} L${star.x + 0.6},${star.y - 0.6} L${star.x + 2},${star.y} L${star.x + 0.6},${star.y + 0.6} L${star.x},${star.y + 2} L${star.x - 0.6},${star.y + 0.6} L${star.x - 2},${star.y} L${star.x - 0.6},${star.y - 0.6} Z`}
+                            fill="#F4C842"
+                            className="animate-pulse"
+                            style={{
+                              animationDelay: `${star.delay}s`,
+                              animationDuration: '1.5s',
+                              animationIterationCount: 'infinite',
+                              animationDirection: 'alternate'
+                            }}
+                          />
+                          {/* Glowing effect */}
+                          <circle
+                            cx={star.x}
+                            cy={star.y}
+                            r="1"
+                            fill="#F4C842"
+                            className="animate-pulse"
+                            style={{
+                              animationDelay: `${star.delay}s`,
+                              animationDuration: '1.5s',
+                              animationIterationCount: 'infinite',
+                              animationDirection: 'alternate'
+                            }}
+                          />
+                        </g>
+                      ))}
+
+                      {/* Connecting lines between stars */}
+                      <g stroke="#F4C842" strokeWidth="0.3" fill="none" opacity="0.3">
+                        <path d="M20,15 L35,25 L50,20 L65,30 L80,18" className="animate-pulse" style={{ animationDuration: '3s' }} />
+                        <path d="M15,40 L30,50 L50,45 L70,55 L85,45" className="animate-pulse" style={{ animationDuration: '3s', animationDelay: '0.5s' }} />
+                        <path d="M25,70 L45,75 L65,80 L80,70" className="animate-pulse" style={{ animationDuration: '3s', animationDelay: '1s' }} />
+                        <path d="M35,25 L30,50" className="animate-pulse" style={{ animationDuration: '3s', animationDelay: '1.5s' }} />
+                        <path d="M50,20 L50,45" className="animate-pulse" style={{ animationDuration: '3s', animationDelay: '2s' }} />
+                        <path d="M65,30 L70,55" className="animate-pulse" style={{ animationDuration: '3s', animationDelay: '2.5s' }} />
+                      </g>
+                    </svg>
+                  </div>
+
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
