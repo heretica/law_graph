@@ -149,76 +149,46 @@ export default function BorgesLibrary() {
 
     try {
       if (multiBook) {
-        // Multi-book query
+        // Multi-book query - search across all books
         console.log(`📚 Querying ALL BOOKS with mode: ${mode}`)
         const result = await reconciliationService.multiBookQuery({
           query,
           mode,
-          debug_mode: true
+          debug_mode: false // Don't need debug mode for multi-book
         })
 
         if (result.success) {
-          const aggregated = result.aggregated || {}
-          const entities = aggregated.entities || []
-          const relationships = aggregated.relationships || []
-          const communities = aggregated.communities || []
+          setCurrentProcessingPhase(`✓ Queried ${result.books_with_results} books`)
 
-          setProcessingStats({ nodes: entities.length, communities: communities.length })
-          setCurrentProcessingPhase(`✓ Retrieved ${entities.length} nodes, ${communities.length} communities`)
-
-          // Show nodes
-          if (entities.length > 0) {
-            const searchPath = {
-              entities: entities.map((e: any, idx: number) => ({ ...e, order: idx })),
-              relations: relationships.map((r: any, idx: number) => ({ ...r, traversalOrder: idx })),
-              communities
-            }
-            setSearchPath(searchPath)
-            handleHighlightPath(searchPath)
-          }
-
-          // Show answer
+          // Show answer from all books
           const combinedAnswer = result.book_results
-            ?.filter((r: any) => r.answer && !r.error)
-            .map((r: any) => `📖 ${r.book_id}:\n${r.answer}`)
-            .join('\n\n---\n\n') || 'No results'
+            ?.filter((r: any) => r.answer && !r.error && r.answer !== "Sorry, I'm not able to provide an answer to that question.")
+            .map((r: any) => `📖 **${r.book_id.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}**:\n${r.answer}`)
+            .join('\n\n---\n\n') || 'No relevant results found across the books.'
 
           setQueryAnswer(combinedAnswer)
           setShowAnswer(true)
+
+          // Clear any existing highlights since multi-book doesn't return individual nodes
+          setSearchPath(null)
         }
       } else {
-        // Single-book query
+        // Single-book query - use reconciled endpoint
         console.log(`📖 Querying book: ${selectedBook}, mode: ${mode}`)
         const result = await reconciliationService.reconciledQuery({
           query,
           mode,
-          debug_mode: true,
+          debug_mode: false,
           book_id: selectedBook
         })
 
-        if (result.success && result.nodes) {
-          setProcessingStats({ nodes: result.nodes.length, communities: (result.graph?.total_relationships || 0) })
-          setCurrentProcessingPhase(`✓ Retrieved ${result.nodes.length} nodes`)
-
-          // Convert to search path
-          const searchPath = {
-            entities: result.nodes.map((node: any, idx: number) => ({
-              id: node.id,
-              score: (node.degree || 0) / 100,
-              order: idx
-            })),
-            relations: result.relationships?.map((rel: any, idx: number) => ({
-              source: rel.source,
-              target: rel.target,
-              traversalOrder: idx
-            })) || [],
-            communities: []
-          }
-
-          setSearchPath(searchPath)
-          handleHighlightPath(searchPath)
-          setQueryAnswer(result.answer || 'No answer')
+        if (result.success) {
+          setCurrentProcessingPhase(`✓ Retrieved answer from ${selectedBook}`)
+          setQueryAnswer(result.answer || 'No answer available')
           setShowAnswer(true)
+
+          // Clear any existing highlights for single book queries
+          setSearchPath(null)
         }
       }
     } catch (error) {
@@ -286,6 +256,7 @@ export default function BorgesLibrary() {
                   type="text"
                   placeholder="Posez une question..."
                   disabled={isProcessing}
+                  id="search-input"
                   className="flex-1 p-2 bg-borges-dark border border-gray-600 rounded text-white placeholder-gray-400 focus:border-borges-accent focus:outline-none disabled:opacity-50"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !isProcessing) {
@@ -327,6 +298,14 @@ export default function BorgesLibrary() {
                 {/* Search Button */}
                 <button
                   disabled={isProcessing}
+                  onClick={() => {
+                    const searchInput = document.getElementById('search-input') as HTMLInputElement
+                    const query = searchInput?.value.trim()
+                    if (query && !isProcessing) {
+                      handleSimpleQuery(query)
+                      searchInput.value = ''
+                    }
+                  }}
                   className="px-4 py-2 bg-borges-accent text-black font-medium rounded hover:bg-yellow-500 transition-colors disabled:opacity-50"
                 >
                   {isProcessing ? '⏳' : '🔍'}

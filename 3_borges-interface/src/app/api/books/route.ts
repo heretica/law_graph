@@ -1,86 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { promises as fs } from 'fs'
-import path from 'path'
 
-const RAILWAY_API_URL = 'https://comfortable-gentleness-production-8603.up.railway.app'
-
-function extractAuthorFromTitle(bookName: string): string {
-  const parts = bookName.split('_')
-  if (parts.length > 1) {
-    const lastPart = parts[parts.length - 1]
-    return lastPart.charAt(0).toUpperCase() + lastPart.slice(1).toLowerCase()
-  }
-  return 'Auteur inconnu'
-}
+const RECONCILIATION_API_URL = process.env.NEXT_PUBLIC_RECONCILIATION_API_URL || 'https://reconciliation-api-production.up.railway.app'
 
 export async function GET() {
   try {
-    // Try to fetch books from Railway API first
-    try {
-      const response = await fetch(`${RAILWAY_API_URL}/books`, {
-        next: { revalidate: 300 } // Cache for 5 minutes
-      })
-      if (response.ok) {
-        const data = await response.json()
-        // Transform Railway API response to match our format
-        const books = data.books.map((book: any) => ({
-          id: book.id,
-          title: book.name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-          author: extractAuthorFromTitle(book.name),
-          has_data: book.has_data,
-          source: 'railway'
-        }))
-        return NextResponse.json(books)
-      }
-    } catch (railwayError) {
-      console.warn('Railway API unavailable, checking local files:', railwayError)
+    const response = await fetch(`${RECONCILIATION_API_URL}/books`, {
+      next: { revalidate: 300 } // Cache for 5 minutes
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch books: ${response.status}`)
     }
 
-    // Fallback to local file checking
-    const booksPath = path.join(process.cwd(), '..', '..', '..', 'nano-graphrag')
-    const expectedBooks = [
-      { id: 'vallee_sans_hommes_frison', title: 'La Vallée sans hommes', author: 'Frison' },
-      { id: 'racines_ciel_gary', title: 'Les Racines du ciel', author: 'Romain Gary' },
-      { id: 'policeman_decoin', title: 'Policeman', author: 'Decoin' },
-      { id: 'a_rebours_huysmans', title: 'À rebours', author: 'Huysmans' },
-      { id: 'chien_blanc_gary', title: 'Chien blanc', author: 'Romain Gary' },
-      { id: 'peau_bison_frison', title: 'Peau de bison', author: 'Frison' },
-      { id: 'tilleul_soir_anglade', title: 'Le Tilleul du soir', author: 'Anglade' },
-      { id: 'villa_triste_modiano', title: 'Villa triste', author: 'Modiano' },
-    ]
+    const data = await response.json()
 
-    const availableBooks = []
+    // Transform the response to match frontend expectations
+    const books = data.books.map((book: any) => ({
+      id: book.id,
+      name: book.name,
+      title: book.name.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+      has_data: true,
+      stats: book.stats
+    }))
 
-    for (const book of expectedBooks) {
-      try {
-        const bookPath = path.join(booksPath, book.id)
-        const graphmlPath = path.join(bookPath, 'graph_chunk_entity_relation.graphml')
-        await fs.access(graphmlPath)
-        availableBooks.push({ ...book, has_data: true, source: 'local' })
-      } catch (error) {
-        console.log(`Book data not found for: ${book.id}`)
-        // Still include the book but mark as no data available
-        availableBooks.push({ ...book, has_data: false, source: 'fallback' })
-      }
-    }
-
-    return NextResponse.json(availableBooks)
+    return NextResponse.json({
+      books,
+      count: data.count,
+      success: data.success
+    })
 
   } catch (error) {
-    console.error('Error listing books:', error)
+    console.error('Error fetching books from reconciliation API:', error)
 
-    // Return expected books as fallback
+    // Return fallback books
     const fallbackBooks = [
-      { id: 'vallee_sans_hommes_frison', title: 'La Vallée sans hommes', author: 'Frison' },
-      { id: 'racines_ciel_gary', title: 'Les Racines du ciel', author: 'Romain Gary' },
-      { id: 'policeman_decoin', title: 'Policeman', author: 'Decoin' },
-      { id: 'a_rebours_huysmans', title: 'À rebours', author: 'Huysmans' },
-      { id: 'chien_blanc_gary', title: 'Chien blanc', author: 'Romain Gary' },
-      { id: 'peau_bison_frison', title: 'Peau de bison', author: 'Frison' },
-      { id: 'tilleul_soir_anglade', title: 'Le Tilleul du soir', author: 'Anglade' },
-      { id: 'villa_triste_modiano', title: 'Villa triste', author: 'Modiano' },
+      { id: 'a_rebours_huysmans', name: 'A Rebours Huysmans', title: 'À rebours', has_data: true },
+      { id: 'chien_blanc_gary', name: 'Chien Blanc Gary', title: 'Chien blanc', has_data: true },
+      { id: 'peau_bison_frison', name: 'Peau Bison Frison', title: 'Peau de bison', has_data: true },
+      { id: 'policeman_decoin', name: 'Policeman Decoin', title: 'Policeman', has_data: true },
+      { id: 'racines_ciel_gary', name: 'Racines Ciel Gary', title: 'Les Racines du ciel', has_data: true },
+      { id: 'tilleul_soir_anglade', name: 'Tilleul Soir Anglade', title: 'Le Tilleul du soir', has_data: true },
+      { id: 'vallee_sans_hommes_frison', name: 'Vallee Sans Hommes Frison', title: 'La Vallée sans hommes', has_data: true },
+      { id: 'villa_triste_modiano', name: 'Villa Triste Modiano', title: 'Villa triste', has_data: true },
     ]
 
-    return NextResponse.json(fallbackBooks)
+    return NextResponse.json({
+      books: fallbackBooks,
+      count: fallbackBooks.length,
+      success: false
+    })
   }
 }
