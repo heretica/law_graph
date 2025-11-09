@@ -120,79 +120,84 @@ export default function BorgesLibrary() {
 
     // Start processing animation
     setIsProcessing(true)
-    setCurrentProcessingPhase('🔍 Analyse de la requête')
+    setCurrentProcessingPhase('🔍 Analyse multi-livre')
 
     try {
-      // Simulate processing phases while making real API call
       const phases = [
-        { name: '🔍 Analyse de la requête', duration: 1000 },
+        { name: '📚 Interrogation des livres', duration: 1500 },
         { name: '👥 Sélection des entités', duration: 1500 },
         { name: '🏘️ Analyse des communautés', duration: 2000 },
         { name: '🔗 Cartographie des relations', duration: 1200 },
         { name: '📝 Synthèse textuelle', duration: 1800 }
       ]
 
-      // Start the API call - Query FULL knowledge base like test_query_analysis.py
-      console.log(`🔍 Querying FULL knowledge base (all books/entities) like test_query_analysis.py`)
-      console.log(`📚 Removing visible_node_ids restriction to access complete dataset`)
-      const apiCallPromise = reconciliationService.reconciledQuery({
+      console.log(`🔍 Querying ALL BOOKS sequentially with GraphRAG`)
+      console.log(`📚 Multi-book aggregation enabled`)
+      const apiCallPromise = reconciliationService.multiBookQuery({
         query,
-        // REMOVED: visible_node_ids parameter - this was artificially limiting GraphRAG queries
-        // GraphRAG should query the ENTIRE knowledge base, not a pre-filtered subset
-        mode: 'global', // Changed to global to query all data like test file
-        debug_mode: true // Enable debug to see detailed tracking like test_query_analysis.py
+        mode: 'global',
+        debug_mode: true
       })
 
-      // Run phases animation in parallel with API call
       for (let i = 0; i < phases.length; i++) {
         setCurrentProcessingPhase(phases[i].name)
         await new Promise(resolve => setTimeout(resolve, phases[i].duration))
       }
 
-      // Wait for API response
       const result = await apiCallPromise
 
       if (result.success) {
-        // Debug: Log the search_path to see what we're getting
-        console.log('🔍 Query result search_path:', result.search_path)
-        console.log('📊 Query result full data:', result)
+        console.log('📊 Multi-book query result:', result)
+        console.log(`📚 Books queried: ${result.books_queried.join(', ')}`)
+        console.log(`✅ Books with results: ${result.books_with_results}/${result.books_queried.length}`)
 
-        // Store the query and answer
+        const aggregated = result.aggregated || {}
+        const entities = aggregated.entities || []
+        const relationships = aggregated.relationships || []
+        const communities = aggregated.communities || []
+
+        console.log(`📊 Aggregated Results:`)
+        console.log(`   👥 Total unique entities: ${entities.length}`)
+        console.log(`   🔗 Total unique relationships: ${relationships.length}`)
+        console.log(`   🏘️ Total communities: ${communities.length}`)
+        console.log(`   📈 Entities in multiple books: ${result.summary?.entities_in_multiple_books || 0}`)
+
+        let combinedAnswer = ''
+        if (result.book_results && result.book_results.length > 0) {
+          combinedAnswer = result.book_results
+            .filter((r: any) => r.answer && !r.error)
+            .map((r: any) => `📖 ${r.book_id}:\n${r.answer}`)
+            .join('\n\n---\n\n')
+        }
+
         setCurrentQuery(query)
-        setQueryAnswer(result.answer)
+        setQueryAnswer(combinedAnswer || 'Pas de résultats trouvés')
         setShowAnswer(true)
 
-        // Extract entity IDs from search_path for visualization highlighting
-        if (result.search_path && result.search_path.entities) {
-          const entityIds = result.search_path.entities.map((e: any) => e.id)
-          console.log('🎯 Query found entities from FULL knowledge base:', entityIds)
-          console.log(`📊 GraphRAG Context Analysis (like test_query_analysis.py):`)
-          console.log(`   👥 Entities used: ${result.search_path.entities.length}`)
-          console.log(`   🔗 Relationships used: ${result.search_path.relations?.length || 0}`)
-          console.log(`   🏘️ Communities used: ${result.search_path.communities?.length || 0}`)
+        if (entities.length > 0) {
+          const searchPath = {
+            entities: entities.slice(0, 50),
+            relations: relationships.slice(0, 100),
+            communities: communities.slice(0, 20)
+          }
 
-          // Keep ALL nodes loaded for comprehensive view, but highlight query results
-          // This matches test_query_analysis.py behavior - full dataset available, specific entities highlighted
-          setVisibleNodeIds(reconciliationData?.nodes.map(node => node.id) || [])
-
-          // Set the search path for highlighting specific query results
-          setSearchPath(result.search_path)
-          handleHighlightPath(result.search_path)
+          console.log('🎯 Search path with book metadata:', searchPath)
+          setSearchPath(searchPath)
+          handleHighlightPath(searchPath)
         } else {
-          console.warn('⚠️ No search_path in result - may need backend updates:', result)
+          console.warn('⚠️ No entities found in any book')
         }
       } else {
         setCurrentQuery(query)
-        setQueryAnswer('Erreur lors du traitement de la requête')
+        setQueryAnswer(`Erreur: ${result.error || 'Erreur lors du traitement de la requête'}`)
         setShowAnswer(true)
       }
     } catch (error) {
       console.error('Error processing query:', error)
       setCurrentQuery(query)
-      setQueryAnswer('Erreur lors du traitement de la requête')
+      setQueryAnswer(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
       setShowAnswer(true)
     } finally {
-      // End processing
       setIsProcessing(false)
       setCurrentProcessingPhase(null)
     }
