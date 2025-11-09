@@ -44,7 +44,8 @@ export default function BorgesLibrary() {
     try {
       // Load top 500 nodes with relationships
       console.log(`📚 Loading top 500 nodes (optimized for performance)...`)
-      console.log(`🚀 Using reasonable limits: 500 nodes, chunked relationships`)
+      console.log(`🚀 Using reasonable limits: 500 nodes, 50-node chunks`)
+      console.log(`⚡ Rebuild: ${new Date().toISOString()}`)
       const nodesData = await reconciliationService.getNodes({ limit: 500 })
       if (nodesData.success && nodesData.nodes.length > 0) {
         const nodeIds = nodesData.nodes.map(node => node.id)
