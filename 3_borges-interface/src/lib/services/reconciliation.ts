@@ -358,11 +358,10 @@ export class ReconciliationService {
   }
 
   /**
-   * Perform reconciled query combining Neo4j context with GraphRAG
+   * Perform GraphRAG query
    */
   async reconciledQuery(options: {
     query: string;
-    visible_node_ids?: string[];
     mode?: 'local' | 'global';
     debug_mode?: boolean;
   }): Promise<ReconciledQueryResult> {
@@ -373,14 +372,13 @@ export class ReconciliationService {
       },
       body: JSON.stringify({
         query: options.query,
-        ...(options.visible_node_ids ? { visible_node_ids: options.visible_node_ids } : {}),
         mode: options.mode || 'local',
         debug_mode: options.debug_mode || false
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Reconciled query failed: ${response.status}`);
+      throw new Error(`Query failed: ${response.status}`);
     }
     return response.json();
   }

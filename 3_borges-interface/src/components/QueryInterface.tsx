@@ -16,7 +16,6 @@ interface Book {
 
 interface QueryInterfaceProps {
   selectedBook: Book | null
-  visibleNodeIds: string[]
   onHighlightPath?: (searchPath: any) => void
   onClearHighlight?: () => void
   onProcessingStart?: () => void
@@ -29,8 +28,6 @@ interface QueryResult {
   answer: string
   timestamp: Date
   context?: {
-    visible_nodes_count: number
-    node_context: string[]
     mode: 'local' | 'global'
   }
   search_path?: {
@@ -43,7 +40,6 @@ interface QueryResult {
 
 export default function QueryInterface({
   selectedBook,
-  visibleNodeIds,
   onHighlightPath,
   onClearHighlight,
   onProcessingStart,
@@ -165,7 +161,6 @@ export default function QueryInterface({
 
       const result = await reconciliationService.reconciledQuery({
         query: currentQuery,
-        visible_node_ids: visibleNodeIds,
         mode: mode,
         debug_mode: debugMode
       })
@@ -259,7 +254,7 @@ export default function QueryInterface({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Explorez la galaxie de connaissances avec une question..."
+                placeholder="Posez une question..."
                 className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 pr-12 text-borges-light placeholder-gray-400 focus:outline-none focus:border-borges-accent"
                 disabled={isLoading}
               />
@@ -336,9 +331,6 @@ export default function QueryInterface({
                 </button>
               )}
             </div>
-            <div className="text-gray-400">
-              {visibleNodeIds.length} nœuds visibles
-            </div>
           </div>
         </div>
       </form>
@@ -370,8 +362,7 @@ export default function QueryInterface({
           {lastResult.context && (
             <div className="mb-3 p-2 bg-gray-800 rounded text-xs">
               <div className="text-gray-400">
-                Mode: <span className="text-borges-accent">{lastResult.context.mode}</span> •
-                Nœuds visibles: <span className="text-borges-accent">{lastResult.context.visible_nodes_count}</span>
+                Mode: <span className="text-borges-accent">{lastResult.context.mode}</span>
               </div>
             </div>
           )}
