@@ -1,0 +1,479 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import * as THREE from 'three'
+
+interface Node3D {
+  id: string
+  label: string
+  type: string
+  degree: number
+  centrality_score: number
+  position: THREE.Vector3
+  color: string
+  size: number
+}
+
+interface Link3D {
+  id: string
+  source: string
+  target: string
+  relation: string
+  weight: number
+}
+
+interface GraphVisualization3DProps {
+  neo4jGraphData: {
+    nodes: Array<{
+      id: string
+      labels: string[]
+      properties: Record<string, any>
+      degree: number
+      centrality_score: number
+    }>
+    relationships: Array<{
+      id: string
+      type: string
+      source: string
+      target: string
+      properties: Record<string, any>
+    }>
+  } | null
+  searchPath?: any
+  onNodeVisibilityChange?: (nodeIds: string[]) => void
+}
+
+export default function GraphVisualization3D({
+  neo4jGraphData,
+  searchPath,
+  onNodeVisibilityChange
+}: GraphVisualization3DProps) {
+  const [mountElement, setMountElement] = useState<HTMLDivElement | null>(null)
+  const sceneRef = useRef<THREE.Scene>()
+  const rendererRef = useRef<THREE.WebGLRenderer>()
+  const cameraRef = useRef<THREE.PerspectiveCamera>()
+  const nodesRef = useRef<Node3D[]>([])
+  const linksRef = useRef<Link3D[]>([])
+  const nodeInstancesRef = useRef<THREE.InstancedMesh>()
+  const linkInstancesRef = useRef<THREE.InstancedMesh>()
+  const [isInitialized, setIsInitialized] = useState(false)
+
+  // Callback ref to immediately capture the mount element
+  const setMountRef = (element: HTMLDivElement | null) => {
+    console.log('📍 Mount element callback triggered:', !!element)
+    setMountElement(element)
+  }
+
+  // Initialize Three.js scene - this should run independently of neo4jGraphData
+  useEffect(() => {
+    console.log('🎬 Three.js initialization useEffect triggered:', {
+      hasMountElement: !!mountElement,
+      isInitialized,
+      containerSize: mountElement ? { width: mountElement.clientWidth, height: mountElement.clientHeight } : null
+    })
+
+    if (!mountElement) {
+      console.log('⏸️ Mount element not ready yet, waiting...')
+      return
+    }
+
+    if (isInitialized) {
+      console.log('⏸️ Three.js already initialized')
+      return
+    }
+
+    const container = mountElement
+    const { clientWidth, clientHeight } = container
+
+    console.log('🚀 Starting Three.js scene creation with container size:', { clientWidth, clientHeight })
+
+    // Declare variables in scope accessible to cleanup
+    let renderer: THREE.WebGLRenderer | null = null
+    let onMouseMove: ((event: MouseEvent) => void) | null = null
+    let onMouseDown: ((event: MouseEvent) => void) | null = null
+    let onMouseUp: (() => void) | null = null
+    let onWheel: ((event: WheelEvent) => void) | null = null
+
+    try {
+      // Scene with deep space background
+      const scene = new THREE.Scene()
+      scene.background = new THREE.Color(0x000511) // Deep space blue-black
+      sceneRef.current = scene
+      console.log('✅ Scene created successfully')
+
+      // Camera
+      const camera = new THREE.PerspectiveCamera(75, clientWidth / clientHeight, 0.1, 2000)
+      camera.position.set(0, 0, 500)
+      cameraRef.current = camera
+      console.log('✅ Camera created successfully')
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true })
+      renderer.setSize(clientWidth, clientHeight)
+      renderer.setPixelRatio(window.devicePixelRatio)
+      container.appendChild(renderer.domElement)
+      rendererRef.current = renderer
+      console.log('✅ Renderer created and appended to DOM')
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6)
+    scene.add(ambientLight)
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
+    directionalLight.position.set(100, 100, 50)
+    scene.add(directionalLight)
+
+      // Enhanced navigation controls for exploring among stars
+      let isMouseDown = false
+      let mouseX = 0, mouseY = 0
+      let lastMouseX = 0, lastMouseY = 0
+      let cameraDistance = 500
+      let cameraTheta = 0 // Horizontal rotation
+      let cameraPhi = 0   // Vertical rotation
+
+      const updateCameraPosition = () => {
+        camera.position.x = cameraDistance * Math.sin(cameraTheta) * Math.cos(cameraPhi)
+        camera.position.y = cameraDistance * Math.sin(cameraPhi)
+        camera.position.z = cameraDistance * Math.cos(cameraTheta) * Math.cos(cameraPhi)
+        camera.lookAt(0, 0, 0)
+      }
+
+      onMouseMove = (event: MouseEvent) => {
+        mouseX = event.clientX
+        mouseY = event.clientY
+
+        if (isMouseDown) {
+          const deltaX = mouseX - lastMouseX
+          const deltaY = mouseY - lastMouseY
+
+          // Rotate camera around the galaxy center
+          cameraTheta += deltaX * 0.01
+          cameraPhi = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, cameraPhi + deltaY * 0.01))
+
+          updateCameraPosition()
+        }
+
+        lastMouseX = mouseX
+        lastMouseY = mouseY
+      }
+
+      onMouseDown = (event: MouseEvent) => {
+        isMouseDown = true
+        lastMouseX = event.clientX
+        lastMouseY = event.clientY
+      }
+      onMouseUp = () => { isMouseDown = false }
+
+      onWheel = (event: WheelEvent) => {
+        // Smooth zoom with limits for close exploration
+        cameraDistance *= (1 + event.deltaY * 0.0005)
+        cameraDistance = Math.max(20, Math.min(2000, cameraDistance)) // Close zoom to far view
+        updateCameraPosition()
+        event.preventDefault()
+      }
+
+      // Set initial camera position
+      updateCameraPosition()
+
+      container.addEventListener('mousemove', onMouseMove)
+      container.addEventListener('mousedown', onMouseDown)
+      container.addEventListener('mouseup', onMouseUp)
+      container.addEventListener('wheel', onWheel)
+      console.log('✅ Event listeners added')
+
+      setIsInitialized(true)
+      console.log('🎉 Three.js initialization completed successfully!')
+
+    } catch (error) {
+      console.error('❌ Three.js initialization failed:', error)
+    }
+
+      // Cleanup
+      return () => {
+        try {
+          if (container && onMouseMove && onMouseDown && onMouseUp && onWheel) {
+            container.removeEventListener('mousemove', onMouseMove)
+            container.removeEventListener('mousedown', onMouseDown)
+            container.removeEventListener('mouseup', onMouseUp)
+            container.removeEventListener('wheel', onWheel)
+          }
+
+          if (renderer && container && container.contains(renderer.domElement)) {
+            container.removeChild(renderer.domElement)
+            renderer.dispose()
+          }
+        } catch (error) {
+          console.warn('⚠️ Error during Three.js cleanup:', error)
+        }
+      }
+  }, [mountElement, isInitialized]) // Run when mount element becomes available or initialization state changes
+
+  // Generate galaxy distribution positions
+  const generateGalaxyPositions = (nodeCount: number): THREE.Vector3[] => {
+    const positions: THREE.Vector3[] = []
+
+    for (let i = 0; i < nodeCount; i++) {
+      // Galaxy spiral parameters with enhanced 3D structure
+      const arm = Math.floor(Math.random() * 4) // 4 spiral arms
+      const armAngle = (arm * Math.PI * 2) / 4
+      const radius = Math.random() * 350 + 50 // Distance from center
+      const spiralFactor = radius * 0.015 // Spiral tightness
+      const angle = armAngle + spiralFactor + (Math.random() - 0.5) * 0.8
+
+      // Enhanced 3D distribution for realistic galaxy structure
+      const armOffsetRadius = (Math.random() - 0.5) * 80 // Random spread within arm
+      const finalRadius = radius + armOffsetRadius
+
+      // Create proper 3D galaxy disk with bulge
+      const diskHeight = 40 // Maximum disk thickness
+      const bulgeRadius = 100 // Central bulge radius
+
+      // Calculate height based on distance from center (thicker at center, thinner at edges)
+      let maxHeight
+      if (finalRadius < bulgeRadius) {
+        // Central bulge - more spherical distribution
+        maxHeight = diskHeight * (1 - (finalRadius / bulgeRadius) * 0.3)
+      } else {
+        // Outer disk - exponential thinning
+        maxHeight = diskHeight * Math.exp(-(finalRadius - bulgeRadius) / 150)
+      }
+
+      // Generate vertical position with realistic galaxy distribution
+      const heightFactor = Math.random() * 2 - 1 // -1 to 1
+      const y = heightFactor * maxHeight * (Math.random() * 0.8 + 0.2) // Add some variation
+
+      // Calculate final x,z positions
+      const x = Math.cos(angle) * finalRadius
+      const z = Math.sin(angle) * finalRadius
+
+      positions.push(new THREE.Vector3(x, y, z))
+    }
+
+    return positions
+  }
+
+  // Process Neo4j data and create 3D nodes
+  useEffect(() => {
+    console.log('🔍 GraphVisualization3D useEffect triggered:', {
+      hasNeo4jGraphData: !!neo4jGraphData,
+      nodeCount: neo4jGraphData?.nodes?.length || 0,
+      hasScene: !!sceneRef.current,
+      isInitialized
+    })
+
+    if (!neo4jGraphData || !sceneRef.current || !isInitialized) {
+      console.log('⚠️ Missing requirements for galaxy creation')
+      return
+    }
+
+    console.log('🌌 Creating galaxy visualization with', neo4jGraphData.nodes.length, 'nodes')
+
+    // Sort nodes by degree (most connected first) and take top 300
+    const sortedNodes = [...neo4jGraphData.nodes]
+      .sort((a, b) => b.degree - a.degree)
+      .slice(0, 300)
+
+    const galaxyPositions = generateGalaxyPositions(sortedNodes.length)
+
+    // Galaxy-inspired color mapping for node types (brighter, more vibrant)
+    const typeColors = {
+      'Personnes': 0xff4757,        // Bright red like red giants
+      'Lieux': 0x00d2d3,           // Cyan like blue stars
+      'Événements': 0x5352ed,      // Blue like blue supergiants
+      'Concepts': 0x7bed9f,        // Green like stellar nurseries
+      'Organisations': 0xffa502,   // Orange like orange stars
+      'Livres': 0xff6348,          // Pink like nebulae
+      'default': 0xdfe4ea          // Bright white like white dwarfs
+    }
+
+    // Create 3D nodes
+    const nodes3D: Node3D[] = sortedNodes.map((node, index) => {
+      const nodeType = node.labels[0] || 'default'
+      const color = typeColors[nodeType as keyof typeof typeColors] || typeColors.default
+      const size = Math.max(3 + (node.degree / 10), 2) // Size based on connectivity
+
+      return {
+        id: node.id,
+        label: node.properties.name || node.id,
+        type: nodeType,
+        degree: node.degree,
+        centrality_score: node.centrality_score,
+        position: galaxyPositions[index],
+        color: `#${color.toString(16).padStart(6, '0')}`,
+        size
+      }
+    })
+
+    nodesRef.current = nodes3D
+
+    // Create 3D links (filter to only connect nodes in our top 300)
+    const nodeIds = new Set(sortedNodes.map(n => n.id))
+    const links3D: Link3D[] = neo4jGraphData.relationships
+      .filter(rel => nodeIds.has(rel.source) && nodeIds.has(rel.target))
+      .slice(0, 800) // Limit links for performance
+      .map(rel => ({
+        id: rel.id,
+        source: rel.source,
+        target: rel.target,
+        relation: rel.type,
+        weight: rel.properties.weight || 1
+      }))
+
+    linksRef.current = links3D
+
+    // Create 3D sphere nodes with proper materials and colors
+    const nodeGeometry = new THREE.SphereGeometry(1, 16, 16)
+    const nodeInstances = new THREE.InstancedMesh(nodeGeometry, new THREE.MeshStandardMaterial(), nodes3D.length)
+
+    const matrix = new THREE.Matrix4()
+    const color = new THREE.Color()
+
+    nodes3D.forEach((node, i) => {
+      // Position and scale
+      matrix.setPosition(node.position.x, node.position.y, node.position.z)
+      matrix.scale(new THREE.Vector3(node.size, node.size, node.size))
+      nodeInstances.setMatrixAt(i, matrix)
+
+      // Color - Fix color parsing
+      const colorHex = parseInt(node.color.replace('#', ''), 16)
+      color.setHex(colorHex)
+      nodeInstances.setColorAt(i, color)
+    })
+
+    // Update the material to be emissive (glowing)
+    const nodeMaterial = nodeInstances.material as THREE.MeshStandardMaterial
+    nodeMaterial.emissive = new THREE.Color(0x222222) // Slight glow
+    nodeMaterial.emissiveIntensity = 0.2
+    nodeMaterial.metalness = 0.1
+    nodeMaterial.roughness = 0.7
+
+    nodeInstances.instanceMatrix.needsUpdate = true
+    if (nodeInstances.instanceColor) nodeInstances.instanceColor.needsUpdate = true
+
+    sceneRef.current.add(nodeInstances)
+    nodeInstancesRef.current = nodeInstances
+
+    console.log('✨ Created 3D sphere nodes with emissive materials')
+
+    // Create links (lines between nodes)
+    if (links3D.length > 0) {
+      const linkGeometry = new THREE.BufferGeometry()
+      const linkPositions: number[] = []
+
+      links3D.forEach(link => {
+        const sourceNode = nodes3D.find(n => n.id === link.source)
+        const targetNode = nodes3D.find(n => n.id === link.target)
+
+        if (sourceNode && targetNode) {
+          linkPositions.push(
+            sourceNode.position.x, sourceNode.position.y, sourceNode.position.z,
+            targetNode.position.x, targetNode.position.y, targetNode.position.z
+          )
+        }
+      })
+
+      linkGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linkPositions, 3))
+
+      // Create bright, visible connection lines inspired by galaxy examples
+      const linkMaterial = new THREE.LineBasicMaterial({
+        color: 0xffffff, // Bright white
+        opacity: 0.3,
+        transparent: true
+      })
+
+      const linkLines = new THREE.LineSegments(linkGeometry, linkMaterial)
+      sceneRef.current.add(linkLines)
+
+      // Add a glowing effect with a second brighter layer
+      const linkMaterialGlow = new THREE.LineBasicMaterial({
+        color: 0x88ccff, // Light blue glow
+        opacity: 0.1,
+        transparent: true,
+        blending: THREE.AdditiveBlending // Additive blending for glow effect
+      })
+
+      const linkLinesGlow = new THREE.LineSegments(linkGeometry.clone(), linkMaterialGlow)
+      sceneRef.current.add(linkLinesGlow)
+
+      console.log('✨ Created glowing connection lines with additive blending')
+    }
+
+    // Animation loop
+    const animate = () => {
+      requestAnimationFrame(animate)
+
+      if (rendererRef.current && cameraRef.current && sceneRef.current) {
+        // Gentle rotation of the galaxy
+        if (nodeInstancesRef.current) {
+          nodeInstancesRef.current.rotation.y += 0.001
+        }
+
+        rendererRef.current.render(sceneRef.current, cameraRef.current)
+      }
+    }
+    animate()
+
+    // Notify parent of visible nodes
+    if (onNodeVisibilityChange) {
+      onNodeVisibilityChange(nodes3D.map(n => n.id))
+    }
+
+    console.log('🌌 Galaxy created:', nodes3D.length, 'nodes,', links3D.length, 'links')
+
+  }, [neo4jGraphData, isInitialized, onNodeVisibilityChange])
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (!mountElement || !cameraRef.current || !rendererRef.current) return
+
+      const { clientWidth, clientHeight } = mountElement
+      cameraRef.current.aspect = clientWidth / clientHeight
+      cameraRef.current.updateProjectionMatrix()
+      rendererRef.current.setSize(clientWidth, clientHeight)
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  if (!neo4jGraphData) {
+    return (
+      <div className="h-full flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-pulse">🌌</div>
+          <p className="text-xl">Chargement de la galaxie de connaissances...</p>
+          <p className="text-sm mt-2 opacity-75">
+            Préparation de la visualisation 3D
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative h-full w-full">
+      <div ref={setMountRef} className="h-full w-full" />
+
+      {/* Galaxy Info Overlay */}
+      <div className="absolute top-4 left-4 bg-black bg-opacity-70 text-white p-3 rounded-lg">
+        <div className="text-sm">
+          <div className="text-borges-accent font-semibold">🌌 Galaxie de Borges</div>
+          <div className="mt-1">
+            <span className="text-gray-300">Nœuds:</span> {nodesRef.current.length}
+          </div>
+          <div>
+            <span className="text-gray-300">Liens:</span> {linksRef.current.length}
+          </div>
+        </div>
+      </div>
+
+      {/* Controls Info */}
+      <div className="absolute bottom-4 right-4 bg-black bg-opacity-70 text-white p-3 rounded-lg text-xs">
+        <div className="text-borges-accent font-semibold mb-1">Contrôles</div>
+        <div>🖱️ Glisser: Orbiter</div>
+        <div>🔄 Molette: Zoom</div>
+      </div>
+    </div>
+  )
+}
