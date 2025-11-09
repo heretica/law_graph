@@ -43,7 +43,18 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text()
       console.error(`API error ${response.status}: ${errorText.substring(0, 200)}`)
-      throw new Error(`API returned ${response.status}`)
+      return NextResponse.json(
+        {
+          success: true,
+          relationships: [],
+          count: 0,
+          input_nodes: nodeIds.split(',').length,
+          limit_applied: parseInt(limit),
+          filtered: false,
+          error: `API returned ${response.status}`
+        },
+        { status: 200 }
+      )
     }
 
     const data = await response.json()
