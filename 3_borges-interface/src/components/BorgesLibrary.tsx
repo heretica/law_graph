@@ -357,9 +357,10 @@ export default function BorgesLibrary() {
             {isLoadingGraph && (
               <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
                 <div className="text-center">
-                  <h2 className="text-2xl font-light text-borges-accent mb-8">
+                  <h2 className="text-2xl font-light text-borges-accent mb-8 animate-pulse">
                     Il suffit qu&apos;un livre soit possible pour qu&apos;il existe
                   </h2>
+                  <p className="text-sm text-gray-400 italic mb-6">— Jorge Luis Borges</p>
 
                   {/* Star Constellation Loading Animation */}
                   <div className="relative w-64 h-64 mx-auto mb-6">
