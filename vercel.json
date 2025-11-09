@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "3_borges-interface/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "3_borges-interface/$1"
+    }
+  ]
+}
