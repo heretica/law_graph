@@ -23,6 +23,12 @@ interface ReconciliationGraphData {
   }>;
 }
 
+interface Book {
+  id: string
+  name: string
+  has_data: boolean
+}
+
 export default function BorgesLibrary() {
   const [reconciliationData, setReconciliationData] = useState<ReconciliationGraphData | null>(null)
   const [isLoadingGraph, setIsLoadingGraph] = useState(false)
@@ -33,10 +39,28 @@ export default function BorgesLibrary() {
   const [currentQuery, setCurrentQuery] = useState<string>('')
   const [queryAnswer, setQueryAnswer] = useState<string>('')
   const [showAnswer, setShowAnswer] = useState(false)
+  const [books, setBooks] = useState<Book[]>([])
+  const [selectedBook, setSelectedBook] = useState<string>('a_rebours_huysmans')
+  const [multiBook, setMultiBook] = useState<boolean>(false)
+  const [mode, setMode] = useState<'local' | 'global'>('local')
+  const [processingStats, setProcessingStats] = useState<{ nodes: number; communities: number }>({ nodes: 0, communities: 0 })
 
   useEffect(() => {
+    loadBooks()
     loadReconciliationGraph()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadBooks = async () => {
+    try {
+      const booksData = await reconciliationService.getBooks()
+      if (booksData.books) {
+        setBooks(booksData.books)
+        console.log(`📚 Loaded ${booksData.books.length} books`)
+      }
+    } catch (error) {
+      console.error('Error loading books:', error)
+    }
+  }
 
 
   const loadReconciliationGraph = async () => {
@@ -118,90 +142,88 @@ export default function BorgesLibrary() {
   const handleSimpleQuery = async (query: string) => {
     console.log('🔍 Processing query:', query)
 
-    // Start processing animation
     setIsProcessing(true)
-    setCurrentProcessingPhase('🔍 Analyse multi-livre')
+    setCurrentProcessingPhase('🔍 Running GraphRAG...')
     setCurrentQuery(query)
+    setProcessingStats({ nodes: 0, communities: 0 })
 
     try {
-      const phases = [
-        { name: '📚 Interrogation des livres', duration: 1500 },
-        { name: '👥 Sélection des entités', duration: 1500 },
-        { name: '🏘️ Analyse des communautés', duration: 2000 },
-        { name: '🔗 Cartographie des relations', duration: 1200 },
-        { name: '📝 Synthèse textuelle', duration: 1800 }
-      ]
+      if (multiBook) {
+        // Multi-book query
+        console.log(`📚 Querying ALL BOOKS with mode: ${mode}`)
+        const result = await reconciliationService.multiBookQuery({
+          query,
+          mode,
+          debug_mode: true
+        })
 
-      console.log(`🔍 Querying ALL BOOKS sequentially with GraphRAG`)
-      console.log(`📚 Multi-book aggregation enabled`)
-      const apiCallPromise = reconciliationService.multiBookQuery({
-        query,
-        mode: 'global',
-        debug_mode: true
-      })
+        if (result.success) {
+          const aggregated = result.aggregated || {}
+          const entities = aggregated.entities || []
+          const relationships = aggregated.relationships || []
+          const communities = aggregated.communities || []
 
-      // Run first 4 phases while API is processing
-      for (let i = 0; i < 4; i++) {
-        setCurrentProcessingPhase(phases[i].name)
-        await new Promise(resolve => setTimeout(resolve, phases[i].duration))
-      }
+          setProcessingStats({ nodes: entities.length, communities: communities.length })
+          setCurrentProcessingPhase(`✓ Retrieved ${entities.length} nodes, ${communities.length} communities`)
 
-      // Wait for API response
-      const result = await apiCallPromise
-
-      if (result.success) {
-        console.log('📊 Multi-book query result:', result)
-        console.log(`📚 Books queried: ${result.books_queried?.join(', ') || 'N/A'}`)
-
-        const aggregated = result.aggregated || {}
-        const entities = aggregated.entities || []
-        const relationships = aggregated.relationships || []
-        const communities = aggregated.communities || []
-
-        console.log(`📊 Aggregated Results:`)
-        console.log(`   👥 Total unique entities: ${entities.length}`)
-        console.log(`   🔗 Total unique relationships: ${relationships.length}`)
-        console.log(`   🏘️ Total communities: ${communities.length}`)
-
-        // IMPORTANT: Show nodes FIRST before answer
-        if (entities.length > 0) {
-          const searchPath = {
-            entities: entities.slice(0, 50),
-            relations: relationships.slice(0, 100),
-            communities: communities.slice(0, 20)
+          // Show nodes
+          if (entities.length > 0) {
+            const searchPath = {
+              entities: entities.map((e: any, idx: number) => ({ ...e, order: idx })),
+              relations: relationships.map((r: any, idx: number) => ({ ...r, traversalOrder: idx })),
+              communities
+            }
+            setSearchPath(searchPath)
+            handleHighlightPath(searchPath)
           }
 
-          console.log('🎯 Setting search path to highlight selected nodes')
+          // Show answer
+          const combinedAnswer = result.book_results
+            ?.filter((r: any) => r.answer && !r.error)
+            .map((r: any) => `📖 ${r.book_id}:\n${r.answer}`)
+            .join('\n\n---\n\n') || 'No results'
+
+          setQueryAnswer(combinedAnswer)
+          setShowAnswer(true)
+        }
+      } else {
+        // Single-book query
+        console.log(`📖 Querying book: ${selectedBook}, mode: ${mode}`)
+        const result = await reconciliationService.reconciledQuery({
+          query,
+          mode,
+          debug_mode: true,
+          book_id: selectedBook
+        })
+
+        if (result.success && result.nodes) {
+          setProcessingStats({ nodes: result.nodes.length, communities: (result.graph?.total_relationships || 0) })
+          setCurrentProcessingPhase(`✓ Retrieved ${result.nodes.length} nodes`)
+
+          // Convert to search path
+          const searchPath = {
+            entities: result.nodes.map((node: any, idx: number) => ({
+              id: node.id,
+              score: (node.degree || 0) / 100,
+              order: idx
+            })),
+            relations: result.relationships?.map((rel: any, idx: number) => ({
+              source: rel.source,
+              target: rel.target,
+              traversalOrder: idx
+            })) || [],
+            communities: []
+          }
+
           setSearchPath(searchPath)
           handleHighlightPath(searchPath)
-
-          // Show the nodes visualization with phase animation
-          setCurrentProcessingPhase('📍 Mise en évidence des nœuds sélectionnés')
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          setQueryAnswer(result.answer || 'No answer')
+          setShowAnswer(true)
         }
-
-        // THEN show the answer text
-        let combinedAnswer = ''
-        if (result.book_results && result.book_results.length > 0) {
-          combinedAnswer = result.book_results
-            .filter((r: any) => r.answer && !r.error)
-            .map((r: any) => `📖 ${r.book_id}:\n${r.answer}`)
-            .join('\n\n---\n\n')
-        }
-
-        setQueryAnswer(combinedAnswer || 'Pas de résultats trouvés')
-        setShowAnswer(true)
-
-        // Show final synthesis phase
-        setCurrentProcessingPhase(phases[4].name)
-        await new Promise(resolve => setTimeout(resolve, phases[4].duration))
-      } else {
-        setQueryAnswer(`Erreur: ${result.error || 'Erreur lors du traitement de la requête'}`)
-        setShowAnswer(true)
       }
     } catch (error) {
       console.error('Error processing query:', error)
-      setQueryAnswer(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`)
+      setQueryAnswer(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
       setShowAnswer(true)
     } finally {
       setIsProcessing(false)
@@ -226,23 +248,109 @@ export default function BorgesLibrary() {
       {/* Main Content */}
       <main className="h-[calc(100vh-120px)]">
         <div className="h-full flex flex-col">
-          {/* Simple Query Bar */}
+          {/* Enhanced Query Bar with Controls */}
           <div className="p-4 bg-borges-secondary border-b border-gray-600">
-            <div className="max-w-4xl mx-auto">
-              <input
-                type="text"
-                placeholder="Posez une question pour voir les nœuds apparaître dynamiquement..."
-                className="w-full p-3 bg-borges-dark border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-borges-accent focus:outline-none"
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    const query = (e.target as HTMLInputElement).value.trim()
-                    if (query) {
-                      handleSimpleQuery(query)
-                      ;(e.target as HTMLInputElement).value = ''
+            <div className="max-w-6xl mx-auto space-y-3">
+              {/* Main Search Row */}
+              <div className="flex gap-2">
+                {/* Book Selector */}
+                <select
+                  value={selectedBook}
+                  onChange={(e) => setSelectedBook(e.target.value)}
+                  disabled={multiBook || isProcessing}
+                  className="px-3 py-2 bg-borges-dark border border-gray-600 rounded text-sm text-white focus:border-borges-accent focus:outline-none disabled:opacity-50"
+                >
+                  {books.map((book) => (
+                    <option key={book.id} value={book.id}>
+                      {book.name}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Multi-Book Toggle */}
+                <button
+                  onClick={() => setMultiBook(!multiBook)}
+                  disabled={isProcessing}
+                  className={`px-3 py-2 rounded text-sm font-medium transition-colors disabled:opacity-50 ${
+                    multiBook
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                  title="Query all books at once"
+                >
+                  📚 All Books
+                </button>
+
+                {/* Search Input */}
+                <input
+                  type="text"
+                  placeholder="Posez une question..."
+                  disabled={isProcessing}
+                  className="flex-1 p-2 bg-borges-dark border border-gray-600 rounded text-white placeholder-gray-400 focus:border-borges-accent focus:outline-none disabled:opacity-50"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !isProcessing) {
+                      const query = (e.target as HTMLInputElement).value.trim()
+                      if (query) {
+                        handleSimpleQuery(query)
+                        ;(e.target as HTMLInputElement).value = ''
+                      }
                     }
-                  }
-                }}
-              />
+                  }}
+                />
+
+                {/* Mode Toggle */}
+                <div className="flex gap-1 bg-gray-700 rounded p-1">
+                  <button
+                    onClick={() => setMode('local')}
+                    disabled={isProcessing}
+                    className={`px-2 py-1 text-xs rounded font-medium transition-colors disabled:opacity-50 ${
+                      mode === 'local'
+                        ? 'bg-borges-accent text-black'
+                        : 'text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    Local
+                  </button>
+                  <button
+                    onClick={() => setMode('global')}
+                    disabled={isProcessing}
+                    className={`px-2 py-1 text-xs rounded font-medium transition-colors disabled:opacity-50 ${
+                      mode === 'global'
+                        ? 'bg-borges-accent text-black'
+                        : 'text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    Global
+                  </button>
+                </div>
+
+                {/* Search Button */}
+                <button
+                  disabled={isProcessing}
+                  className="px-4 py-2 bg-borges-accent text-black font-medium rounded hover:bg-yellow-500 transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? '⏳' : '🔍'}
+                </button>
+              </div>
+
+              {/* Processing Indicator */}
+              {isProcessing && (
+                <div className="p-3 bg-gray-800 rounded border border-borges-accent">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-3 h-3 bg-borges-accent rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium text-borges-accent">Processing Query...</span>
+                  </div>
+                  <div className="text-xs text-gray-400 space-y-1">
+                    <div>{currentProcessingPhase || '🔍 Analyzing question...'}</div>
+                    {processingStats.nodes > 0 && (
+                      <div className="text-borges-accent">✓ {processingStats.nodes} nodes extracted</div>
+                    )}
+                    {processingStats.communities > 0 && (
+                      <div className="text-borges-accent">✓ {processingStats.communities} communities analyzed</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

@@ -370,6 +370,7 @@ export class ReconciliationService {
     query: string;
     mode?: 'local' | 'global';
     debug_mode?: boolean;
+    book_id?: string;
   }): Promise<ReconciledQueryResult> {
     const response = await fetch(`${this.apiUrl}/graph/search-nodes`, {
       method: 'POST',
@@ -379,7 +380,8 @@ export class ReconciliationService {
       body: JSON.stringify({
         query: options.query,
         mode: options.mode || 'local',
-        debug_mode: options.debug_mode || false
+        debug_mode: options.debug_mode || false,
+        book_id: options.book_id
       }),
     });
 
