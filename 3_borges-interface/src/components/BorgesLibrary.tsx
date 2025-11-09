@@ -34,6 +34,7 @@ export default function BorgesLibrary() {
   const [isLoadingGraph, setIsLoadingGraph] = useState(false)
   const [visibleNodeIds, setVisibleNodeIds] = useState<string[]>([])
   const [searchPath, setSearchPath] = useState<any>(null)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [currentProcessingPhase, setCurrentProcessingPhase] = useState<string | null>(null)
   const [currentQuery, setCurrentQuery] = useState<string>('')
@@ -188,7 +189,7 @@ export default function BorgesLibrary() {
         const result = await reconciliationService.reconciledQuery({
           query,
           mode,
-          debug_mode: false,
+          debug_mode: true,  // Enable debug mode for animation data
           book_id: selectedBook
         })
 
@@ -196,6 +197,29 @@ export default function BorgesLibrary() {
           setCurrentProcessingPhase(`✓ Retrieved answer from ${selectedBook}`)
           setQueryAnswer(result.answer || 'No answer available')
           setShowAnswer(true)
+
+          // Set debug info for animation and clear scene first
+          if (result.debug_info) {
+            console.log('🎬 Debug info received for animation:', result.debug_info)
+            setDebugInfo(result.debug_info)
+
+            // Clear the scene first by setting empty reconciliation data temporarily
+            setReconciliationData({ nodes: [], relationships: [] })
+
+            // Set the selected nodes for incremental loading
+            if (result.selected_nodes && result.selected_relationships) {
+              setTimeout(() => {
+                console.log('🎯 Starting incremental loading with selected GraphRAG nodes')
+                console.log('🔍 Selected nodes length:', result.selected_nodes.length)
+                console.log('🔍 First selected node:', result.selected_nodes[0])
+                console.log('🔍 Selected relationships length:', result.selected_relationships.length)
+                setReconciliationData({
+                  nodes: result.selected_nodes,
+                  relationships: result.selected_relationships
+                })
+              }, 500) // Small delay to show the clearing effect
+            }
+          }
 
           // Clear any existing highlights for single book queries
           setSearchPath(null)
@@ -348,6 +372,7 @@ export default function BorgesLibrary() {
             <GraphVisualization3DForce
               reconciliationData={reconciliationData}
               searchPath={searchPath}
+              debugInfo={debugInfo}
               onNodeVisibilityChange={setVisibleNodeIds}
               isProcessing={isProcessing}
               currentProcessingPhase={currentProcessingPhase}

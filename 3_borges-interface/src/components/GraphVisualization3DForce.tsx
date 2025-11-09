@@ -36,9 +36,58 @@ interface ReconciliationData {
   }>
 }
 
+interface DebugEntity {
+  id: string
+  name: string
+  type: string
+  rank: number
+  score: number
+}
+
+interface DebugCommunity {
+  id: string
+  title: string
+  relevance: number
+}
+
+interface DebugRelationship {
+  source: string
+  target: string
+  description: string
+}
+
+interface DebugInfo {
+  processing_phases: {
+    entity_selection: {
+      entities: DebugEntity[]
+      duration_ms: number
+      phase: string
+    }
+    community_analysis: {
+      communities: DebugCommunity[]
+      duration_ms: number
+      phase: string
+    }
+    relationship_mapping: {
+      relationships: DebugRelationship[]
+      duration_ms: number
+      phase: string
+    }
+  }
+  animation_timeline: Array<{
+    phase: string
+    duration: number
+    description: string
+    entity_count?: number
+    community_count?: number
+    relationship_count?: number
+  }>
+}
+
 interface GraphVisualization3DForceProps {
   reconciliationData?: ReconciliationData | null
   searchPath?: any
+  debugInfo?: DebugInfo | null
   onNodeVisibilityChange?: (nodeIds: string[]) => void
   isProcessing?: boolean
   currentProcessingPhase?: string | null
@@ -47,6 +96,7 @@ interface GraphVisualization3DForceProps {
 export default function GraphVisualization3DForce({
   reconciliationData,
   searchPath,
+  debugInfo,
   onNodeVisibilityChange,
   isProcessing,
   currentProcessingPhase
@@ -150,9 +200,10 @@ export default function GraphVisualization3DForce({
 
     console.log(`📊 Total nodes: ${nodes.length}, Valid links: ${validLinks.length}/${links.length}`)
 
-    const addBatch = () => {
-      const currentData = graphRef.current.graphData()
+    // Start with fresh data to ensure we only show the selected nodes
+    let progressiveNodes: Node[] = []
 
+    const addBatch = () => {
       // Add nodes in batches of 8-12
       const nodeBatchSize = Math.min(10, nodes.length - currentNodeIndex)
       if (nodeBatchSize > 0) {
@@ -161,10 +212,13 @@ export default function GraphVisualization3DForce({
         // Track which nodes we've added
         newNodes.forEach(node => addedNodeIds.add(node.id))
 
+        // Add to our progressive array instead of current graph data
+        progressiveNodes = [...progressiveNodes, ...newNodes]
+
         try {
           graphRef.current.graphData({
-            nodes: [...currentData.nodes, ...newNodes],
-            links: currentData.links
+            nodes: progressiveNodes,
+            links: [] // No links until all nodes are added
           })
         } catch (error) {
           console.error('Error adding nodes to graph:', error)
@@ -186,12 +240,15 @@ export default function GraphVisualization3DForce({
         const linkBatchSize = Math.min(15, availableLinks.length)
         if (linkBatchSize > 0) {
           const newLinks = availableLinks.slice(0, linkBatchSize)
+
+          // Get current links from the progressive state
           const currentGraphData = graphRef.current.graphData()
+          const currentLinks = currentGraphData.links || []
 
           try {
             graphRef.current.graphData({
-              nodes: currentGraphData.nodes,
-              links: [...currentGraphData.links, ...newLinks]
+              nodes: progressiveNodes,
+              links: [...currentLinks, ...newLinks]
             })
           } catch (error) {
             console.error('Error adding links to graph:', error)
@@ -219,137 +276,75 @@ export default function GraphVisualization3DForce({
     addBatch()
   }
 
-  // Progressive graph construction triggered by processing phases
+  // Load graph when reconciliation data is available
   useEffect(() => {
     if (!reconciliationData || !graphRef.current) return
 
-    // If processing is active, start progressive construction immediately
-    if (isProcessing && currentProcessingPhase) {
-      console.log(`🔥 Processing phase: ${currentProcessingPhase} - Starting progressive graph construction...`)
+    // List of problematic node IDs to exclude
+    const problematicNodeIds = [
+      '4:d3905797-be64-4806-a783-4a9cdb24a462:13532'
+    ]
 
-      // Transform reconciliation data to 3D Force Graph format
-      // List of problematic node IDs to exclude
-      const problematicNodeIds = [
-        '4:d3905797-be64-4806-a783-4a9cdb24a462:13532'
-      ]
+    // Create nodes with robust data validation
+    const nodes: Node[] = reconciliationData.nodes
+      .filter(node => {
+        if (!node || !node.id) return false
+        if (problematicNodeIds.includes(String(node.id))) {
+          console.warn(`⚠️ Excluding problematic node: ${node.id}`)
+          return false
+        }
+        return true
+      })
+      .map(node => ({
+        id: String(node.id), // Ensure ID is a string
+        name: node.properties?.name || node.properties?.title || String(node.id),
+        group: node.labels?.[0] || 'default',
+        color: getNodeColor(node.labels || []),
+        val: Math.max(1, (node.degree || 0) / 5) // Size based on degree with fallback
+      }))
 
-      // Create nodes with robust data validation
-      const nodes: Node[] = reconciliationData.nodes
-        .filter(node => {
-          if (!node || !node.id) return false
-          if (problematicNodeIds.includes(String(node.id))) {
-            console.warn(`⚠️ Excluding problematic node: ${node.id}`)
-            return false
-          }
-          return true
-        })
-        .map(node => ({
-          id: String(node.id), // Ensure ID is a string
-          name: node.properties?.name || node.properties?.title || String(node.id),
-          group: node.labels?.[0] || 'default',
-          color: getNodeColor(node.labels || []),
-          val: Math.max(1, (node.degree || 0) / 5) // Size based on degree with fallback
-        }))
+    // Create a Set of valid node IDs for quick lookup
+    const validNodeIds = new Set(nodes.map(n => n.id))
 
-      console.log(`📊 Created ${nodes.length} validated nodes`)
+    // Create links with strict validation - only include links where both nodes exist
+    const links: Link[] = reconciliationData.relationships
+      .filter(rel => {
+        if (!rel || !rel.source || !rel.target) return false
 
-      // Create a Set of valid node IDs for quick lookup
-      const validNodeIds = new Set(nodes.map(n => n.id))
+        const sourceId = String(rel.source)
+        const targetId = String(rel.target)
 
-      // Create links with strict validation - only include links where both nodes exist
-      const links: Link[] = reconciliationData.relationships
-        .filter(rel => {
-          if (!rel || !rel.source || !rel.target) return false
+        const isValid = validNodeIds.has(sourceId) && validNodeIds.has(targetId)
+        if (!isValid) {
+          console.warn(`⚠️ Skipping invalid link: ${sourceId} -> ${targetId}`)
+        }
+        return isValid
+      })
+      .map(rel => ({
+        source: String(rel.source),
+        target: String(rel.target),
+        type: rel.type || 'RELATED',
+        value: 1
+      }))
 
-          const sourceId = String(rel.source)
-          const targetId = String(rel.target)
-
-          const isValid = validNodeIds.has(sourceId) && validNodeIds.has(targetId)
-          if (!isValid) {
-            console.warn(`⚠️ Skipping invalid link: ${sourceId} -> ${targetId} (source exists: ${validNodeIds.has(sourceId)}, target exists: ${validNodeIds.has(targetId)})`)
-          }
-          return isValid
-        })
-        .map(rel => ({
-          source: String(rel.source),
-          target: String(rel.target),
-          type: rel.type || 'RELATED',
-          value: 1
-        }))
-
-      console.log(`🔗 Created ${links.length} validated links from ${reconciliationData.relationships.length} total relationships`)
-
-      // Clear existing graph first
+    // If debugInfo is present, do progressive loading. Otherwise load immediately
+    if (debugInfo) {
+      console.log('🎬 Starting progressive GraphRAG loading...')
+      // Clear the graph first
       try {
         graphRef.current.graphData({ nodes: [], links: [] })
       } catch (error) {
         console.error('Error clearing graph:', error)
-        return // If we can't clear, don't continue
       }
 
-      // Add nodes and links progressively during processing
+      // Add nodes progressively
       addNodesProgressively(nodes, links, () => {
-        // Update visible node IDs for the parent component when complete
         if (onNodeVisibilityChange) {
           onNodeVisibilityChange(nodes.map(n => n.id))
         }
       })
-    }
-    // If not processing but we have data, show complete graph immediately
-    else if (!isProcessing && reconciliationData) {
-      console.log('📊 Loading complete 3D Force Graph...')
-
-      // List of problematic node IDs to exclude
-      const problematicNodeIds = [
-        '4:d3905797-be64-4806-a783-4a9cdb24a462:13532'
-      ]
-
-      // Create nodes with robust data validation
-      const nodes: Node[] = reconciliationData.nodes
-        .filter(node => {
-          if (!node || !node.id) return false
-          if (problematicNodeIds.includes(String(node.id))) {
-            console.warn(`⚠️ Excluding problematic node: ${node.id}`)
-            return false
-          }
-          return true
-        })
-        .map(node => ({
-          id: String(node.id), // Ensure ID is a string
-          name: node.properties?.name || node.properties?.title || String(node.id),
-          group: node.labels?.[0] || 'default',
-          color: getNodeColor(node.labels || []),
-          val: Math.max(1, (node.degree || 0) / 5) // Size based on degree with fallback
-        }))
-
-      console.log(`📊 Created ${nodes.length} validated nodes for complete graph`)
-
-      // Create a Set of valid node IDs for quick lookup
-      const validNodeIds = new Set(nodes.map(n => n.id))
-
-      // Create links with strict validation - only include links where both nodes exist
-      const links: Link[] = reconciliationData.relationships
-        .filter(rel => {
-          if (!rel || !rel.source || !rel.target) return false
-
-          const sourceId = String(rel.source)
-          const targetId = String(rel.target)
-
-          const isValid = validNodeIds.has(sourceId) && validNodeIds.has(targetId)
-          if (!isValid) {
-            console.warn(`⚠️ Skipping invalid link in complete graph: ${sourceId} -> ${targetId}`)
-          }
-          return isValid
-        })
-        .map(rel => ({
-          source: String(rel.source),
-          target: String(rel.target),
-          type: rel.type || 'RELATED',
-          value: 1
-        }))
-
-      console.log(`🔗 Created ${links.length} validated links for complete graph from ${reconciliationData.relationships.length} total relationships`)
-
+    } else {
+      console.log('📊 Loading complete 3D Force Graph immediately...')
       // Show complete graph immediately
       try {
         graphRef.current.graphData({ nodes, links })
@@ -362,11 +357,116 @@ export default function GraphVisualization3DForce({
       }
     }
 
-  }, [reconciliationData, isProcessing, currentProcessingPhase, onNodeVisibilityChange])
+  }, [reconciliationData, debugInfo, onNodeVisibilityChange])
 
-  // Handle search path highlighting
+  // Animate GraphRAG processing phases
   useEffect(() => {
-    if (!searchPath || !graphRef.current) return
+    if (!debugInfo || !graphRef.current) return
+
+    console.log('🎬 Starting GraphRAG animation with debug info')
+
+    const animatePhases = async () => {
+      const timeline = debugInfo.animation_timeline
+
+      for (let i = 0; i < timeline.length; i++) {
+        const phase = timeline[i]
+        console.log(`🔥 Animation phase ${i + 1}: ${phase.phase} - ${phase.description}`)
+
+        // Highlight entities during explosion phase
+        if (phase.phase === 'explosion' && debugInfo.processing_phases.entity_selection.entities.length > 0) {
+          const entities = debugInfo.processing_phases.entity_selection.entities
+
+          // Find actual nodes in the graph that match entity names
+          const currentData = graphRef.current.graphData()
+          const graphNodes = currentData.nodes || []
+
+          for (let j = 0; j < entities.length; j++) {
+            const entity = entities[j]
+
+            // Find matching nodes by searching for name patterns
+            const matchingNodes = graphNodes.filter((node: any) => {
+              const nodeName = (node.name || '').toLowerCase()
+              const entityName = entity.name.toLowerCase()
+
+              // Check for exact match or partial match
+              return nodeName.includes(entityName) ||
+                     entityName.includes(nodeName) ||
+                     node.id.toString().toLowerCase().includes(entityName)
+            })
+
+            if (matchingNodes.length > 0) {
+              console.log(`🎯 Found ${matchingNodes.length} nodes matching entity "${entity.name}"`)
+
+              // Highlight matching nodes
+              graphRef.current.nodeColor((node: any) => {
+                if (matchingNodes.some(m => m.id === node.id)) {
+                  return '#ffeb3b' // Bright yellow for currently processing entity
+                }
+                // Keep previously highlighted nodes orange
+                const previousEntities = entities.slice(0, j)
+                const wasPreviouslyHighlighted = previousEntities.some(prevEntity => {
+                  const prevMatches = graphNodes.filter((n: any) => {
+                    const nName = (n.name || '').toLowerCase()
+                    const prevName = prevEntity.name.toLowerCase()
+                    return nName.includes(prevName) || prevName.includes(nName) || n.id.toString().toLowerCase().includes(prevName)
+                  })
+                  return prevMatches.some(m => m.id === node.id)
+                })
+
+                if (wasPreviouslyHighlighted) {
+                  return '#ff9800' // Orange for processed entities
+                }
+
+                return node.color || getNodeColor([node.group || 'default'])
+              })
+            }
+
+            // Wait between entity highlights
+            await new Promise(resolve => setTimeout(resolve, 200))
+          }
+        }
+
+        // Highlight relationships during synthesis phase
+        if (phase.phase === 'synthesis' && debugInfo.processing_phases.relationship_mapping.relationships.length > 0) {
+          const relationships = debugInfo.processing_phases.relationship_mapping.relationships
+          const currentData = graphRef.current.graphData()
+          const graphNodes = currentData.nodes || []
+
+          graphRef.current.linkColor((link: any) => {
+            // Try to match relationships by entity names
+            const isHighlighted = relationships.some(rel => {
+              const sourceMatches = graphNodes.filter((node: any) => {
+                const nodeName = (node.name || '').toLowerCase()
+                const sourceName = rel.source.toLowerCase()
+                return nodeName.includes(sourceName) || sourceName.includes(nodeName)
+              })
+
+              const targetMatches = graphNodes.filter((node: any) => {
+                const nodeName = (node.name || '').toLowerCase()
+                const targetName = rel.target.toLowerCase()
+                return nodeName.includes(targetName) || targetName.includes(nodeName)
+              })
+
+              return sourceMatches.some(s => s.id === (link.source.id || link.source)) &&
+                     targetMatches.some(t => t.id === (link.target.id || link.target))
+            })
+            return isHighlighted ? '#ff4757' : '#ffffff'
+          })
+        }
+
+        // Wait for phase duration
+        await new Promise(resolve => setTimeout(resolve, phase.duration))
+      }
+
+      console.log('✅ GraphRAG animation completed')
+    }
+
+    animatePhases()
+  }, [debugInfo])
+
+  // Handle search path highlighting (fallback for non-GraphRAG searches)
+  useEffect(() => {
+    if (!searchPath || !graphRef.current || debugInfo) return
 
     console.log('🎯 Highlighting search path in 3D graph')
 
