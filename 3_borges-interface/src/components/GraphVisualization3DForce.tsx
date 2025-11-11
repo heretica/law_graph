@@ -192,13 +192,14 @@ export default function GraphVisualization3DForce({
       const targetExists = validNodeIds.has(targetId)
 
       if (!sourceExists || !targetExists) {
-        console.warn(`⚠️ Filtering out link: ${sourceId} -> ${targetId} (source exists: ${sourceExists}, target exists: ${targetExists})`)
+        console.warn(`⚠️ Second filter: Filtering out link: ${sourceId} -> ${targetId} (source exists: ${sourceExists}, target exists: ${targetExists})`)
         return false
       }
       return true
     })
 
     console.log(`📊 Total nodes: ${nodes.length}, Valid links: ${validLinks.length}/${links.length}`)
+    console.log(`🔍 Sample valid links:`, validLinks.slice(0, 3).map(l => `${l.source} -> ${l.target}`))
 
     // Start with fresh data to ensure we only show the selected nodes
     let progressiveNodes: Node[] = []
@@ -295,16 +296,26 @@ export default function GraphVisualization3DForce({
         }
         return true
       })
-      .map(node => ({
-        id: String(node.id), // Ensure ID is a string
-        name: node.properties?.name || node.properties?.title || String(node.id),
-        group: node.labels?.[0] || 'default',
-        color: getNodeColor(node.labels || []),
-        val: Math.max(1, (node.degree || 0) / 5) // Size based on degree with fallback
-      }))
+      .map(node => {
+        // For GraphRAG nodes, use the label/name as the ID to match relationships
+        const isGraphRAGNode = node.properties?.graphrag_node === true
+        const nodeId = isGraphRAGNode
+          ? (node.properties?.name || node.properties?.title || String(node.id))
+          : String(node.id)
+
+        return {
+          id: nodeId,
+          name: node.properties?.name || node.properties?.title || String(node.id),
+          group: node.labels?.[0] || 'default',
+          color: getNodeColor(node.labels || []),
+          val: Math.max(1, (node.degree || 0) / 5) // Size based on degree with fallback
+        }
+      })
 
     // Create a Set of valid node IDs for quick lookup
     const validNodeIds = new Set(nodes.map(n => n.id))
+
+    console.log(`🔍 Valid node IDs for GraphRAG:`, Array.from(validNodeIds).slice(0, 5), `(showing first 5 of ${validNodeIds.size})`)
 
     // Create links with strict validation - only include links where both nodes exist
     const links: Link[] = reconciliationData.relationships
@@ -316,7 +327,7 @@ export default function GraphVisualization3DForce({
 
         const isValid = validNodeIds.has(sourceId) && validNodeIds.has(targetId)
         if (!isValid) {
-          console.warn(`⚠️ Skipping invalid link: ${sourceId} -> ${targetId}`)
+          console.warn(`⚠️ First filter: Skipping invalid link: ${sourceId} -> ${targetId} (source exists: ${validNodeIds.has(sourceId)}, target exists: ${validNodeIds.has(targetId)})`)
         }
         return isValid
       })
@@ -326,6 +337,8 @@ export default function GraphVisualization3DForce({
         type: rel.type || 'RELATED',
         value: 1
       }))
+
+    console.log(`🔗 After first validation: ${links.length}/${reconciliationData.relationships.length} links passed`)
 
     // If debugInfo is present, do progressive loading. Otherwise load immediately
     if (debugInfo) {

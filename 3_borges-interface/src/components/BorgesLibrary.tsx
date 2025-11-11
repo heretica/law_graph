@@ -44,7 +44,13 @@ export default function BorgesLibrary() {
   const [selectedBook, setSelectedBook] = useState<string>('a_rebours_huysmans')
   const [multiBook, setMultiBook] = useState<boolean>(false)
   const [mode, setMode] = useState<'local' | 'global'>('local')
-  const [processingStats, setProcessingStats] = useState<{ nodes: number; communities: number }>({ nodes: 0, communities: 0 })
+  const [processingStats, setProcessingStats] = useState<{
+    nodes: number;
+    communities: number;
+    neo4jRelationships?: number;
+    crossBookLinks?: number;
+    entityCommunityLinks?: number;
+  }>({ nodes: 0, communities: 0 })
 
   useEffect(() => {
     loadBooks()
@@ -207,6 +213,20 @@ export default function BorgesLibrary() {
           if (result.selected_nodes && result.selected_relationships) {
             console.log('🎯 Multi-book selected nodes:', result.selected_nodes.length)
             console.log('🔗 Multi-book selected relationships:', result.selected_relationships.length)
+
+            // Count enriched relationship types
+            const neo4jRels = result.selected_relationships.filter((r: any) => r.properties?.neo4j_source).length
+            const crossBookRels = result.selected_relationships.filter((r: any) => r.properties?.cross_book).length
+            const communityRels = result.selected_relationships.filter((r: any) => r.type === 'BELONGS_TO' || r.type === 'MEMBER_OF').length
+
+            setProcessingStats({
+              nodes: result.selected_nodes.length,
+              communities: 0, // Multi-book doesn't use community analysis
+              neo4jRelationships: neo4jRels,
+              crossBookLinks: crossBookRels,
+              entityCommunityLinks: communityRels
+            })
+
             setReconciliationData({
               nodes: result.selected_nodes || [],
               relationships: result.selected_relationships || []
@@ -250,7 +270,7 @@ export default function BorgesLibrary() {
                 { phase: 'synthesis', duration: 800, description: 'Mapping cross-book relationships' },
                 { phase: 'crystallization', duration: 200, description: 'Generating multi-book answer' }
               ]
-            }
+            };
             setDebugInfo(aggregatedDebugInfo);
           } else {
             // Clear search path if no nodes available
@@ -289,6 +309,19 @@ export default function BorgesLibrary() {
 
             // Set the selected nodes for incremental loading
             if (result.selected_nodes && result.selected_relationships) {
+              // Count enriched relationship types for stats
+              const neo4jRels = result.selected_relationships.filter((r: any) => r.properties?.neo4j_source).length
+              const crossBookRels = result.selected_relationships.filter((r: any) => r.properties?.cross_book).length
+              const communityRels = result.selected_relationships.filter((r: any) => r.type === 'BELONGS_TO' || r.type === 'MEMBER_OF').length
+
+              setProcessingStats({
+                nodes: result.selected_nodes.length,
+                communities: result.debug_info.processing_phases?.community_analysis?.communities?.length || 0,
+                neo4jRelationships: neo4jRels,
+                crossBookLinks: crossBookRels,
+                entityCommunityLinks: communityRels
+              })
+
               setTimeout(() => {
                 console.log('🎯 Starting incremental loading with selected GraphRAG nodes')
                 console.log('🔍 Selected nodes length:', result.selected_nodes?.length || 0)
@@ -437,10 +470,19 @@ export default function BorgesLibrary() {
                   <div className="text-xs text-gray-400 space-y-1">
                     <div>{currentProcessingPhase || '🔍 Analyzing question...'}</div>
                     {processingStats.nodes > 0 && (
-                      <div className="text-borges-accent">✓ {processingStats.nodes} nodes extracted</div>
+                      <div className="text-borges-accent">✓ {processingStats.nodes} entités extraites</div>
                     )}
                     {processingStats.communities > 0 && (
-                      <div className="text-borges-accent">✓ {processingStats.communities} communities analyzed</div>
+                      <div className="text-borges-accent">✓ {processingStats.communities} communautés analysées</div>
+                    )}
+                    {(processingStats.neo4jRelationships || 0) > 0 && (
+                      <div className="text-blue-400">🔗 {processingStats.neo4jRelationships} relations Neo4j enrichies</div>
+                    )}
+                    {(processingStats.entityCommunityLinks || 0) > 0 && (
+                      <div className="text-purple-400">🏘️ {processingStats.entityCommunityLinks} liens entité↔communauté</div>
+                    )}
+                    {(processingStats.crossBookLinks || 0) > 0 && (
+                      <div className="text-red-400">📚 {processingStats.crossBookLinks} connexions inter-livres</div>
                     )}
                   </div>
                 </div>

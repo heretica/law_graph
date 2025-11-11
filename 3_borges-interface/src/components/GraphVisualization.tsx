@@ -63,6 +63,9 @@ interface D3Link extends d3.SimulationLinkDatum<D3Node> {
   highlighted?: boolean
   dimmed?: boolean
   traversalOrder?: number
+  isNeo4jRelation?: boolean
+  isCommunityRelation?: boolean
+  isCrossBook?: boolean
 }
 
 export default function GraphVisualization({
@@ -79,7 +82,7 @@ export default function GraphVisualization({
   const [zoomTransform, setZoomTransform] = useState(d3.zoomIdentity)
   const [selectedNodeTypes, setSelectedNodeTypes] = useState<Set<string>>(new Set())
 
-  // Entity type colors matching the screenshot
+  // Entity type colors matching the screenshot + communities
   const entityColors = {
     'Personnes': '#ff6b6b',      // Red
     'Lieux': '#4ecdc4',          // Teal
@@ -87,6 +90,7 @@ export default function GraphVisualization({
     'Concepts': '#96ceb4',       // Green
     'Organisations': '#feca57',   // Yellow
     'Livres': '#ff9ff3',         // Pink
+    'Communautés': '#9b59b6',    // Purple for communities
     'default': '#a8a8a8'         // Gray
   }
 
@@ -98,7 +102,9 @@ export default function GraphVisualization({
       'Event': 'Événements',
       'Concept': 'Concepts',
       'Organization': 'Organisations',
-      'Book': 'Livres'
+      'Book': 'Livres',
+      'Community': 'Communautés',
+      'Entity': 'Concepts'  // Default fallback for GraphRAG entities
     }
 
     for (const label of labels) {
@@ -137,7 +143,10 @@ export default function GraphVisualization({
       source: rel.source,
       target: rel.target,
       relation: rel.type,
-      weight: 1
+      weight: rel.properties.weight || 1,
+      isNeo4jRelation: true,
+      isCommunityRelation: rel.type === 'BELONGS_TO' || rel.type === 'MEMBER_OF',
+      isCrossBook: rel.properties.cross_book === true
     }))
 
     setNodes(processedNodes)
@@ -211,18 +220,26 @@ export default function GraphVisualization({
       .attr('stroke', d => {
         if (d.highlighted) return '#fbbf24' // Amber for highlighted
         if (d.dimmed) return '#374151' // Dark gray for dimmed
+        if (d.isCommunityRelation) return '#9b59b6' // Purple for community relations
+        if (d.isCrossBook) return '#e74c3c' // Red for cross-book relations
+        if (d.isNeo4jRelation) return '#3498db' // Blue for Neo4j relations
         return '#555' // Default gray
       })
       .attr('stroke-opacity', d => {
         if (d.highlighted) return 0.9
         if (d.dimmed) return 0.2
+        if (d.isCommunityRelation) return 0.8 // More visible for community relations
+        if (d.isCrossBook) return 0.9 // Highly visible for cross-book relations
         return 0.6
       })
       .attr('stroke-width', d => {
-        const baseWidth = Math.sqrt(d.weight)
+        let baseWidth = Math.sqrt(d.weight)
+        if (d.isCommunityRelation) baseWidth *= 1.5 // Thicker for community relations
+        if (d.isCrossBook) baseWidth *= 2 // Thickest for cross-book relations
+
         if (d.highlighted) return Math.max(baseWidth * 2, 3)
         if (d.dimmed) return Math.max(baseWidth * 0.5, 1)
-        return baseWidth
+        return Math.max(baseWidth, 1)
       })
 
     // Create node groups
@@ -387,6 +404,15 @@ export default function GraphVisualization({
     return acc
   }, {} as Record<string, number>)
 
+  // Get relationship type counts
+  const relationshipCounts = {
+    total: links.length,
+    neo4j: links.filter(l => l.isNeo4jRelation).length,
+    community: links.filter(l => l.isCommunityRelation).length,
+    crossBook: links.filter(l => l.isCrossBook).length,
+    graphrag: links.filter(l => !l.isNeo4jRelation).length
+  }
+
   const entityTypes = Object.keys(entityColors).filter(type => type !== 'default')
 
   return (
@@ -419,8 +445,9 @@ export default function GraphVisualization({
 
           {/* Legend */}
           <div className="absolute top-4 left-4 bg-black bg-opacity-70 backdrop-blur-sm rounded-lg p-4 max-w-xs">
+            {/* Entity Types */}
             <h4 className="text-white font-semibold mb-3 text-sm">Types d&apos;entités</h4>
-            <div className="space-y-2">
+            <div className="space-y-2 mb-4">
               {entityTypes.map(entityType => (
                 <button
                   key={entityType}
@@ -448,6 +475,27 @@ export default function GraphVisualization({
                 </button>
               ))}
             </div>
+
+            {/* Relationship Types */}
+            <h4 className="text-white font-semibold mb-3 text-sm border-t border-gray-600 pt-3">Types de relations</h4>
+            <div className="space-y-1 text-xs">
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-0.5 bg-blue-500"></div>
+                <span className="text-gray-300">Neo4j ({relationshipCounts.neo4j})</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-1 bg-purple-500"></div>
+                <span className="text-gray-300">Communautés ({relationshipCounts.community})</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-1 bg-red-500"></div>
+                <span className="text-gray-300">Inter-livres ({relationshipCounts.crossBook})</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-0.5 bg-gray-500"></div>
+                <span className="text-gray-300">GraphRAG ({relationshipCounts.graphrag})</span>
+              </div>
+            </div>
           </div>
 
           {/* Stats */}
@@ -457,8 +505,21 @@ export default function GraphVisualization({
                 <span className="text-gray-400">Nœuds visibles:</span> {nodes.filter(n => selectedNodeTypes.has(n.type)).length}
               </div>
               <div>
-                <span className="text-gray-400">Relations:</span> {links.length}
+                <span className="text-gray-400">Relations totales:</span> {relationshipCounts.total}
               </div>
+              <div className="pl-2 text-gray-500">
+                Neo4j: {relationshipCounts.neo4j} | GraphRAG: {relationshipCounts.graphrag}
+              </div>
+              {relationshipCounts.community > 0 && (
+                <div className="text-purple-400">
+                  🔗 {relationshipCounts.community} liens communauté
+                </div>
+              )}
+              {relationshipCounts.crossBook > 0 && (
+                <div className="text-red-400">
+                  📚 {relationshipCounts.crossBook} liens inter-livres
+                </div>
+              )}
               {book && (
                 <div>
                   <span className="text-gray-400">Livre sélectionné:</span> {book.title}
