@@ -228,7 +228,7 @@ export default function GraphVisualization3DForce({
 
         // Add center force to keep books gravitating toward center
         const d3 = await import('d3-force')
-        graph.d3Force('center', d3.forceCenter(0, 0, 0).strength(0.1))
+        graph.d3Force('center', d3.forceCenter(0, 0).strength(0.1))
 
         // Add radial force to push non-book nodes outward in much larger layers for long-range visibility
         graph.d3Force('radial', d3.forceRadial((node: any) => {
@@ -239,7 +239,7 @@ export default function GraphVisualization3DForce({
           if (degree > 10) return 400  // Hubs in middle ring (4x larger: 100 * 4)
           if (degree > 5) return 800   // Sub-hubs in outer ring (4x larger: 200 * 4)
           return 1200  // Peripheral nodes pushed far outward (4x larger: 300 * 4) for maximum range
-        }, 0, 0, 0).strength(0.2))
+        }, 0, 0).strength(0.2))
 
         console.log('✅ ForceGraph3D instance created successfully')
         graphRef.current = graph
