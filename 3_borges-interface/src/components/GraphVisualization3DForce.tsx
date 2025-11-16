@@ -342,7 +342,7 @@ export default function GraphVisualization3DForce({
           : String(node.id)
 
         // Principle #2: Books are the "core" entities and should be bigger
-        const isBookNode = node.type === 'Book' ||
+        const isBookNode = (node as any).type === 'Book' ||
                           (node.labels && node.labels.includes('Livres')) ||
                           (node.labels && node.labels.includes('BOOK')) ||
                           String(nodeId).startsWith('LIVRE_')

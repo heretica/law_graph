@@ -24,6 +24,16 @@ interface Link3D {
   target: string
   relation: string
   weight: number
+  // GraphML enriched metadata
+  graphml_weight?: number
+  graphml_description?: string
+  graphml_source_chunks?: string
+  graphml_order?: number
+  has_graphml_metadata?: boolean
+  // Visual properties based on GraphML data
+  thickness?: number
+  color?: string
+  opacity?: number
 }
 
 // 3D Force Simulation Engine
@@ -237,10 +247,12 @@ export default function GraphVisualization3D({
   const linksRef = useRef<Link3D[]>([])
   const nodeInstancesRef = useRef<{ meshes: THREE.Mesh[] } | null>(null)
   const linkInstancesRef = useRef<THREE.InstancedMesh>()
+  const linkObjectsRef = useRef<THREE.Object3D[]>([])
   const raycasterRef = useRef<THREE.Raycaster>()
   const mouseRef = useRef<THREE.Vector2>()
   const [isInitialized, setIsInitialized] = useState(false)
   const [hoveredNode, setHoveredNode] = useState<Node3D | null>(null)
+  const [hoveredLink, setHoveredLink] = useState<Link3D | null>(null)
   const [selectedNode, setSelectedNode] = useState<Node3D | null>(null)
   // Force simulation reference - moved up to be accessible everywhere
   const forceSimulationRef = useRef<ForceSimulation3D | null>(null)
@@ -387,17 +399,73 @@ export default function GraphVisualization3D({
         return null
       }
 
+      // Link interaction functions
+      const checkLinkIntersection = (clientX: number, clientY: number) => {
+        if (!raycasterRef.current || !cameraRef.current || !linkObjectsRef.current) return null
+
+        // Ensure mouse vector is initialized
+        if (!mouseRef.current) {
+          mouseRef.current = new THREE.Vector2()
+        }
+
+        const rect = container.getBoundingClientRect()
+        mouseRef.current.x = ((clientX - rect.left) / rect.width) * 2 - 1
+        mouseRef.current.y = -((clientY - rect.top) / rect.height) * 2 + 1
+
+        raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current)
+
+        // Intersect with link objects
+        const intersects = raycasterRef.current.intersectObjects(linkObjectsRef.current)
+
+        // Enhanced debug logging - more frequent to catch issues
+        if (intersects.length > 0) {
+          console.log('✅ Link intersection detected!', {
+            intersectedObject: intersects[0].object,
+            distance: intersects[0].distance,
+            linkData: intersects[0].object.userData.linkData
+          })
+        } else if (linkObjectsRef.current.length > 0) {
+          // Log more frequently during debugging
+          if (Math.random() < 0.01) {
+            console.log('🔍 Link hover debug - no intersects:', {
+              linkObjectsCount: linkObjectsRef.current.length,
+              raycasterPos: raycasterRef.current.ray.origin,
+              raycasterDir: raycasterRef.current.ray.direction,
+              mousePos: { x: mouseRef.current.x, y: mouseRef.current.y }
+            })
+          }
+        }
+
+        if (intersects.length > 0) {
+          const intersectedObject = intersects[0].object
+          const linkData = intersectedObject.userData.linkData
+          if (linkData) {
+            console.log('🎯 Link hovered:', linkData.relation, 'between', linkData.source, 'and', linkData.target)
+            return linkData
+          }
+        }
+        return null
+      }
+
       onMouseMove = (event: MouseEvent) => {
         mouseX = event.clientX
         mouseY = event.clientY
 
-        // Check for node hover (only when not dragging camera)
+        // Check for node and link hover (only when not dragging camera)
         if (!isMouseDown && !isDragging) {
           const hoveredNodeData = checkNodeIntersection(mouseX, mouseY)
-          setHoveredNode(hoveredNodeData)
+          const hoveredLinkData = hoveredNodeData ? null : checkLinkIntersection(mouseX, mouseY) // Only check links if no node is hovered
 
-          // Change cursor when hovering over nodes
-          container.style.cursor = hoveredNodeData ? 'pointer' : 'grab'
+          // Debug logging for hover states
+          if (hoveredLinkData) {
+            console.log('🎯 Link hover detected!', hoveredLinkData)
+          }
+
+          setHoveredNode(hoveredNodeData)
+          setHoveredLink(hoveredLinkData)
+
+          // Change cursor when hovering over nodes or links
+          container.style.cursor = (hoveredNodeData || hoveredLinkData) ? 'pointer' : 'grab'
         }
 
         if (isDragging && draggedNode) {
@@ -489,7 +557,7 @@ export default function GraphVisualization3D({
           }
         }
 
-        container.style.cursor = hoveredNode ? 'pointer' : 'grab'
+        container.style.cursor = (hoveredNode || hoveredLink) ? 'pointer' : 'grab'
       }
 
       onWheel = (event: WheelEvent) => {
@@ -604,14 +672,36 @@ export default function GraphVisualization3D({
       cameraPosition: cameraRef.current ? cameraRef.current.position : 'missing'
     })
 
-    // Sort nodes by degree (most connected first) and take top 300
+    // Connected Subgraph First approach: Relations first → Connected nodes only
+    // This ensures NO orphan nodes (respects design constraint #1)
+    const links3D: Link3D[] = reconciliationData.relationships
+      .slice(0, 800) // Limit links for performance
+      .map(rel => ({
+        id: rel.id,
+        source: rel.source,
+        target: rel.target,
+        relation: rel.type,
+        weight: rel.properties.weight || 1
+      }))
+
+    // Identify all nodes that participate in at least one relationship
+    const connectedNodeIds = new Set<string>()
+    links3D.forEach(rel => {
+      connectedNodeIds.add(rel.source)
+      connectedNodeIds.add(rel.target)
+    })
+
+    // Sort connected nodes by degree and take top 300
     const sortedNodes = [...reconciliationData.nodes]
+      .filter(node => connectedNodeIds.has(node.id)) // Only nodes with relations
       .sort((a, b) => b.degree - a.degree)
       .slice(0, 300)
 
-    console.log('📊 Processing nodes:', {
+    console.log('📊 Processing connected nodes (zero orphans):', {
       total: reconciliationData.nodes.length,
-      afterSorting: sortedNodes.length,
+      connected: connectedNodeIds.size,
+      afterFiltering: sortedNodes.length,
+      relationships: links3D.length,
       sampleNode: sortedNodes[0] ? {
         id: sortedNodes[0].id,
         degree: sortedNodes[0].degree,
@@ -675,20 +765,19 @@ export default function GraphVisualization3D({
 
     nodesRef.current = nodes3D
 
-    // Create 3D links (filter to only connect nodes in our top 300)
-    const nodeIds = new Set(sortedNodes.map(n => n.id))
-    const links3D: Link3D[] = reconciliationData.relationships
-      .filter(rel => nodeIds.has(rel.source) && nodeIds.has(rel.target))
-      .slice(0, 800) // Limit links for performance
-      .map(rel => ({
-        id: rel.id,
-        source: rel.source,
-        target: rel.target,
-        relation: rel.type,
-        weight: rel.properties.weight || 1
-      }))
+    // Filter links to only connect the final selected nodes (ensures no dangling relations)
+    const finalNodeIds = new Set(sortedNodes.map(n => n.id))
+    const finalLinks3D = links3D.filter(rel =>
+      finalNodeIds.has(rel.source) && finalNodeIds.has(rel.target)
+    )
 
-    linksRef.current = links3D
+    linksRef.current = finalLinks3D
+
+    console.log('🔗 Final relationships after node filtering:', {
+      initialRelationships: links3D.length,
+      finalRelationships: finalLinks3D.length,
+      guaranteedConnected: `All ${sortedNodes.length} nodes have at least one relation`
+    })
 
     // Create individual sphere nodes for debugging (simpler approach)
     const nodeGeometry = new THREE.SphereGeometry(1, 12, 12)
@@ -758,8 +847,8 @@ export default function GraphVisualization3D({
     nodeInstancesRef.current = { meshes: nodeMeshes }
 
     // Initialize force simulation
-    forceSimulationRef.current = new ForceSimulation3D(nodes3D, links3D)
-    console.log('🚀 Force simulation initialized with', nodes3D.length, 'nodes and', links3D.length, 'links')
+    forceSimulationRef.current = new ForceSimulation3D(nodes3D, finalLinks3D)
+    console.log('🚀 Force simulation initialized with', nodes3D.length, 'nodes and', finalLinks3D.length, 'links')
 
     // Restart simulation periodically to prevent settling into bad local minima
     const restartSimulation = () => {
@@ -781,12 +870,11 @@ export default function GraphVisualization3D({
       firstNodeColor: nodes3D[0] ? nodes3D[0].color : 'none'
     })
 
-    // Create links (lines between nodes) with search path highlighting
-    if (links3D.length > 0) {
-      const normalLinkPositions: number[] = []
-      const highlightedLinkPositions: number[] = []
+    // Create links (individual mesh objects for each link to enable raycasting)
+    const linkObjects: THREE.Object3D[] = []
 
-      links3D.forEach(link => {
+    if (finalLinks3D.length > 0) {
+      finalLinks3D.forEach(link => {
         const sourceNode = nodes3D.find(n => n.id === link.source)
         const targetNode = nodes3D.find(n => n.id === link.target)
 
@@ -795,85 +883,57 @@ export default function GraphVisualization3D({
           const reverseLinkPair = `${link.target}-${link.source}`
           const isHighlighted = highlightedRelationPairs.has(linkPair) || highlightedRelationPairs.has(reverseLinkPair)
 
-          const positions = [
-            sourceNode.position.x, sourceNode.position.y, sourceNode.position.z,
-            targetNode.position.x, targetNode.position.y, targetNode.position.z
-          ]
+          // Create tube geometry for better raycasting (lines are too thin to interact with)
+          const startPoint = new THREE.Vector3(sourceNode.position.x, sourceNode.position.y, sourceNode.position.z)
+          const endPoint = new THREE.Vector3(targetNode.position.x, targetNode.position.y, targetNode.position.z)
+
+          // Create a curve from start to end point
+          const curve = new THREE.LineCurve3(startPoint, endPoint)
+
+          // Create tube geometry with larger radius for reliable hovering
+          const tubeRadius = link.has_graphml_metadata ? 2.0 : 1.5 // Much thicker for easier hovering
+          const linkGeometry = new THREE.TubeGeometry(curve, 1, tubeRadius, 8, false)
+
+          // Determine link appearance based on highlighting and GraphML metadata
+          let opacity = searchPath && highlightedEntityIds.size > 0 ? 0.1 : 0.3
+          let color = 0xffffff
 
           if (isHighlighted) {
-            highlightedLinkPositions.push(...positions)
-          } else {
-            normalLinkPositions.push(...positions)
+            opacity = 0.9
+            color = 0x00ff88 // Bright green for highlighted paths
+          } else if (link.has_graphml_metadata) {
+            // Enhanced appearance for GraphML-enriched relationships
+            opacity = Math.max(opacity, 0.4)
+            if (link.graphml_weight && link.graphml_weight > 10) {
+              opacity = Math.min(0.8, opacity + link.graphml_weight / 100)
+            }
           }
+
+          const linkMaterial = new THREE.MeshBasicMaterial({
+            color,
+            opacity,
+            transparent: true
+          })
+
+          const linkMesh = new THREE.Mesh(linkGeometry, linkMaterial)
+          linkMesh.userData.linkData = link // Store link data for interaction
+          linkMesh.userData.isGalaxyObject = true
+
+          sceneRef.current?.add(linkMesh)
+          linkObjects.push(linkMesh)
         }
       })
 
-      // Create normal (non-highlighted) links
-      if (normalLinkPositions.length > 0) {
-        const normalLinkGeometry = new THREE.BufferGeometry()
-        normalLinkGeometry.setAttribute('position', new THREE.Float32BufferAttribute(normalLinkPositions, 3))
+      // Store link objects for raycasting
+      linkObjectsRef.current = linkObjects
 
-        const opacity = searchPath && highlightedEntityIds.size > 0 ? 0.1 : 0.3 // Dim when search is active
-        const normalLinkMaterial = new THREE.LineBasicMaterial({
-          color: 0xffffff,
-          opacity,
-          transparent: true
-        })
-
-        const normalLinkLines = new THREE.LineSegments(normalLinkGeometry, normalLinkMaterial)
-        normalLinkLines.userData.isGalaxyObject = true
-        sceneRef.current.add(normalLinkLines)
-      }
-
-      // Create highlighted links
-      if (highlightedLinkPositions.length > 0) {
-        const highlightedLinkGeometry = new THREE.BufferGeometry()
-        highlightedLinkGeometry.setAttribute('position', new THREE.Float32BufferAttribute(highlightedLinkPositions, 3))
-
-        // Bright highlighted link material
-        const highlightedLinkMaterial = new THREE.LineBasicMaterial({
-          color: 0x00ff88, // Bright green for highlighted paths
-          opacity: 0.9,
-          transparent: true
-        })
-
-        const highlightedLinkLines = new THREE.LineSegments(highlightedLinkGeometry, highlightedLinkMaterial)
-        highlightedLinkLines.userData.isGalaxyObject = true
-        sceneRef.current.add(highlightedLinkLines)
-
-        // Add extra glow for highlighted links
-        const highlightedGlowMaterial = new THREE.LineBasicMaterial({
-          color: 0x88ffaa, // Light green glow
-          opacity: 0.4,
-          transparent: true,
-          blending: THREE.AdditiveBlending
-        })
-
-        const highlightedGlowLines = new THREE.LineSegments(highlightedLinkGeometry.clone(), highlightedGlowMaterial)
-        highlightedGlowLines.userData.isGalaxyObject = true
-        sceneRef.current.add(highlightedGlowLines)
-
-        console.log('✨ Created highlighted search path connections:', highlightedLinkPositions.length / 6, 'links')
-      }
-
-      // Add general glow effect for normal links
-      if (normalLinkPositions.length > 0) {
-        const normalLinkGeometry = new THREE.BufferGeometry()
-        normalLinkGeometry.setAttribute('position', new THREE.Float32BufferAttribute(normalLinkPositions, 3))
-
-        const linkMaterialGlow = new THREE.LineBasicMaterial({
-          color: 0x88ccff, // Light blue glow
-          opacity: searchPath && highlightedEntityIds.size > 0 ? 0.05 : 0.1,
-          transparent: true,
-          blending: THREE.AdditiveBlending
-        })
-
-        const linkLinesGlow = new THREE.LineSegments(normalLinkGeometry, linkMaterialGlow)
-        linkLinesGlow.userData.isGalaxyObject = true
-        sceneRef.current.add(linkLinesGlow)
-      }
-
-      console.log('✨ Created connection lines with search path highlighting')
+      console.log(`✨ Created ${linkObjects.length} individual link objects with GraphML metadata for hover interaction`)
+      console.log('🔍 First few link objects details:', linkObjects.slice(0, 3).map(obj => ({
+        position: obj.position,
+        userData: obj.userData.linkData?.id,
+        geometry: 'geometry' in obj ? (obj as any).geometry?.type : 'unknown',
+        material: 'material' in obj ? (obj as any).material?.type : 'unknown'
+      })))
     }
 
     // Start animation loop only if not already running
@@ -954,7 +1014,7 @@ export default function GraphVisualization3D({
       onNodeVisibilityChange(nodes3D.map(n => n.id))
     }
 
-    console.log('🌌 Galaxy created:', nodes3D.length, 'nodes,', links3D.length, 'links')
+    console.log('🌌 Galaxy created:', nodes3D.length, 'nodes,', finalLinks3D.length, 'links')
 
     // Force a render to display the galaxy immediately
     if (rendererRef.current && sceneRef.current && cameraRef.current) {
@@ -1270,7 +1330,7 @@ export default function GraphVisualization3D({
         </div>
       )}
 
-      {/* Hover Tooltip */}
+      {/* Node Hover Tooltip */}
       {hoveredNode && !selectedNode && (
         <div
           className="absolute pointer-events-none bg-black bg-opacity-80 text-white p-2 rounded text-xs z-10"
@@ -1282,6 +1342,85 @@ export default function GraphVisualization3D({
         >
           <div className="font-medium">{hoveredNode.label}</div>
           <div className="text-gray-300">{hoveredNode.type} • {hoveredNode.degree} connexions</div>
+        </div>
+      )}
+
+      {/* Link Hover Tooltip */}
+      {hoveredLink && !selectedNode && !hoveredNode && (
+        <div
+          className="absolute pointer-events-none bg-black bg-opacity-90 text-white p-3 rounded text-xs z-10 max-w-80"
+          style={{
+            left: `${(window.innerWidth / 2)}px`,
+            top: `${(window.innerHeight / 2)}px`,
+            transform: 'translate(-50%, -100%)'
+          }}
+        >
+          <div className="font-semibold text-blue-300 mb-1">🔗 Relation</div>
+
+          <div className="space-y-1">
+            <div>
+              <span className="text-gray-300">Type:</span>
+              <span className="text-white ml-1">{hoveredLink.relation}</span>
+            </div>
+
+            <div>
+              <span className="text-gray-300">Entre:</span>
+              <div className="text-white ml-1">
+                {nodesRef.current.find(n => n.id === hoveredLink.source)?.label || hoveredLink.source}
+                <span className="text-gray-400"> → </span>
+                {nodesRef.current.find(n => n.id === hoveredLink.target)?.label || hoveredLink.target}
+              </div>
+            </div>
+
+            {hoveredLink.has_graphml_metadata && (
+              <>
+                <div className="border-t border-gray-600 pt-1 mt-2">
+                  <div className="text-borges-accent text-xs font-medium">📊 Métadonnées GraphML</div>
+                </div>
+
+                {hoveredLink.graphml_weight && (
+                  <div>
+                    <span className="text-gray-300">Poids:</span>
+                    <span className="text-yellow-300 ml-1 font-mono">{hoveredLink.graphml_weight.toFixed(1)}</span>
+                  </div>
+                )}
+
+                {hoveredLink.graphml_description && (
+                  <div>
+                    <span className="text-gray-300">Description:</span>
+                    <div className="text-white ml-1 mt-1 text-xs leading-relaxed">
+                      {hoveredLink.graphml_description.length > 150
+                        ? hoveredLink.graphml_description.substring(0, 150) + "..."
+                        : hoveredLink.graphml_description
+                      }
+                    </div>
+                  </div>
+                )}
+
+                {hoveredLink.graphml_source_chunks && (
+                  <div>
+                    <span className="text-gray-300">Source:</span>
+                    <div className="text-gray-400 ml-1 text-xs">
+                      {hoveredLink.graphml_source_chunks.substring(0, 50)}...
+                    </div>
+                  </div>
+                )}
+
+                {hoveredLink.graphml_order && hoveredLink.graphml_order > 0 && (
+                  <div>
+                    <span className="text-gray-300">Ordre:</span>
+                    <span className="text-white ml-1">{hoveredLink.graphml_order}</span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {!hoveredLink.has_graphml_metadata && (
+              <div className="text-gray-500 text-xs mt-2">
+                Aucune métadonnée GraphML enrichie
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
