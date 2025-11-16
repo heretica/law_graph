@@ -110,6 +110,7 @@ export default function GraphVisualization3DForce({
   const containerRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isGraphReady, setIsGraphReady] = useState(false)
   const [hoveredLink, setHoveredLink] = useState<Link | null>(null)
 
   // Color mapping for different node types
@@ -140,39 +141,114 @@ export default function GraphVisualization3DForce({
   // Initialize 3D Force Graph
   useEffect(() => {
     const initGraph = async () => {
-      if (!containerRef.current) return
+      console.log('🚀 Starting 3D Graph initialization...')
+      if (!containerRef.current) {
+        console.error('❌ Container ref not available for 3D graph')
+        return
+      }
+
+      console.log('✅ Container ref available:', containerRef.current)
 
       try {
+        console.log('📦 Importing 3d-force-graph module...')
         // Dynamic import for client-side only
         const ForceGraph3D = (await import('3d-force-graph')).default
+        console.log('✅ 3d-force-graph module imported successfully')
 
-        // Initialize the graph
+        console.log('🎨 Creating new ForceGraph3D instance...')
+        // Initialize the graph with design principles
         const graph = new ForceGraph3D(containerRef.current)
-          .graphData({ nodes: [], links: [] })
-          .backgroundColor('#000000')
-          .showNavInfo(true)
-          .nodeAutoColorBy('group')
-          .nodeRelSize(6)
-          .nodeResolution(8)
-          .linkDirectionalParticles(2)
-          .linkDirectionalParticleSpeed(0.006)
-          .nodeVal((node: any) => node.val || 1)
-          .nodeColor((node: any) => node.color || '#dfe4ea')
-          .nodeLabel((node: any) => node.name || node.id)
-          .linkColor(() => '#ffffff')
-          .linkWidth(2)
-          .enablePointerInteraction(true)
-          .onLinkHover((link: any) => {
-            console.log('🎯 Link hover detected!', link)
-            setHoveredLink(link || null)
-          })
 
+        // Configure graph data and background
+        graph.graphData({ nodes: [], links: [] })
+        graph.backgroundColor('#000000')
+        graph.showNavInfo(true)
+
+        // Configure node appearance
+        graph.nodeAutoColorBy('group')
+        graph.nodeRelSize(6)
+        graph.nodeResolution(8)
+        graph.nodeVal((node: any) => node.val || 1)
+        graph.nodeColor((node: any) => node.color || '#dfe4ea')
+        graph.nodeLabel((node: any) => node.name || node.id)
+
+        // Configure link appearance
+        graph.linkDirectionalParticles(2)
+        graph.linkDirectionalParticleSpeed(0.006)
+        graph.linkColor(() => '#ffffff')
+        graph.linkWidth(2)
+
+        // Configure interactions
+        graph.enablePointerInteraction(true)
+        graph.onLinkHover((link: any) => {
+          console.log('🎯 Link hover detected!', link)
+          setHoveredLink(link || null)
+        })
+
+        // Principe #4: Proper spacing between nodes for visibility of relationships
+        // Configure forces to create book-centered topology: Books → Hubs → Sub-hubs → Periphery
+        const chargeForce = graph.d3Force('charge')
+        if (chargeForce) {
+          chargeForce.strength((node: any) => {
+            // Books have moderate repulsion but stay central
+            const isBook = node.group === 'Livres' || node.group === 'BOOK' || String(node.id).startsWith('LIVRE_')
+            if (isBook) return -400  // Books slightly stronger repulsion for better separation
+
+            // High-degree nodes (hubs) have stronger repulsion for extensive spreading
+            const degree = node.val || 1
+            if (degree > 10) return -800  // Hubs much stronger separation (2x increase)
+            if (degree > 5) return -1000  // Sub-hubs very strong separation (2x increase)
+
+            // Regular nodes have very strong repulsion to reach far periphery
+            return -1200  // Maximum repulsion (2x increase) to create long-range multi-hop visibility
+          })
+        }
+
+        const linkForce = graph.d3Force('link')
+        if (linkForce) {
+          linkForce
+            .distance((link: any) => {
+              // MUCH larger distances for better visibility and long-range multi-hop exploration
+              const sourceIsBook = link.source.group === 'Livres' || link.source.group === 'BOOK' || String(link.source.id).startsWith('LIVRE_')
+              const targetIsBook = link.target.group === 'Livres' || link.target.group === 'BOOK' || String(link.target.id).startsWith('LIVRE_')
+
+              if (sourceIsBook || targetIsBook) return 480  // Books to first-hop: 4x larger (120 * 4)
+
+              // Hub-to-hub connections: much longer to show extensive intermediate networks
+              const sourceDegree = link.source.val || 1
+              const targetDegree = link.target.val || 1
+              if (sourceDegree > 10 && targetDegree > 10) return 640  // Hub networks very spread out (160 * 4)
+              if (sourceDegree > 5 && targetDegree > 5) return 560    // Sub-hub networks (140 * 4)
+
+              // Regular connections: very long distance to show extensive multi-hop paths
+              return 720  // 4x larger (180 * 4) for maximum range visibility
+            })
+            .strength(0.4)  // Even weaker attraction to allow much wider spreading
+        }
+
+        // Add center force to keep books gravitating toward center
+        const d3 = await import('d3-force')
+        graph.d3Force('center', d3.forceCenter(0, 0, 0).strength(0.1))
+
+        // Add radial force to push non-book nodes outward in much larger layers for long-range visibility
+        graph.d3Force('radial', d3.forceRadial((node: any) => {
+          const isBook = node.group === 'Livres' || node.group === 'BOOK' || String(node.id).startsWith('LIVRE_')
+          if (isBook) return 0  // Books stay at center
+
+          const degree = node.val || 1
+          if (degree > 10) return 400  // Hubs in middle ring (4x larger: 100 * 4)
+          if (degree > 5) return 800   // Sub-hubs in outer ring (4x larger: 200 * 4)
+          return 1200  // Peripheral nodes pushed far outward (4x larger: 300 * 4) for maximum range
+        }, 0, 0, 0).strength(0.2))
+
+        console.log('✅ ForceGraph3D instance created successfully')
         graphRef.current = graph
         setIsLoading(false)
+        setIsGraphReady(true)
 
-        console.log('🎨 3D Force Graph initialized')
+        console.log('🎨 3D Force Graph initialized successfully and ready for data')
       } catch (error) {
-        console.error('Error initializing 3D Force Graph:', error)
+        console.error('❌ Error initializing 3D Force Graph:', error)
         setIsLoading(false)
       }
     }
@@ -290,7 +366,15 @@ export default function GraphVisualization3DForce({
 
   // Load graph when reconciliation data is available
   useEffect(() => {
-    if (!reconciliationData || !graphRef.current) return
+    console.log('🔄 Data loading effect triggered')
+    console.log('📊 reconciliationData:', !!reconciliationData, reconciliationData ? `${reconciliationData.nodes.length} nodes, ${reconciliationData.relationships.length} relationships` : 'null')
+    console.log('🎨 graphRef.current:', !!graphRef.current)
+    console.log('✅ isGraphReady:', isGraphReady)
+
+    if (!reconciliationData || !graphRef.current || !isGraphReady) {
+      console.log('⏸️ Skipping data load - missing reconciliationData, graphRef, or graph not ready')
+      return
+    }
 
     // List of problematic node IDs to exclude
     const problematicNodeIds = [
@@ -375,6 +459,12 @@ export default function GraphVisualization3DForce({
 
     console.log(`🔗 Connected Subgraph guaranteed: ${links.length}/${allValidLinks.length} links connect ${nodes.length} nodes (all nodes have ≥1 relation)`)
 
+    console.log(`🔍 Final processing results:`)
+    console.log(`  • Final nodes to render: ${nodes.length}`)
+    console.log(`  • Final links to render: ${links.length}`)
+    console.log(`  • Sample nodes:`, nodes.slice(0, 3).map(n => ({ id: n.id, name: n.name, color: n.color })))
+    console.log(`  • Sample links:`, links.slice(0, 3).map(l => ({ source: l.source, target: l.target, type: l.type })))
+
     // Only proceed if we have valid data to display
     if (nodes.length === 0 && links.length === 0) {
       console.warn('⚠️ No valid nodes or links found, keeping existing graph')
@@ -387,13 +477,16 @@ export default function GraphVisualization3DForce({
       // Only clear the graph if we have data to replace it with
       if (nodes.length > 0) {
         try {
+          console.log('🧹 Clearing graph data for progressive loading...')
           graphRef.current.graphData({ nodes: [], links: [] })
         } catch (error) {
-          console.error('Error clearing graph:', error)
+          console.error('❌ Error clearing graph:', error)
         }
 
         // Add nodes progressively
+        console.log('📈 Starting progressive node/link addition...')
         addNodesProgressively(nodes, links, () => {
+          console.log('✅ Progressive loading completed')
           if (onNodeVisibilityChange) {
             onNodeVisibilityChange(nodes.map(n => n.id))
           }
@@ -401,11 +494,15 @@ export default function GraphVisualization3DForce({
       }
     } else {
       console.log('📊 Loading complete 3D Force Graph immediately...')
+      console.log('  • Graph instance available:', !!graphRef.current)
       // Show complete graph immediately
       try {
+        console.log('🎯 Setting graph data immediately...')
         graphRef.current.graphData({ nodes, links })
+        console.log('✅ Graph data set successfully!')
       } catch (error) {
-        console.error('Error loading complete graph:', error)
+        console.error('❌ Error loading complete graph:', error)
+        console.error('Error details:', error)
       }
 
       if (onNodeVisibilityChange) {
@@ -413,7 +510,7 @@ export default function GraphVisualization3DForce({
       }
     }
 
-  }, [reconciliationData, debugInfo, onNodeVisibilityChange])
+  }, [reconciliationData, debugInfo, onNodeVisibilityChange, isGraphReady])
 
   // Animate GraphRAG processing phases
   useEffect(() => {
