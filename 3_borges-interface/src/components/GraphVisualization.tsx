@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import * as d3 from 'd3'
 import { graphHighlighter } from '@/lib/utils/graphHighlight'
 
@@ -83,7 +83,7 @@ export default function GraphVisualization({
   const [selectedNodeTypes, setSelectedNodeTypes] = useState<Set<string>>(new Set())
 
   // Entity type colors matching the screenshot + communities
-  const entityColors = {
+  const entityColors = useMemo(() => ({
     'Personnes': '#ff6b6b',      // Red
     'Lieux': '#4ecdc4',          // Teal
     'Événements': '#45b7d1',     // Blue
@@ -92,7 +92,7 @@ export default function GraphVisualization({
     'Livres': '#ff9ff3',         // Pink
     'Communautés': '#9b59b6',    // Purple for communities
     'default': '#a8a8a8'         // Gray
-  }
+  }), [])
 
   const getEntityType = (labels: string[]): string => {
     // Map Neo4j labels to entity types

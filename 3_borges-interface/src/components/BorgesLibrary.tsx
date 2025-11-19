@@ -1,9 +1,29 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import GraphVisualization3DForce from './GraphVisualization3DForce'
+import dynamic from 'next/dynamic'
+
+const GraphVisualization3DForce = dynamic(() => import('./GraphVisualization3DForce'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center h-96 bg-black">
+      <div className="text-center">
+        <div className="text-6xl mb-4">🌐</div>
+        <div className="text-white">Initialisation du graphe 3D...</div>
+      </div>
+    </div>
+  )
+})
+import { GraphErrorBoundary } from './GraphErrorBoundary'
 import QueryInterface from './QueryInterface'
+import HighlightedText from './HighlightedText'
+import LoadingWheel3D from './LoadingWheel3D'
+import TextChunkModal from './TextChunkModal'
+import ProvenancePanel from './ProvenancePanel'
+import EntityDetailModal from './EntityDetailModal'
 import { reconciliationService } from '@/lib/services/reconciliation'
+import { colorService, type EntityColorInfo } from '@/lib/utils/colorService'
+import type { TraversedRelationship } from '@/types/provenance'
 
 
 interface ReconciliationGraphData {
@@ -29,7 +49,43 @@ interface Book {
   has_data: boolean
 }
 
-export default function BorgesLibrary() {
+/**
+ * Composant principal de la bibliothèque de Borges
+ */
+function BorgesLibrary() {
+  // Enhanced node click handler for provenance integration
+  const handleNodeClick = (nodeId: string, nodeLabel: string, bookId?: string) => {
+    console.log(`🎯 Node clicked: ${nodeId} (${nodeLabel})`)
+    setSelectedEntityId(nodeId)
+    setSelectedEntityName(nodeLabel)
+  }
+
+  // Handler for entity clicks from ProvenancePanel
+  const handleProvenanceEntityClick = (entityId: string, entityName: string) => {
+    console.log(`📊 Entity clicked from provenance: ${entityId} (${entityName})`)
+    setSelectedEntityId(entityId)
+    setSelectedEntityName(entityName)
+  }
+
+  // Handler for relationship clicks from ProvenancePanel
+  const handleRelationshipClick = (relationship: TraversedRelationship) => {
+    console.log(`🔗 Relationship clicked:`, relationship)
+    // Relationship details are shown in the tooltip on the 3D graph
+    // Could optionally highlight the relationship in the graph here
+  }
+
+  // Handler for chunk clicks from ProvenancePanel
+  const handleChunkClick = (chunkId: string) => {
+    console.log(`📄 Chunk clicked: ${chunkId}`)
+    // Open TextChunkModal with the chunk data
+    // TODO: Fetch chunk details and open modal
+  }
+
+  // Close entity detail modal
+  const handleCloseEntityModal = () => {
+    setSelectedEntityId(null)
+    setSelectedEntityName(null)
+  }
   const [reconciliationData, setReconciliationData] = useState<ReconciliationGraphData | null>(null)
   const [isLoadingGraph, setIsLoadingGraph] = useState(false)
   const [visibleNodeIds, setVisibleNodeIds] = useState<string[]>([])
@@ -40,10 +96,23 @@ export default function BorgesLibrary() {
   const [currentQuery, setCurrentQuery] = useState<string>('')
   const [queryAnswer, setQueryAnswer] = useState<string>('')
   const [showAnswer, setShowAnswer] = useState(false)
+  // Entity coloring state for interpretability
+  const [coloredEntities, setColoredEntities] = useState<EntityColorInfo[]>([])
+
+  // TextChunkModal state for entity click navigation
+  const [isEntityChunkModalOpen, setIsEntityChunkModalOpen] = useState(false)
+  const [entityChunkData, setEntityChunkData] = useState<{
+    entityName: string
+    aggregatedChunks: string
+    relatedRelationships: number
+    bookId?: string
+  } | null>(null)
   const [books, setBooks] = useState<Book[]>([])
   const [selectedBook, setSelectedBook] = useState<string>('a_rebours_huysmans')
   const [multiBook, setMultiBook] = useState<boolean>(false)
   const [mode, setMode] = useState<'local' | 'global'>('local')
+  const [processingStartTime, setProcessingStartTime] = useState<number | null>(null)
+  const [elapsedTime, setElapsedTime] = useState<number>(0)
   const [processingStats, setProcessingStats] = useState<{
     nodes: number;
     communities: number;
@@ -51,6 +120,81 @@ export default function BorgesLibrary() {
     crossBookLinks?: number;
     entityCommunityLinks?: number;
   }>({ nodes: 0, communities: 0 })
+
+  // Provenance tracking state
+  const [currentQueryId, setCurrentQueryId] = useState<string | null>(null)
+  const [showProvenancePanel, setShowProvenancePanel] = useState(false)
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
+  const [selectedEntityName, setSelectedEntityName] = useState<string | null>(null)
+
+  // Store query result nodes for entity lookup
+  const [queryResultNodes, setQueryResultNodes] = useState<any[]>([])
+
+  // Function to extract chunks related to a specific entity
+  const extractEntityChunks = (entityId: string) => {
+    if (!reconciliationData?.relationships) {
+      console.warn('⚠️ No relationship data available for entity chunks extraction')
+      return { chunks: '', count: 0 }
+    }
+
+    console.log(`🔍 Extracting chunks for entity: ${entityId}`)
+
+    // Find all relationships involving this entity (as source or target)
+    const relatedRelationships = reconciliationData.relationships.filter(rel =>
+      rel.source === entityId || rel.target === entityId
+    )
+
+    console.log(`📊 Found ${relatedRelationships.length} related relationships`)
+
+    // Extract all unique graphml_source_chunks
+    const allChunks: string[] = []
+    relatedRelationships.forEach(rel => {
+      const chunks = rel.properties?.graphml_source_chunks
+      if (chunks && typeof chunks === 'string') {
+        allChunks.push(chunks)
+      }
+    })
+
+    // Deduplicate and combine chunks
+    const uniqueChunks = Array.from(new Set(allChunks))
+    const combinedChunks = uniqueChunks.join('\n\n--- Relation connexe ---\n\n')
+
+    console.log(`✅ Extracted ${uniqueChunks.length} unique chunks, total length: ${combinedChunks.length} chars`)
+
+    return {
+      chunks: combinedChunks,
+      count: relatedRelationships.length,
+      relationships: relatedRelationships
+    }
+  }
+
+  // Handle entity click to show related chunks
+  const handleEntityClick = (entity: EntityColorInfo) => {
+    console.log('🎯 Entity clicked:', entity.id)
+
+    // Find the actual Neo4j node ID by matching the labels or id
+    // Search in both queryResultNodes (from GraphRAG query) and reconciliationData (full graph)
+    let matchingNode = queryResultNodes.find(
+      node => node.labels?.includes(entity.id) || node.id === entity.id
+    )
+
+    if (!matchingNode) {
+      matchingNode = reconciliationData?.nodes.find(
+        node => node.labels?.includes(entity.id) || node.id === entity.id
+      )
+    }
+
+    if (matchingNode) {
+      console.log(`✅ Found matching node: ${matchingNode.id} (${matchingNode.labels?.[0]})`)
+      setSelectedEntityId(matchingNode.id)
+      setSelectedEntityName(matchingNode.labels?.[0] || matchingNode.id)
+    } else {
+      console.warn(`⚠️ No matching node found for entity: ${entity.id}`)
+      // Still open the modal with the label as ID (will show "not found" message)
+      setSelectedEntityId(entity.id)
+      setSelectedEntityName(entity.id)
+    }
+  }
 
   useEffect(() => {
     loadBooks()
@@ -68,7 +212,42 @@ export default function BorgesLibrary() {
     setDebugInfo(null)
     setReconciliationData({ nodes: [], relationships: [] })
     setCurrentProcessingPhase(null)
+
+    // Reload reconciliation graph for new book context
+    loadReconciliationGraph()
   }, [selectedBook])
+
+  // Timer effect for processing duration
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+
+    if (isProcessing && processingStartTime) {
+      interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - processingStartTime) / 1000))
+      }, 1000)
+    } else {
+      setElapsedTime(0)
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isProcessing, processingStartTime])
+
+  // Helper function to format elapsed time
+  const formatElapsedTime = (seconds: number): string => {
+    if (seconds < 60) {
+      return `${seconds}s`
+    } else if (seconds < 3600) {
+      const minutes = Math.floor(seconds / 60)
+      const remainingSeconds = seconds % 60
+      return `${minutes}m ${remainingSeconds}s`
+    } else {
+      const hours = Math.floor(seconds / 3600)
+      const minutes = Math.floor((seconds % 3600) / 60)
+      return `${hours}h ${minutes}m`
+    }
+  }
 
   const loadBooks = async () => {
     try {
@@ -182,6 +361,7 @@ export default function BorgesLibrary() {
 
   const handleProcessingStart = () => {
     setIsProcessing(true)
+    setProcessingStartTime(Date.now())
     setCurrentProcessingPhase('🔍 Analyse de la requête')
   }
 
@@ -191,6 +371,7 @@ export default function BorgesLibrary() {
 
   const handleProcessingEnd = () => {
     setIsProcessing(false)
+    setProcessingStartTime(null)
     setCurrentProcessingPhase(null)
   }
 
@@ -208,6 +389,7 @@ export default function BorgesLibrary() {
     setReconciliationData({ nodes: [], relationships: [] })
 
     setIsProcessing(true)
+    setProcessingStartTime(Date.now())
     setCurrentProcessingPhase('🔍 Running GraphRAG...')
     setCurrentQuery(query)
     setProcessingStats({ nodes: 0, communities: 0 })
@@ -244,6 +426,12 @@ export default function BorgesLibrary() {
           setQueryAnswer(combinedAnswer)
           setShowAnswer(true)
 
+          // Generate query ID for provenance tracking (temporary until backend provides it)
+          const tempQueryId = `multi-query-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          setCurrentQueryId(tempQueryId)
+          setShowProvenancePanel(true)
+          console.log('📊 Provenance tracking enabled for multi-book query:', tempQueryId)
+
           // Display aggregated nodes from multi-book query if available
           if (result.selected_nodes && result.selected_relationships) {
             console.log('🎯 Multi-book selected nodes:', result.selected_nodes.length)
@@ -262,6 +450,9 @@ export default function BorgesLibrary() {
               entityCommunityLinks: communityRels
             })
 
+            // Store query result nodes for entity lookup
+            setQueryResultNodes(result.selected_nodes || [])
+
             setReconciliationData({
               nodes: result.selected_nodes || [],
               relationships: result.selected_relationships || []
@@ -272,8 +463,8 @@ export default function BorgesLibrary() {
               processing_phases: {
                 entity_selection: {
                   entities: result.selected_nodes.map((node: any, index: number) => ({
-                    id: node.label,
-                    name: node.label,
+                    id: node.labels?.[0] || node.id,
+                    name: node.labels?.[0] || node.id,
                     type: node.type,
                     description: node.properties?.description || '',
                     rank: index + 1,
@@ -307,9 +498,72 @@ export default function BorgesLibrary() {
               ]
             };
             setDebugInfo(aggregatedDebugInfo);
+
+            // Extract entities for coloring across all books (Principle #4 - End-to-end interpretability)
+            let allEntitiesToColor: Array<{
+              id: string
+              type: string
+              description?: string
+              rank?: number
+              order?: number
+              score: number
+            }> = []
+
+            console.log('🎨 MULTI-BOOK ENTITIES DEBUG:')
+            console.log('🔍 All book results:', result.book_results)
+
+            if (result.book_results && Array.isArray(result.book_results)) {
+              result.book_results.forEach((bookResult: any, bookIndex: number) => {
+                console.log(`📖 Processing book ${bookIndex}:`, bookResult.book_id)
+
+                // Extract entities from each book's debug info if available
+                if (bookResult.debug_info?.processing_phases?.entity_selection?.entities) {
+                  console.log(`✅ Found entities in book ${bookResult.book_id}:`, bookResult.debug_info.processing_phases.entity_selection.entities.length)
+
+                  const bookEntities = bookResult.debug_info.processing_phases.entity_selection.entities.map((entity: any, idx: number) => ({
+                    id: entity.id || entity.name,
+                    type: entity.type || 'CONCEPT',
+                    description: entity.description,
+                    rank: entity.rank,
+                    order: allEntitiesToColor.length + idx, // Global order across all books
+                    score: entity.score || 0.5
+                  }))
+
+                  allEntitiesToColor.push(...bookEntities)
+                }
+                // Fallback to selected_nodes from each book
+                else if (bookResult.selected_nodes) {
+                  console.log(`⚠️ Using selected_nodes fallback for book ${bookResult.book_id}`)
+
+                  const bookEntities = bookResult.selected_nodes.map((node: any, idx: number) => ({
+                    id: node.properties?.name || node.id || node.labels?.[0],
+                    type: node.labels?.[0] || node.type || 'CONCEPT',
+                    description: node.properties?.description,
+                    score: (node.degree || node.centrality_score || 1) / 100,
+                    order: allEntitiesToColor.length + idx
+                  }))
+
+                  allEntitiesToColor.push(...bookEntities)
+                }
+              })
+            }
+
+            console.log(`🎯 Total entities to color across all books: ${allEntitiesToColor.length}`)
+            console.log('🎯 Sample entities:', allEntitiesToColor.slice(0, 5))
+
+            // Process entities with color service
+            if (allEntitiesToColor.length > 0) {
+              const enrichedEntities = colorService.enrichEntitiesWithColors(allEntitiesToColor)
+              console.log(`🌈 Multi-book enriched entities: ${enrichedEntities.length}`)
+              setColoredEntities(enrichedEntities)
+            } else {
+              console.log('⚠️ No entities found for multi-book coloring')
+              setColoredEntities([])
+            }
           } else {
             // Clear search path if no nodes available
             setSearchPath(null)
+            setColoredEntities([])
           }
         }
       } else {
@@ -332,6 +586,75 @@ export default function BorgesLibrary() {
         if (result.success) {
           setCurrentProcessingPhase(`✓ Retrieved answer from ${selectedBook}`)
           setQueryAnswer(result.answer || 'No answer available')
+
+          // Generate query ID for provenance tracking (temporary until backend provides it)
+          const tempQueryId = `query-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          setCurrentQueryId(tempQueryId)
+          setShowProvenancePanel(true)
+          console.log('📊 Provenance tracking enabled for query:', tempQueryId)
+
+          // Extract entities for coloring (Principle #4 - End-to-end interpretability)
+          let entitiesToColor: Array<{
+            id: string
+            type: string
+            description?: string
+            rank?: number
+            order?: number
+            score: number
+          }> = []
+
+          console.log('🎨 REAL-TIME DEBUG - Entities to color:')
+          console.log('🔍 Debug entities:', result.debug_info?.processing_phases?.entity_selection?.entities)
+          console.log('🔍 Selected nodes:', result.selected_nodes)
+          console.log('🔍 Regular nodes:', result.nodes)
+
+          // Priority 1: Use debug entities if available (most complete info)
+          if (result.debug_info?.processing_phases?.entity_selection?.entities) {
+            console.log('✅ Using debug entities (Priority 1)')
+            entitiesToColor = result.debug_info.processing_phases.entity_selection.entities.map((entity: any, idx: number) => ({
+              id: entity.id || entity.name,
+              type: entity.type || 'CONCEPT',
+              description: entity.description,
+              rank: entity.rank,
+              order: idx,
+              score: entity.score || 0.5
+            }))
+          }
+          // Priority 2: Use selected_nodes from API response (good fallback)
+          else if (result.selected_nodes && result.selected_nodes.length > 0) {
+            console.log('✅ Using selected_nodes (Priority 2)')
+            entitiesToColor = result.selected_nodes.map((node: any, idx: number) => ({
+              id: node.properties?.name || node.id,
+              type: node.labels?.[0] || 'CONCEPT',
+              description: node.properties?.description,
+              score: (node.degree || 1) / 100,
+              order: idx
+            }))
+          }
+          // Priority 3: Use nodes from response
+          else if (result.nodes && result.nodes.length > 0) {
+            console.log('✅ Using regular nodes (Priority 3)')
+            entitiesToColor = result.nodes.map((node: any, idx: number) => ({
+              id: node.properties?.name || node.id,
+              type: node.labels?.[0] || 'CONCEPT',
+              description: node.properties?.description,
+              score: (node.degree || 1) / 100,
+              order: idx
+            }))
+          }
+
+          console.log(`🎯 Entities to color: ${entitiesToColor.length}`, entitiesToColor.slice(0, 3))
+
+          // Process entities with color service
+          if (entitiesToColor.length > 0) {
+            const enrichedEntities = colorService.enrichEntitiesWithColors(entitiesToColor)
+            console.log(`🌈 Enriched entities: ${enrichedEntities.length}`, enrichedEntities.slice(0, 3))
+            setColoredEntities(enrichedEntities)
+          } else {
+            console.log('⚠️ No entities found for coloring')
+            setColoredEntities([])
+          }
+
           setShowAnswer(true)
 
           // Set debug info for animation and clear scene first
@@ -362,6 +685,10 @@ export default function BorgesLibrary() {
                 console.log('🔍 Selected nodes length:', result.selected_nodes?.length || 0)
                 console.log('🔍 First selected node:', result.selected_nodes?.[0])
                 console.log('🔍 Selected relationships length:', result.selected_relationships?.length || 0)
+
+                // Store query result nodes for entity lookup
+                setQueryResultNodes(result.selected_nodes || [])
+
                 setReconciliationData({
                   nodes: result.selected_nodes || [],
                   relationships: result.selected_relationships || []
@@ -380,6 +707,7 @@ export default function BorgesLibrary() {
       setShowAnswer(true)
     } finally {
       setIsProcessing(false)
+      setProcessingStartTime(null)
       setCurrentProcessingPhase(null)
     }
   }, [selectedBook, mode, multiBook])
@@ -493,48 +821,64 @@ export default function BorgesLibrary() {
                 >
                   {isProcessing ? '⏳' : '🔍'}
                 </button>
+
+                {/* Provenance Panel Toggle */}
+                {currentQueryId && (
+                  <button
+                    onClick={() => setShowProvenancePanel(!showProvenancePanel)}
+                    className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                      showProvenancePanel
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                    title="Toggle provenance panel"
+                  >
+                    🔗 Provenance
+                  </button>
+                )}
               </div>
 
-              {/* Processing Indicator */}
+              {/* Minimal Processing Indicator with 3D Wheel */}
               {isProcessing && (
-                <div className="p-3 bg-gray-800 rounded border border-borges-accent">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-3 h-3 bg-borges-accent rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-borges-accent">Processing Query...</span>
+                <div className="mt-2 mb-2 flex items-center justify-center gap-6 py-2">
+                  {/* Left: GraphRAG Processing */}
+                  <div className="flex items-center gap-2 text-sm text-gray-300 animate-pulse">
+                    <span className="text-blue-400">📚</span>
+                    <span>GraphRAG</span>
                   </div>
-                  <div className="text-xs text-gray-400 space-y-1">
-                    <div>{currentProcessingPhase || '🔍 Analyzing question...'}</div>
-                    {processingStats.nodes > 0 && (
-                      <div className="text-borges-accent">✓ {processingStats.nodes} entités extraites</div>
-                    )}
-                    {processingStats.communities > 0 && (
-                      <div className="text-borges-accent">✓ {processingStats.communities} communautés analysées</div>
-                    )}
-                    {(processingStats.neo4jRelationships || 0) > 0 && (
-                      <div className="text-blue-400">🔗 {processingStats.neo4jRelationships} relations Neo4j enrichies</div>
-                    )}
-                    {(processingStats.entityCommunityLinks || 0) > 0 && (
-                      <div className="text-purple-400">🏘️ {processingStats.entityCommunityLinks} liens entité↔communauté</div>
-                    )}
-                    {(processingStats.crossBookLinks || 0) > 0 && (
-                      <div className="text-red-400">📚 {processingStats.crossBookLinks} connexions inter-livres</div>
-                    )}
+
+                  {/* Center: 3D Wheel + Timer */}
+                  <div className="flex flex-col items-center gap-1">
+                    <LoadingWheel3D size={32} speed={1.5} color="#D97706" />
+                    <span className="font-mono text-xs text-borges-accent">
+                      {formatElapsedTime(elapsedTime)}
+                    </span>
+                  </div>
+
+                  {/* Right: Neo4j Processing */}
+                  <div className="flex items-center gap-2 text-sm text-gray-300 animate-pulse">
+                    <span className="text-green-400">🔗</span>
+                    <span>Neo4j</span>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* 3D Force Graph Visualization */}
-          <div className="flex-1 bg-black relative">
-            <GraphVisualization3DForce
-              reconciliationData={reconciliationData}
-              searchPath={searchPath}
-              debugInfo={debugInfo}
-              onNodeVisibilityChange={setVisibleNodeIds}
-              isProcessing={isProcessing}
-              currentProcessingPhase={currentProcessingPhase}
-            />
+          {/* 3D Force Graph Visualization with Provenance Panel */}
+          <div className="flex-1 flex bg-black relative">
+            {/* Main Graph Container */}
+            <div className="flex-1 bg-black relative">
+              <GraphErrorBoundary>
+                <GraphVisualization3DForce
+                  reconciliationData={reconciliationData}
+                  searchPath={searchPath}
+                  debugInfo={debugInfo}
+                  onNodeVisibilityChange={setVisibleNodeIds}
+                  onNodeClick={handleNodeClick}
+                  isProcessing={isProcessing}
+                  currentProcessingPhase={currentProcessingPhase}
+              />
 
             {/* Loading Overlay with Star Animation */}
             {isLoadingGraph && (
@@ -610,13 +954,37 @@ export default function BorgesLibrary() {
                 </div>
               </div>
             )}
+            </GraphErrorBoundary>
+            </div>
+
+            {/* Provenance Panel - Side Panel */}
+            {showProvenancePanel && currentQueryId && (
+              <div className="w-96">
+                <ProvenancePanel
+                  queryId={currentQueryId}
+                  onEntityClick={handleProvenanceEntityClick}
+                  onRelationshipClick={handleRelationshipClick}
+                  onChunkClick={handleChunkClick}
+                />
+              </div>
+            )}
           </div>
         </div>
       </main>
 
+      {/* Entity Detail Modal */}
+      {selectedEntityId && (
+        <EntityDetailModal
+          entityId={selectedEntityId}
+          entityName={selectedEntityName || undefined}
+          reconciliationData={reconciliationData}
+          onClose={handleCloseEntityModal}
+        />
+      )}
+
       {/* Answer Panel - Bottom Left with GraphRAG Context like test_query_analysis.py */}
       {showAnswer && (
-        <div className="fixed bottom-4 left-4 bg-borges-dark border border-borges-accent rounded-lg p-4 max-w-lg max-h-96 overflow-auto text-white shadow-2xl z-50">
+        <div className="fixed bottom-4 left-4 bg-borges-dark border border-borges-accent rounded-lg p-4 w-[500px] max-h-[600px] overflow-auto text-white shadow-2xl z-50">
           <div className="flex justify-between items-start mb-3">
             <h3 className="text-sm font-semibold text-borges-accent">📊 GraphRAG Analysis</h3>
             <button
@@ -668,10 +1036,39 @@ export default function BorgesLibrary() {
 
           <div>
             <div className="text-xs text-gray-400 mb-1">Réponse:</div>
-            <div className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">{queryAnswer}</div>
+            <div className="max-h-80 overflow-y-auto pr-2">
+              <HighlightedText
+                text={queryAnswer}
+                entities={coloredEntities}
+                className="text-sm text-gray-300 leading-relaxed break-words whitespace-pre-wrap"
+                onEntityClick={handleEntityClick}
+                showTooltip={true}
+              />
+            </div>
           </div>
         </div>
+      )}
+
+      {/* TextChunkModal for entity source exploration */}
+      {entityChunkData && (
+        <TextChunkModal
+          isOpen={isEntityChunkModalOpen}
+          onClose={() => {
+            setIsEntityChunkModalOpen(false)
+            setEntityChunkData(null)
+          }}
+          chunkText={entityChunkData.aggregatedChunks}
+          bookId={entityChunkData.bookId}
+          entities={coloredEntities.filter(e => e.id === entityChunkData.entityName)}
+          relationshipInfo={{
+            sourceNode: entityChunkData.entityName,
+            targetNode: `${entityChunkData.relatedRelationships} relations`,
+            relationType: 'ENTITY_CONTEXT'
+          }}
+        />
       )}
     </div>
   )
 }
+
+export default BorgesLibrary;

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import TextChunkModal from './TextChunkModal'
 
 interface Node {
   id: string
@@ -95,6 +96,7 @@ interface GraphVisualization3DForceProps {
   searchPath?: any
   debugInfo?: DebugInfo | null
   onNodeVisibilityChange?: (nodeIds: string[]) => void
+  onNodeClick?: (nodeId: string, nodeLabel: string, bookId?: string) => void
   isProcessing?: boolean
   currentProcessingPhase?: string | null
 }
@@ -104,6 +106,7 @@ export default function GraphVisualization3DForce({
   searchPath,
   debugInfo,
   onNodeVisibilityChange,
+  onNodeClick,
   isProcessing,
   currentProcessingPhase
 }: GraphVisualization3DForceProps) {
@@ -112,6 +115,19 @@ export default function GraphVisualization3DForce({
   const [isLoading, setIsLoading] = useState(true)
   const [isGraphReady, setIsGraphReady] = useState(false)
   const [hoveredLink, setHoveredLink] = useState<Link | null>(null)
+
+  // TextChunkModal state
+  const [isChunkModalOpen, setIsChunkModalOpen] = useState(false)
+  const [chunkModalData, setChunkModalData] = useState<{
+    chunkText: string
+    bookId?: string
+    chunkId?: string
+    relationshipInfo?: {
+      sourceNode: string
+      targetNode: string
+      relationType: string
+    }
+  } | null>(null)
 
   // Color mapping for different node types
   const getNodeColor = (labels: string[]) => {
@@ -138,6 +154,23 @@ export default function GraphVisualization3DForce({
     return '#dfe4ea' // default color
   }
 
+  // Handle source navigation to open TextChunkModal
+  const handleSourceNavigation = (sourceChunks: string, bookId?: string, relationshipInfo?: { sourceNode: string, targetNode: string, relationType: string }) => {
+    console.log('🔗 Opening TextChunkModal with source chunks:', {
+      sourceChunks: sourceChunks.substring(0, 100) + '...',
+      bookId,
+      relationshipInfo
+    })
+
+    setChunkModalData({
+      chunkText: sourceChunks,
+      bookId: bookId || 'unknown',
+      chunkId: undefined, // We don't have chunk_id in this context
+      relationshipInfo
+    })
+    setIsChunkModalOpen(true)
+  }
+
   // Initialize 3D Force Graph
   useEffect(() => {
     const initGraph = async () => {
@@ -150,12 +183,9 @@ export default function GraphVisualization3DForce({
       console.log('✅ Container ref available:', containerRef.current)
 
       try {
-        console.log('📦 Importing 3d-force-graph module...')
+        console.log('🎨 Creating new ForceGraph3D instance...')
         // Dynamic import for client-side only
         const ForceGraph3D = (await import('3d-force-graph')).default
-        console.log('✅ 3d-force-graph module imported successfully')
-
-        console.log('🎨 Creating new ForceGraph3D instance...')
         // Initialize the graph with design principles
         const graph = new ForceGraph3D(containerRef.current)
 
@@ -185,6 +215,16 @@ export default function GraphVisualization3DForce({
           setHoveredLink(link || null)
         })
 
+        // Configure node click handler for chunk traceability
+        graph.onNodeClick((node: any) => {
+          if (onNodeClick && node) {
+            console.log('🎯 Node clicked for chunk traceability:', node)
+            const nodeLabel = node.name || node.label || node.id
+            const bookId = node.bookId || node.book_id
+            onNodeClick(node.id, nodeLabel, bookId)
+          }
+        })
+
         // Principe #4: Proper spacing between nodes for visibility of relationships
         // Configure forces to create book-centered topology: Books → Hubs → Sub-hubs → Periphery
         const chargeForce = graph.d3Force('charge')
@@ -192,15 +232,15 @@ export default function GraphVisualization3DForce({
           chargeForce.strength((node: any) => {
             // Books have moderate repulsion but stay central
             const isBook = node.group === 'Livres' || node.group === 'BOOK' || String(node.id).startsWith('LIVRE_')
-            if (isBook) return -400  // Books slightly stronger repulsion for better separation
+            if (isBook) return -200  // Books moderate repulsion for better balance
 
-            // High-degree nodes (hubs) have stronger repulsion for extensive spreading
+            // High-degree nodes (hubs) have stronger repulsion for good spreading
             const degree = node.val || 1
-            if (degree > 10) return -800  // Hubs much stronger separation (2x increase)
-            if (degree > 5) return -1000  // Sub-hubs very strong separation (2x increase)
+            if (degree > 10) return -400  // Hubs moderate separation to reduce spiral effect
+            if (degree > 5) return -500  // Sub-hubs moderate separation
 
-            // Regular nodes have very strong repulsion to reach far periphery
-            return -1200  // Maximum repulsion (2x increase) to create long-range multi-hop visibility
+            // Regular nodes have moderate repulsion for natural distribution
+            return -600  // Balanced repulsion to avoid excessive spiral effect
           })
         }
 
@@ -208,22 +248,22 @@ export default function GraphVisualization3DForce({
         if (linkForce) {
           linkForce
             .distance((link: any) => {
-              // MUCH larger distances for better visibility and long-range multi-hop exploration
+              // Balanced distances for good visibility without excessive spiral effect
               const sourceIsBook = link.source.group === 'Livres' || link.source.group === 'BOOK' || String(link.source.id).startsWith('LIVRE_')
               const targetIsBook = link.target.group === 'Livres' || link.target.group === 'BOOK' || String(link.target.id).startsWith('LIVRE_')
 
-              if (sourceIsBook || targetIsBook) return 480  // Books to first-hop: 4x larger (120 * 4)
+              if (sourceIsBook || targetIsBook) return 400  // Books to first-hop: balanced distance
 
-              // Hub-to-hub connections: much longer to show extensive intermediate networks
+              // Hub-to-hub connections: moderate spacing for good structure
               const sourceDegree = link.source.val || 1
               const targetDegree = link.target.val || 1
-              if (sourceDegree > 10 && targetDegree > 10) return 640  // Hub networks very spread out (160 * 4)
-              if (sourceDegree > 5 && targetDegree > 5) return 560    // Sub-hub networks (140 * 4)
+              if (sourceDegree > 10 && targetDegree > 10) return 500  // Hub networks well spread
+              if (sourceDegree > 5 && targetDegree > 5) return 450    // Sub-hub networks
 
-              // Regular connections: very long distance to show extensive multi-hop paths
-              return 720  // 4x larger (180 * 4) for maximum range visibility
+              // Regular connections: good distance for multi-hop visibility
+              return 550  // Extended range without spiral artifacts
             })
-            .strength(0.4)  // Even weaker attraction to allow much wider spreading
+            .strength(0.7)  // Stronger links to maintain structural cohesion and reduce spiral
         }
 
         // Add center force to keep books gravitating toward center
@@ -239,7 +279,7 @@ export default function GraphVisualization3DForce({
           if (degree > 10) return 400  // Hubs in middle ring (4x larger: 100 * 4)
           if (degree > 5) return 800   // Sub-hubs in outer ring (4x larger: 200 * 4)
           return 1200  // Peripheral nodes pushed far outward (4x larger: 300 * 4) for maximum range
-        }, 0, 0).strength(0.2))
+        }, 0, 0).strength(0.05))  // Much weaker radial force to prevent rigid circular patterns
 
         console.log('✅ ForceGraph3D instance created successfully')
         graphRef.current = graph
@@ -706,7 +746,7 @@ export default function GraphVisualization3DForce({
       {/* Link Hover Tooltip */}
       {hoveredLink && (
         <div
-          className="absolute pointer-events-none bg-black bg-opacity-90 text-white p-3 rounded text-xs z-10 max-w-80"
+          className="absolute bg-black bg-opacity-90 text-white p-3 rounded text-xs z-10 max-w-80"
           style={{
             left: `${window.innerWidth / 2}px`,
             top: `${window.innerHeight / 2}px`,
@@ -757,8 +797,25 @@ export default function GraphVisualization3DForce({
 
                 {hoveredLink.graphml_source_chunks && (
                   <div>
-                    <span className="text-gray-300">Source:</span>
-                    <div className="text-gray-400 ml-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">Source:</span>
+                      <button
+                        onClick={() => handleSourceNavigation(
+                          hoveredLink.graphml_source_chunks!,
+                          'unknown', // We don't have bookId here
+                          {
+                            sourceNode: typeof hoveredLink.source === 'object' ? (hoveredLink.source as any)?.name || (hoveredLink.source as any)?.id || 'Unknown' : hoveredLink.source,
+                            targetNode: typeof hoveredLink.target === 'object' ? (hoveredLink.target as any)?.name || (hoveredLink.target as any)?.id || 'Unknown' : hoveredLink.target,
+                            relationType: hoveredLink.relation || hoveredLink.type || 'RELATED'
+                          }
+                        )}
+                        className="text-blue-400 hover:text-blue-300 text-xs px-2 py-1 bg-blue-900/30 rounded border border-blue-500/30 transition-all hover:bg-blue-900/50 flex items-center gap-1"
+                        title="Ouvrir le texte source complet"
+                      >
+                        🔗 Lire Source
+                      </button>
+                    </div>
+                    <div className="text-gray-400 ml-1 text-xs mt-1">
                       {hoveredLink.graphml_source_chunks.substring(0, 50)}...
                     </div>
                   </div>
@@ -780,6 +837,22 @@ export default function GraphVisualization3DForce({
             )}
           </div>
         </div>
+      )}
+
+      {/* TextChunkModal for source text display */}
+      {chunkModalData && (
+        <TextChunkModal
+          isOpen={isChunkModalOpen}
+          onClose={() => {
+            setIsChunkModalOpen(false)
+            setChunkModalData(null)
+          }}
+          chunkText={chunkModalData.chunkText}
+          bookId={chunkModalData.bookId}
+          chunkId={chunkModalData.chunkId}
+          entities={[]} // TODO: Extract entities from the relationship data
+          relationshipInfo={chunkModalData.relationshipInfo}
+        />
       )}
     </div>
   )

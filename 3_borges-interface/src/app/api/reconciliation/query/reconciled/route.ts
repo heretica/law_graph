@@ -31,6 +31,60 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json()
     console.log('API Route: Success, selected_nodes count:', data.selected_nodes?.length || 0)
+    console.log('🔍 API Route: Full response structure:', {
+      success: data.success,
+      has_answer: !!data.answer,
+      has_selected_nodes: !!data.selected_nodes,
+      selected_nodes_count: data.selected_nodes?.length || 0,
+      has_nodes: !!data.nodes,
+      nodes_count: data.nodes?.length || 0,
+      has_relationships: !!data.relationships,
+      relationships_count: data.relationships?.length || 0,
+      has_debug_info: !!data.debug_info,
+      debug_phases: data.debug_info?.processing_phases ? Object.keys(data.debug_info.processing_phases) : []
+    })
+    if (data.selected_nodes?.length > 0) {
+      console.log('🎯 Sample selected_node:', JSON.stringify(data.selected_nodes[0], null, 2))
+    }
+
+    // Enrichir les nœuds avec des références aux chunks pour la traçabilité
+    if (data.selected_nodes?.length > 0 && body.book_id) {
+      console.log('📚 Enriching nodes with chunk references...')
+
+      data.selected_nodes = data.selected_nodes.map((node: any) => {
+        // Ajouter des chunk references simulées basées sur l'entité
+        // En production, ces données viendraient du GraphRAG/API de réconciliation
+        const chunkReferences = [{
+          bookId: body.book_id,
+          chunkId: `${node.id}_chunk_1`,
+          nodeId: node.id,
+          weight: 1.0
+        }]
+
+        return {
+          ...node,
+          chunk_references: chunkReferences,
+          has_chunks: true
+        }
+      })
+
+      console.log(`✅ Enriched ${data.selected_nodes.length} nodes with chunk references`)
+    }
+
+    // Debug entity_selection structure for coloring
+    if (data.debug_info?.processing_phases?.entity_selection?.entities) {
+      console.log('🔍 Entity selection entities count:', data.debug_info.processing_phases.entity_selection.entities.length)
+      console.log('🔍 Sample entity:', JSON.stringify(data.debug_info.processing_phases.entity_selection.entities[0], null, 2))
+    } else {
+      console.log('❌ No entities in debug_info.processing_phases.entity_selection.entities')
+      console.log('🔍 Debug info structure keys:', Object.keys(data.debug_info || {}))
+      if (data.debug_info?.processing_phases) {
+        console.log('🔍 Processing phases keys:', Object.keys(data.debug_info.processing_phases))
+        if (data.debug_info.processing_phases.entity_selection) {
+          console.log('🔍 Entity selection keys:', Object.keys(data.debug_info.processing_phases.entity_selection))
+        }
+      }
+    }
     return NextResponse.json(data)
 
   } catch (error) {

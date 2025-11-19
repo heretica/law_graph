@@ -1,0 +1,451 @@
+openapi: 3.0.3
+info:
+  title: Graph Edit API
+  description: API for interactively editing graph entities and relationships
+  version: 1.0.0
+  contact:
+    name: Borges Library Team
+
+servers:
+  - url: https://reconciliation-api.railway.app
+    description: Production (Railway)
+  - url: http://localhost:5002
+    description: Local development
+
+paths:
+  /api/edits/relationship:
+    post:
+      summary: Edit an existing relationship
+      description: Modify relationship type, properties, or directionality
+      operationId: editRelationship
+      tags:
+        - Edits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RelationshipEditRequest'
+      responses:
+        '200':
+          description: Edit applied successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditError'
+        '409':
+          description: Edit conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditConflict'
+
+  /api/edits/entity:
+    post:
+      summary: Add or modify an entity
+      description: Create new entity or modify existing entity properties
+      operationId: editEntity
+      tags:
+        - Edits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntityEditRequest'
+      responses:
+        '200':
+          description: Entity edit applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditResponse'
+        '400':
+          description: Validation error
+
+    delete:
+      summary: Delete an entity
+      description: Remove entity from graph (with validation checks)
+      operationId: deleteEntity
+      tags:
+        - Edits
+      parameters:
+        - name: entity_id
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - justification
+                - editor_id
+              properties:
+                justification:
+                  type: string
+                editor_id:
+                  type: string
+      responses:
+        '200':
+          description: Entity deleted
+        '400':
+          description: Validation error (e.g., would create orphan nodes)
+
+  /api/edits/relationship/add:
+    post:
+      summary: Add a new relationship between entities
+      description: Create user-added relationship with justification
+      operationId: addRelationship
+      tags:
+        - Edits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddRelationshipRequest'
+      responses:
+        '201':
+          description: Relationship created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditResponse'
+
+  /api/edits/{edit_id}:
+    get:
+      summary: Get edit details
+      description: Retrieve information about a specific edit
+      operationId: getEdit
+      tags:
+        - Edits
+      parameters:
+        - name: edit_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Edit details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphEdit'
+
+  /api/edits/{edit_id}/rollback:
+    post:
+      summary: Rollback an edit
+      description: Revert a previously applied edit
+      operationId: rollbackEdit
+      tags:
+        - Edits
+      parameters:
+        - name: edit_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - editor_id
+                - reason
+              properties:
+                editor_id:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Edit rolled back
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditResponse'
+
+  /api/edits/entity/{entity_id}/history:
+    get:
+      summary: Get edit history for entity
+      description: Returns all edits applied to an entity
+      operationId: getEntityEditHistory
+      tags:
+        - Edits
+      parameters:
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Edit history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entity_id:
+                    type: string
+                  entity_name:
+                    type: string
+                  edits:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GraphEdit'
+
+  /api/edits/validate:
+    post:
+      summary: Validate edit before applying
+      description: Check if edit would violate graph constraints
+      operationId: validateEdit
+      tags:
+        - Edits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateEditRequest'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+
+components:
+  schemas:
+    RelationshipEditRequest:
+      type: object
+      required:
+        - source_id
+        - target_id
+        - old_type
+        - new_type
+        - justification
+        - editor_id
+      properties:
+        source_id:
+          type: string
+          description: Source entity ID
+        target_id:
+          type: string
+          description: Target entity ID
+        old_type:
+          type: string
+          description: Current relationship type
+        new_type:
+          type: string
+          description: New relationship type
+        properties:
+          type: object
+          description: Optional relationship properties to update
+        justification:
+          type: string
+          description: User's explanation for this edit
+          example: "This is an 'influences' relationship, not 'appears_with'"
+        editor_id:
+          type: string
+          description: User making the edit
+
+    EntityEditRequest:
+      type: object
+      required:
+        - operation
+        - justification
+        - editor_id
+      properties:
+        operation:
+          type: string
+          enum: [create, modify]
+        entity_id:
+          type: string
+          description: Required for modify, optional for create
+        name:
+          type: string
+        entity_type:
+          type: string
+          example: "CONCEPT"
+        description:
+          type: string
+        properties:
+          type: object
+        justification:
+          type: string
+        editor_id:
+          type: string
+
+    AddRelationshipRequest:
+      type: object
+      required:
+        - source_id
+        - target_id
+        - relationship_type
+        - justification
+        - editor_id
+      properties:
+        source_id:
+          type: string
+        target_id:
+          type: string
+        relationship_type:
+          type: string
+          example: "RELATES_TO"
+        description:
+          type: string
+        properties:
+          type: object
+        bidirectional:
+          type: boolean
+          default: false
+        justification:
+          type: string
+        editor_id:
+          type: string
+
+    EditResponse:
+      type: object
+      required:
+        - success
+        - edit_id
+      properties:
+        success:
+          type: boolean
+        edit_id:
+          type: string
+        message:
+          type: string
+        applied_at:
+          type: string
+          format: date-time
+        validation_status:
+          type: string
+          enum: [valid, conflict, rolled_back]
+
+    GraphEdit:
+      type: object
+      properties:
+        id:
+          type: string
+        edit_type:
+          type: string
+          enum: [entity_add, entity_delete, entity_modify, relationship_add, relationship_modify, relationship_delete]
+        target_id:
+          type: string
+        old_value:
+          type: string
+          description: JSON of previous state
+        new_value:
+          type: string
+          description: JSON of new state
+        justification:
+          type: string
+        editor_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        applied:
+          type: boolean
+        validation_status:
+          type: string
+
+    EditError:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        validation_errors:
+          type: array
+          items:
+            type: string
+        details:
+          type: object
+
+    EditConflict:
+      type: object
+      required:
+        - error
+        - message
+        - conflicting_edit_id
+      properties:
+        error:
+          type: string
+          example: "edit_conflict"
+        message:
+          type: string
+        conflicting_edit_id:
+          type: string
+        conflicting_edit:
+          $ref: '#/components/schemas/GraphEdit'
+        resolution_options:
+          type: array
+          items:
+            type: string
+            enum: [force_apply, rollback_conflicting, manual_merge]
+
+    ValidateEditRequest:
+      type: object
+      required:
+        - edit_type
+        - target_id
+      properties:
+        edit_type:
+          type: string
+        target_id:
+          type: string
+        new_value:
+          type: object
+
+    ValidationResult:
+      type: object
+      required:
+        - valid
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        impact:
+          type: object
+          properties:
+            would_create_orphans:
+              type: boolean
+            affected_queries:
+              type: array
+              items:
+                type: string
+            affected_entities_count:
+              type: integer

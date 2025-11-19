@@ -26,6 +26,11 @@ export async function GET(request: NextRequest) {
     params.append('node_ids', nodeIds)
     params.append('limit', limit)
 
+    // Add book_id parameter for GraphML enrichment (default book for testing)
+    // TODO: Get this from user context or page parameters
+    const bookId = searchParams.get('book_id') || 'a_rebours_huysmans'  // Default to a_rebours_huysmans (currently available)
+    params.append('book_id', bookId)
+
     console.log(`🔄 Fetching relationships: ${nodeIds.split(',').length} nodes with limit ${limit}`)
 
     const controller = new AbortController()

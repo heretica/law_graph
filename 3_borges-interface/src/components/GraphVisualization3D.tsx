@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
+import RelationshipTooltip from './RelationshipTooltip'
 
 interface Node3D {
   id: string
@@ -12,6 +13,7 @@ interface Node3D {
   position: THREE.Vector3
   color: string
   size: number
+  properties?: Record<string, any>  // Add properties field
   // Physics properties for force simulation
   velocity?: THREE.Vector3
   force?: THREE.Vector3
@@ -232,12 +234,14 @@ interface GraphVisualization3DProps {
   reconciliationData?: ReconciliationData | null
   searchPath?: any
   onNodeVisibilityChange?: (nodeIds: string[]) => void
+  onNavigateToSource?: (sourceChunks: string, bookId?: string) => void
 }
 
 export default function GraphVisualization3D({
   reconciliationData,
   searchPath,
-  onNodeVisibilityChange
+  onNodeVisibilityChange,
+  onNavigateToSource
 }: GraphVisualization3DProps) {
   const [mountElement, setMountElement] = useState<HTMLDivElement | null>(null)
   const sceneRef = useRef<THREE.Scene>()
@@ -253,15 +257,55 @@ export default function GraphVisualization3D({
   const [isInitialized, setIsInitialized] = useState(false)
   const [hoveredNode, setHoveredNode] = useState<Node3D | null>(null)
   const [hoveredLink, setHoveredLink] = useState<Link3D | null>(null)
+  const [stableHoveredLink, setStableHoveredLink] = useState<Link3D | null>(null)
+  const [lockedTooltip, setLockedTooltip] = useState<Link3D | null>(null)
   const [selectedNode, setSelectedNode] = useState<Node3D | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
+  const [isTooltipHovered, setIsTooltipHovered] = useState(false)
+  // Click-based info panel state
+  const [clickedItem, setClickedItem] = useState<{
+    type: 'node' | 'link'
+    data: Node3D | Link3D
+    position: { x: number; y: number }
+  } | null>(null)
+
   // Force simulation reference - moved up to be accessible everywhere
   const forceSimulationRef = useRef<ForceSimulation3D | null>(null)
+
+  // Enhanced tooltip stability and locking system (Phase 2)
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+
+    if (lockedTooltip) {
+      // Locked tooltip takes precedence
+      setStableHoveredLink(lockedTooltip)
+      return
+    }
+
+    if (hoveredLink) {
+      // Immediate show on hover
+      setStableHoveredLink(hoveredLink)
+    } else if (!isTooltipHovered) {
+      // Hide with delay only if not hovering tooltip itself
+      timeoutId = setTimeout(() => {
+        setStableHoveredLink(null)
+      }, 250) // Extended delay for better UX
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [hoveredLink, lockedTooltip, isTooltipHovered])
+
 
   // Callback ref to capture mount element
   const setMountRef = (element: HTMLDivElement | null) => {
     console.log('📍 Mount ref callback triggered:', !!element)
     setMountElement(element)
   }
+
 
   // Initialize Three.js scene when mount element becomes available
   useEffect(() => {
@@ -459,10 +503,25 @@ export default function GraphVisualization3D({
           // Debug logging for hover states
           if (hoveredLinkData) {
             console.log('🎯 Link hover detected!', hoveredLinkData)
+          } else {
+            console.log('🎯 Link hover detected! null')
           }
 
           setHoveredNode(hoveredNodeData)
           setHoveredLink(hoveredLinkData)
+
+          // Debug tooltip state
+          console.log('🛠️ Tooltip state update:', {
+            hoveredLinkId: hoveredLinkData?.id,
+            visible: !!hoveredLinkData,
+            hasProperties: !!hoveredLinkData?.properties,
+            hasGraphML: hoveredLinkData?.properties?.has_graphml_metadata
+          })
+
+          // Update tooltip position when hovering over links
+          if (hoveredLinkData) {
+            setTooltipPosition({ x: mouseX, y: mouseY })
+          }
 
           // Change cursor when hovering over nodes or links
           container.style.cursor = (hoveredNodeData || hoveredLinkData) ? 'pointer' : 'grab'
@@ -548,11 +607,35 @@ export default function GraphVisualization3D({
           const deltaY = Math.abs(event.clientY - lastMouseY)
 
           if (deltaX < 5 && deltaY < 5) {
+            // Check for node click first
             const clickedNode = checkNodeIntersection(event.clientX, event.clientY)
-            setSelectedNode(clickedNode)
-
             if (clickedNode) {
-              console.log('🎯 Node selected:', clickedNode)
+              setSelectedNode(clickedNode)
+              setClickedItem({
+                type: 'node',
+                data: clickedNode,
+                position: { x: event.clientX, y: event.clientY }
+              })
+              console.log('🎯 Node clicked:', clickedNode.label)
+            } else {
+              // Check for link click
+              const clickedLink = checkLinkIntersection(event.clientX, event.clientY)
+              if (clickedLink) {
+                setClickedItem({
+                  type: 'link',
+                  data: clickedLink,
+                  position: { x: event.clientX, y: event.clientY }
+                })
+                // Also set locked tooltip for Phase 2 compatibility
+                setLockedTooltip(lockedTooltip?.id === clickedLink.id ? null : clickedLink)
+                console.log('🔗 Link clicked:', clickedLink.id)
+              } else {
+                // Clear all selections if clicking empty space
+                setSelectedNode(null)
+                setLockedTooltip(null)
+                setClickedItem(null)
+                console.log('🎯 Clicked empty space - cleared selections')
+              }
             }
           }
         }
@@ -832,6 +915,49 @@ export default function GraphVisualization3D({
       outlineMesh.userData.isGalaxyObject = true
       outlineMesh.userData.isOutline = true
 
+      // 📄 Add badge for nodes with chunks available (Plan Phase 1)
+      const hasSourceChunks = !!(node.properties?.graphml_source_chunks &&
+                               node.properties.graphml_source_chunks.length > 0)
+      if (hasSourceChunks) {
+        // Create canvas for emoji badge
+        const canvas = document.createElement('canvas')
+        canvas.width = 64
+        canvas.height = 64
+        const context = canvas.getContext('2d')!
+
+        // Draw badge background
+        context.fillStyle = 'rgba(255, 215, 0, 0.9)' // Golden background
+        context.beginPath()
+        context.arc(32, 32, 30, 0, 2 * Math.PI)
+        context.fill()
+
+        // Draw emoji
+        context.font = '40px Arial'
+        context.textAlign = 'center'
+        context.fillStyle = '#000000'
+        context.fillText('📄', 32, 45)
+
+        // Create texture and material
+        const badgeTexture = new THREE.CanvasTexture(canvas)
+        const badgeMaterial = new THREE.SpriteMaterial({ map: badgeTexture, transparent: true })
+        const badge = new THREE.Sprite(badgeMaterial)
+
+        // Position badge at top-right corner of node
+        badge.position.copy(node.position)
+        badge.position.x += finalScale * 0.8
+        badge.position.y += finalScale * 0.8
+        badge.scale.setScalar(finalScale * 0.5) // 50% of node size
+
+        badge.userData.node = node
+        badge.userData.isChunkBadge = true
+
+        // Store badge reference for position updates
+        mesh.userData.badge = badge
+        if (sceneRef.current) {
+          sceneRef.current.add(badge)
+        }
+      }
+
       nodeMeshes.push(mesh)
       nodeMeshes.push(outlineMesh)
 
@@ -890,23 +1016,50 @@ export default function GraphVisualization3D({
           // Create a curve from start to end point
           const curve = new THREE.LineCurve3(startPoint, endPoint)
 
-          // Create tube geometry with larger radius for reliable hovering
-          const tubeRadius = link.has_graphml_metadata ? 2.0 : 1.5 // Much thicker for easier hovering
+          // Calculate confidence based on GraphML metadata richness for visual indicators
+          const hasSourceChunks = !!(link.graphml_source_chunks && link.graphml_source_chunks.length > 0)
+          const hasDescription = !!(link.graphml_description && link.graphml_description.length > 0)
+          const graphMLOrder = link.graphml_order || 0
+          const confidenceScore = link.has_graphml_metadata ?
+            0.3 + (hasSourceChunks ? 0.4 : 0) + (hasDescription ? 0.3 : 0) : 0.2
+
+          // Enhanced tube radius based on confidence and metadata quality
+          const baseRadius = 1.2
+          const confidenceRadius = confidenceScore * 1.8 // Higher confidence = thicker links
+
+          // 🔗 +50% thickness for GraphML relationships (Plan Phase 1)
+          const graphMLBonus = link.has_graphml_metadata ? baseRadius * 0.5 : 0
+          const tubeRadius = Math.max(baseRadius, confidenceRadius) + graphMLBonus
           const linkGeometry = new THREE.TubeGeometry(curve, 1, tubeRadius, 8, false)
 
-          // Determine link appearance based on highlighting and GraphML metadata
-          let opacity = searchPath && highlightedEntityIds.size > 0 ? 0.1 : 0.3
+          // Advanced color and opacity system based on provenance and confidence
+          let opacity = searchPath && highlightedEntityIds.size > 0 ? 0.15 : 0.25
           let color = 0xffffff
 
           if (isHighlighted) {
             opacity = 0.9
             color = 0x00ff88 // Bright green for highlighted paths
           } else if (link.has_graphml_metadata) {
-            // Enhanced appearance for GraphML-enriched relationships
-            opacity = Math.max(opacity, 0.4)
-            if (link.graphml_weight && link.graphml_weight > 10) {
-              opacity = Math.min(0.8, opacity + link.graphml_weight / 100)
+            // 🔗 UNIFIED GOLDEN COLOR for all GraphML relationships (Plan Phase 1)
+            // Provides immediate visual identification of traceable relationships
+            color = 0xFFD700 // Pure gold for all GraphML-enriched relationships
+            opacity = Math.min(0.8, 0.5 + confidenceScore * 0.3)
+
+            // Preserve quality-based opacity for subtle differentiation
+            if (hasSourceChunks && hasDescription) {
+              opacity = Math.min(0.9, 0.7 + confidenceScore * 0.2) // Highest opacity for complete metadata
+            } else if (hasSourceChunks || hasDescription) {
+              opacity = Math.min(0.7, 0.5 + confidenceScore * 0.2) // Medium opacity for partial metadata
             }
+
+            // Boost importance for low graphML order (earlier discovered relations)
+            if (graphMLOrder > 0 && graphMLOrder <= 3) {
+              opacity = Math.min(1.0, opacity + 0.2)
+            }
+          } else {
+            // Basic GraphRAG relations without GraphML: subtle gray
+            color = 0xC0C0C0 // Silver gray
+            opacity = Math.max(opacity, 0.25)
           }
 
           const linkMaterial = new THREE.MeshBasicMaterial({
@@ -961,6 +1114,15 @@ export default function GraphVisualization3D({
                   // Update positions for both main and outline meshes
                   mainMesh.position.copy(node.position)
                   outlineMesh.position.copy(node.position)
+
+                  // Update badge position if it exists (Plan Phase 1)
+                  const badge = mainMesh.userData.badge
+                  if (badge) {
+                    const scale = mainMesh.scale.x // Get current scale
+                    badge.position.copy(node.position)
+                    badge.position.x += scale * 0.8 // Top-right offset
+                    badge.position.y += scale * 0.8
+                  }
 
                   // Add gentle rotation only when simulation is cooling down
                   if (!simulationActive) {
@@ -1233,6 +1395,25 @@ export default function GraphVisualization3D({
           </div>
         </div>
 
+        {/* GraphML Enrichment Legend */}
+        <div className="mt-3 pt-2 border-t border-gray-600">
+          <div className="text-yellow-400 font-semibold text-xs mb-2">🧬 Enrichissement GraphML</div>
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2 text-xs">
+              <div className="w-4 h-0.5" style={{ backgroundColor: '#FFD700' }}></div>
+              <span>Relations traçables</span>
+            </div>
+            <div className="flex items-center space-x-2 text-xs">
+              <div className="w-4 h-1" style={{ backgroundColor: '#FFD700' }}></div>
+              <span>Relations épaisses (+50%)</span>
+            </div>
+            <div className="flex items-center space-x-2 text-xs">
+              <div className="w-3 h-3 rounded-full bg-yellow-400 text-black text-center leading-3 text-xs">📄</div>
+              <span>Chunks sources disponibles</span>
+            </div>
+          </div>
+        </div>
+
         {searchPath && searchPath.entities && searchPath.entities.length > 0 && (
           <div className="mt-3 pt-2 border-t border-gray-600">
             <div className="text-green-400 font-semibold text-xs mb-1">Highlighting</div>
@@ -1345,84 +1526,143 @@ export default function GraphVisualization3D({
         </div>
       )}
 
-      {/* Link Hover Tooltip */}
-      {hoveredLink && !selectedNode && !hoveredNode && (
+      {/* Click-based Info Panel */}
+      {clickedItem && (
         <div
-          className="absolute pointer-events-none bg-black bg-opacity-90 text-white p-3 rounded text-xs z-10 max-w-80"
+          className="fixed z-50 bg-gray-900 border border-gray-600 rounded-lg shadow-2xl text-white p-4 max-w-md"
           style={{
-            left: `${(window.innerWidth / 2)}px`,
-            top: `${(window.innerHeight / 2)}px`,
-            transform: 'translate(-50%, -100%)'
+            left: Math.max(10, Math.min(clickedItem.position.x - 150, window.innerWidth - 320)),
+            top: Math.max(10, clickedItem.position.y - 20),
+            transform: 'translateY(-100%)',
           }}
         >
-          <div className="font-semibold text-blue-300 mb-1">🔗 Relation</div>
-
-          <div className="space-y-1">
-            <div>
-              <span className="text-gray-300">Type:</span>
-              <span className="text-white ml-1">{hoveredLink.relation}</span>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-700">
+            <div className="text-sm font-semibold text-borges-accent">
+              {clickedItem.type === 'node' ? '🎯 Nœud sélectionné' : '🔗 Relation sélectionnée'}
             </div>
+            <button
+              onClick={() => setClickedItem(null)}
+              className="text-gray-400 hover:text-white text-lg font-bold px-2"
+              title="Fermer"
+            >
+              ×
+            </button>
+          </div>
 
-            <div>
-              <span className="text-gray-300">Entre:</span>
-              <div className="text-white ml-1">
-                {nodesRef.current.find(n => n.id === hoveredLink.source)?.label || hoveredLink.source}
-                <span className="text-gray-400"> → </span>
-                {nodesRef.current.find(n => n.id === hoveredLink.target)?.label || hoveredLink.target}
+          {/* Content based on type */}
+          {clickedItem.type === 'node' ? (
+            <div className="space-y-3">
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Nom</div>
+                <div className="text-sm font-medium">{(clickedItem.data as Node3D).label}</div>
               </div>
-            </div>
-
-            {hoveredLink.has_graphml_metadata && (
-              <>
-                <div className="border-t border-gray-600 pt-1 mt-2">
-                  <div className="text-borges-accent text-xs font-medium">📊 Métadonnées GraphML</div>
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Type</div>
+                <div className="text-sm">{(clickedItem.data as Node3D).type || 'Non défini'}</div>
+              </div>
+              {(clickedItem.data as Node3D).properties?.description && (
+                <div>
+                  <div className="text-xs text-gray-400 mb-1">Description</div>
+                  <div className="text-xs text-gray-300 leading-relaxed">
+                    {(clickedItem.data as Node3D).properties?.description?.substring(0, 200)}
+                    {(clickedItem.data as Node3D).properties?.description && (clickedItem.data as Node3D).properties?.description?.length > 200 && '...'}
+                  </div>
                 </div>
-
-                {hoveredLink.graphml_weight && (
-                  <div>
-                    <span className="text-gray-300">Poids:</span>
-                    <span className="text-yellow-300 ml-1 font-mono">{hoveredLink.graphml_weight.toFixed(1)}</span>
-                  </div>
-                )}
-
-                {hoveredLink.graphml_description && (
-                  <div>
-                    <span className="text-gray-300">Description:</span>
-                    <div className="text-white ml-1 mt-1 text-xs leading-relaxed">
-                      {hoveredLink.graphml_description.length > 150
-                        ? hoveredLink.graphml_description.substring(0, 150) + "..."
-                        : hoveredLink.graphml_description
-                      }
-                    </div>
-                  </div>
-                )}
-
-                {hoveredLink.graphml_source_chunks && (
-                  <div>
-                    <span className="text-gray-300">Source:</span>
-                    <div className="text-gray-400 ml-1 text-xs">
-                      {hoveredLink.graphml_source_chunks.substring(0, 50)}...
-                    </div>
-                  </div>
-                )}
-
-                {hoveredLink.graphml_order && hoveredLink.graphml_order > 0 && (
-                  <div>
-                    <span className="text-gray-300">Ordre:</span>
-                    <span className="text-white ml-1">{hoveredLink.graphml_order}</span>
-                  </div>
-                )}
-              </>
-            )}
-
-            {!hoveredLink.has_graphml_metadata && (
-              <div className="text-gray-500 text-xs mt-2">
-                Aucune métadonnée GraphML enrichie
+              )}
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Connexions</div>
+                <div className="text-sm text-green-400">
+                  {linksRef.current.filter(link =>
+                    link.source === (clickedItem.data as Node3D).id ||
+                    link.target === (clickedItem.data as Node3D).id
+                  ).length} relations
+                </div>
               </div>
-            )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(() => {
+                const link = clickedItem.data as Link3D
+                const sourceNode = nodesRef.current.find(n => n.id === link.source)
+                const targetNode = nodesRef.current.find(n => n.id === link.target)
+                const hasGraphML = link.has_graphml_metadata
+                const sourceChunks = link.graphml_source_chunks || ''
+
+                return (
+                  <>
+                    <div>
+                      <div className="text-xs text-gray-400 mb-1">Relation</div>
+                      <div className="text-sm font-medium">{link.relation}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400 mb-1">Connexion</div>
+                      <div className="text-sm">
+                        <span className="text-blue-300">{sourceNode?.label || link.source}</span>
+                        <span className="mx-2 text-gray-500">→</span>
+                        <span className="text-purple-300">{targetNode?.label || link.target}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-gray-400">Enrichissement GraphML</div>
+                        <div className={`text-sm ${hasGraphML ? 'text-green-400' : 'text-gray-500'}`}>
+                          {hasGraphML ? '✅ Disponible' : '❌ Non disponible'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-400">Poids</div>
+                        <div className="text-sm text-white">
+                          {(link.graphml_weight || link.weight || 0).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                    {hasGraphML && sourceChunks && (
+                      <div>
+                        <div className="text-xs text-gray-400 mb-1">Source textuelle</div>
+                        <div className="text-xs text-gray-300 bg-gray-800 p-2 rounded border-l-2 border-borges-accent">
+                          {sourceChunks.substring(0, 100)}
+                          {sourceChunks.length > 100 && '...'}
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (onNavigateToSource) {
+                              onNavigateToSource(sourceChunks, searchPath?.book_id || 'unknown')
+                            }
+                            setClickedItem(null)
+                          }}
+                          className="mt-2 text-blue-400 hover:text-blue-300 text-xs px-2 py-1 bg-blue-900/30 rounded border border-blue-500/30 transition-all hover:bg-blue-900/50"
+                        >
+                          🔗 Voir la source complète
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="mt-3 pt-2 border-t border-gray-700 text-xs text-gray-500">
+            💡 Cliquez ailleurs pour fermer • Traçabilité GraphRAG → GraphML → 3D
           </div>
         </div>
       )}
+
+      {/* Enhanced Relationship Tooltip with End-to-End Traceability */}
+      <RelationshipTooltip
+        relationship={stableHoveredLink}
+        position={tooltipPosition}
+        visible={!!stableHoveredLink}
+        sourceNodeLabel={stableHoveredLink ? nodesRef.current.find(n => n.id === stableHoveredLink.source)?.label : undefined}
+        targetNodeLabel={stableHoveredLink ? nodesRef.current.find(n => n.id === stableHoveredLink.target)?.label : undefined}
+        bookId={searchPath?.book_id || 'unknown'}
+        isLocked={lockedTooltip?.id === stableHoveredLink?.id}
+        onNavigateToSource={onNavigateToSource}
+        onTooltipHover={setIsTooltipHovered}
+      />
+
     </div>
   )
 }

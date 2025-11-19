@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { reconciliationService, type DebugInfo } from '@/lib/services/reconciliation'
+import { colorService, type EntityColorInfo } from '@/lib/utils/colorService'
 import QueryDebugPanel from './QueryDebugPanel'
 import QueryAnimationControls from './QueryAnimationControls'
 import DebugVisualization from './DebugVisualization'
 import ProgressiveDebugVisualization from './ProgressiveDebugVisualization'
+import HighlightedText from './HighlightedText'
 
 interface Book {
   id: string
@@ -51,6 +53,9 @@ export default function QueryInterface({
   const [lastResult, setLastResult] = useState<QueryResult | null>(null)
   const [showResult, setShowResult] = useState(false)
   const [mode, setMode] = useState<'local' | 'global'>('local')
+
+  // Interpretability state - entity colors for highlighted text
+  const [coloredEntities, setColoredEntities] = useState<EntityColorInfo[]>([])
 
   // Debug mode state
   const [debugMode, setDebugMode] = useState(false)
@@ -166,6 +171,8 @@ export default function QueryInterface({
       })
 
       if (result.success) {
+        console.log('🔍 FULL API RESULT:', JSON.stringify(result, null, 2))
+
         // Convert nodes and relationships from GraphRAG extraction
         const searchPath = {
           entities: result.nodes?.map((node: any, idx: number) => ({
@@ -180,6 +187,82 @@ export default function QueryInterface({
           })) || [],
           communities: []
         }
+
+        console.log('🎯 SearchPath created:', searchPath)
+
+        // Extract entities from multiple sources for coloring
+        let entitiesToColor: Array<{
+          id: string
+          type: string
+          description?: string
+          rank?: number
+          order?: number
+          score: number
+        }> = []
+
+        console.log('🔍 Checking entity sources...')
+        console.log('1. Debug entities:', result.debug_info?.processing_phases?.entity_selection?.entities)
+        console.log('2. Selected nodes:', result.selected_nodes)
+        console.log('3. Regular nodes:', result.nodes)
+        console.log('4. SearchPath entities:', searchPath.entities)
+
+        // Priority 1: Use debug entities if available (most complete info)
+        if (result.debug_info?.processing_phases?.entity_selection?.entities) {
+          console.log('✅ Using debug entities (Priority 1)')
+          entitiesToColor = result.debug_info.processing_phases.entity_selection.entities.map((entity: any, idx: number) => ({
+            id: entity.id || entity.name,
+            type: entity.type || 'CONCEPT',
+            description: entity.description,
+            rank: entity.rank,
+            order: idx,
+            score: entity.score || 0.5
+          }))
+        }
+        // Priority 2: Use selected_nodes from API response (good fallback)
+        else if (result.selected_nodes && result.selected_nodes.length > 0) {
+          console.log('✅ Using selected_nodes (Priority 2)')
+          entitiesToColor = result.selected_nodes.map((node: any, idx: number) => ({
+            id: node.properties?.name || node.id,
+            type: inferEntityTypeFromLabels(node.labels),
+            description: node.properties?.description,
+            score: (node.degree || 1) / 100,
+            order: idx
+          }))
+        }
+        // Priority 3: Use nodes from response
+        else if (result.nodes && result.nodes.length > 0) {
+          console.log('✅ Using regular nodes (Priority 3)')
+          entitiesToColor = result.nodes.map((node: any, idx: number) => ({
+            id: node.properties?.name || node.id,
+            type: inferEntityTypeFromLabels(node.labels),
+            description: node.properties?.description,
+            score: (node.degree || 1) / 100,
+            order: idx
+          }))
+        }
+        // Priority 4: Fallback to search_path entities
+        else if (searchPath.entities.length > 0) {
+          console.log('✅ Using searchPath entities (Priority 4)')
+          entitiesToColor = searchPath.entities.map((entity: any) => ({
+            id: entity.id,
+            type: 'CONCEPT', // Default type when not available
+            score: entity.score,
+            order: entity.order
+          }))
+        }
+        else {
+          console.log('❌ NO ENTITIES FOUND IN ANY SOURCE!')
+        }
+
+        console.log('🎨 REAL-TIME DEBUG - Entities to color:', entitiesToColor)
+        console.log('🎨 REAL-TIME DEBUG - First entity example:', entitiesToColor[0])
+
+        // Always enrich entities with colors for interpretability
+        const enrichedEntities = colorService.enrichEntitiesWithColors(entitiesToColor)
+        setColoredEntities(enrichedEntities)
+
+        console.log('🎨 REAL-TIME DEBUG - Entities enriched with colors for interpretability:', enrichedEntities)
+        console.log('🎨 REAL-TIME DEBUG - First enriched entity:', enrichedEntities[0])
 
         const newResult: QueryResult = {
           query: currentQuery,
@@ -220,6 +303,38 @@ export default function QueryInterface({
     }
   }
 
+  // Helper function to infer entity type from Neo4j labels
+  const inferEntityTypeFromLabels = (labels: string[]): string => {
+    if (!labels || labels.length === 0) return 'CONCEPT'
+
+    // Map Neo4j labels to entity types
+    const labelMappings: Record<string, string> = {
+      'Person': 'PERSON',
+      'Personne': 'PERSON',
+      'Location': 'LOCATION',
+      'Place': 'LOCATION',
+      'Lieu': 'LOCATION',
+      'Event': 'EVENT',
+      'Evenement': 'EVENT',
+      'Événement': 'EVENT',
+      'Organization': 'ORGANIZATION',
+      'Organisation': 'ORGANIZATION',
+      'Book': 'BOOK',
+      'Livre': 'BOOK',
+      'Concept': 'CONCEPT'
+    }
+
+    // Find the first matching label
+    for (const label of labels) {
+      if (labelMappings[label]) {
+        return labelMappings[label]
+      }
+    }
+
+    // Default fallback
+    return 'CONCEPT'
+  }
+
   // Animation control functions
   const handleAnimationPlay = () => {
     setIsAnimationPlaying(true)
@@ -248,6 +363,25 @@ export default function QueryInterface({
       setCurrentAnimationPhase(phase)
     }
     setIsAnimationPlaying(!isAnimationPlaying)
+  }
+
+  const handleEntityClick = (entity: EntityColorInfo) => {
+    console.log('🎯 Entity clicked for highlight:', entity)
+    if (onHighlightPath && lastResult?.search_path) {
+      // Create a search path focused on the clicked entity
+      const focusedSearchPath = {
+        entities: [{
+          id: entity.id,
+          score: entity.score,
+          order: 0
+        }],
+        relations: lastResult.search_path.relations.filter(rel =>
+          rel.source === entity.id || rel.target === entity.id
+        ),
+        communities: lastResult.search_path.communities
+      }
+      onHighlightPath(focusedSearchPath)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -384,9 +518,13 @@ export default function QueryInterface({
 
           <div className="mb-4">
             <div className="text-sm text-gray-400 mb-2">Réponse Réconciliée:</div>
-            <div className="text-gray-300 text-sm leading-relaxed">
-              {lastResult.answer}
-            </div>
+            <HighlightedText
+              text={lastResult.answer}
+              entities={coloredEntities}
+              onEntityClick={handleEntityClick}
+              className="text-gray-300"
+              showTooltip={true}
+            />
           </div>
 
           {/* Animation Controls - Show when debug mode is enabled and we have debug info */}

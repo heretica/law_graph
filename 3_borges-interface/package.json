@@ -13,6 +13,7 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@types/d3": "7.4.1",
+    "@types/diff-match-patch": "^1.0.36",
     "@types/node": "20.8.0",
     "@types/react": "18.2.31",
     "@types/react-dom": "18.2.14",
@@ -21,7 +22,8 @@
     "3d-force-graph": "^1.79.0",
     "autoprefixer": "10.4.16",
     "d3": "7.8.5",
-    "next": "14.0.0",
+    "diff-match-patch": "^1.0.5",
+    "next": "14.2.0",
     "postcss": "8.4.31",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -32,6 +34,6 @@
   },
   "devDependencies": {
     "eslint": "8.51.0",
-    "eslint-config-next": "14.0.0"
+    "eslint-config-next": "14.2.0"
   }
 }

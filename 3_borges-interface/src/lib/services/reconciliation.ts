@@ -149,6 +149,8 @@ interface HealthStatus {
 
 export class ReconciliationService {
   private readonly apiUrl: string;
+  private readonly maxRetries = 3;
+  private readonly retryDelay = 1000; // 1 second
 
   constructor() {
     // Use local API routes to avoid CORS issues
@@ -156,10 +158,37 @@ export class ReconciliationService {
   }
 
   /**
+   * Retry function with exponential backoff
+   */
+  private async retryFetch(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
+    try {
+      const response = await fetch(url, {
+        ...options,
+      });
+
+      if (!response.ok && retryCount < this.maxRetries) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return response;
+    } catch (error) {
+      if (retryCount < this.maxRetries) {
+        const delay = this.retryDelay * Math.pow(2, retryCount);
+        console.warn(`🔄 API request failed, retrying in ${delay}ms (attempt ${retryCount + 1}/${this.maxRetries + 1})`, error);
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.retryFetch(url, options, retryCount + 1);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Check the health status of the Reconciliation API
    */
   async checkHealth(): Promise<HealthStatus> {
-    const response = await fetch(`${this.apiUrl}/health`);
+    const response = await this.retryFetch(`${this.apiUrl}/health`);
     if (!response.ok) {
       throw new Error(`Health check failed: ${response.status}`);
     }
@@ -177,7 +206,7 @@ export class ReconciliationService {
     if (options.limit) params.append('limit', options.limit.toString());
     if (options.centrality_type) params.append('centrality_type', options.centrality_type);
 
-    const response = await fetch(`${this.apiUrl}/graph/nodes?${params}`);
+    const response = await this.retryFetch(`${this.apiUrl}/graph/nodes?${params}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch nodes: ${response.status}`);
     }
@@ -336,7 +365,7 @@ export class ReconciliationService {
     debug_mode?: boolean;
     book_ids?: string[];
   }): Promise<any> {
-    const response = await fetch('/api/reconciliation/query/multi-book', {
+    const response = await this.retryFetch('/api/reconciliation/query/multi-book', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -364,7 +393,7 @@ export class ReconciliationService {
     debug_mode?: boolean;
     book_id?: string;
   }): Promise<ReconciledQueryResult> {
-    const response = await fetch('/api/reconciliation/query/reconciled', {
+    const response = await this.retryFetch('/api/reconciliation/query/reconciled', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -401,7 +430,7 @@ export class ReconciliationService {
     if (options.type) params.append('type', options.type);
     if (options.limit) params.append('limit', options.limit.toString());
 
-    const response = await fetch(`${this.apiUrl}/graph/search?${params}`);
+    const response = await this.retryFetch(`${this.apiUrl}/graph/search?${params}`);
     if (!response.ok) {
       throw new Error(`Node search failed: ${response.status}`);
     }
@@ -420,7 +449,7 @@ export class ReconciliationService {
       relationship_types: Array<{ type: string; count: number }>;
     };
   }> {
-    const response = await fetch(`${this.apiUrl}/stats`);
+    const response = await this.retryFetch(`${this.apiUrl}/stats`);
     if (!response.ok) {
       throw new Error(`Failed to fetch stats: ${response.status}`);
     }
@@ -431,7 +460,7 @@ export class ReconciliationService {
    * Get available books from reconciliation API
    */
   async getBooks(): Promise<{ books: Book[]; count: number; success: boolean }> {
-    const response = await fetch('/api/books');
+    const response = await this.retryFetch('/api/books');
     if (!response.ok) {
       throw new Error(`Failed to fetch books: ${response.status}`);
     }
