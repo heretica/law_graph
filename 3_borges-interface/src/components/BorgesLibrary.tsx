@@ -292,16 +292,26 @@ function BorgesLibrary() {
           console.error('⚠️ Failed to load relationships, continuing with nodes only:', relError)
         }
 
+        // Helper function to identify book nodes (Principle #2)
+        const isBookNode = (node: any): boolean => {
+          return (node as any).type === 'Book' ||
+            (node.labels && node.labels.includes('Livres')) ||
+            (node.labels && node.labels.includes('BOOK')) ||
+            String(node.id).startsWith('LIVRE_') ||
+            String(node.properties?.id || '').startsWith('LIVRE_')
+        }
+
         // Apply Connected Subgraph First filter (Principe #1: No orphans)
+        // BUT: Always include book nodes (Principe #2: Books as core entities)
         const connectedNodeIds = new Set<string>()
         relationships.forEach(rel => {
           connectedNodeIds.add(rel.source)
           connectedNodeIds.add(rel.target)
         })
 
-        // Filter nodes to only include those with relationships
+        // Filter nodes: keep connected nodes OR book nodes (books are always visible per Principle #2)
         const connectedNodes = nodesData.nodes.filter(node =>
-          connectedNodeIds.has(node.id)
+          connectedNodeIds.has(node.id) || isBookNode(node)
         )
 
         console.log(`🔍 Debug Connected Subgraph First:`)
@@ -310,13 +320,8 @@ function BorgesLibrary() {
         console.log(`  • Unique nodes in relationships: ${connectedNodeIds.size}`)
         console.log(`  • Connected nodes after filter: ${connectedNodes.length}`)
 
-        // Identify and prioritize book nodes (Principe #2)
-        const bookNodes = connectedNodes.filter(node =>
-          (node as any).type === 'Book' ||
-          (node.labels && node.labels.includes('Livres')) ||
-          (node.labels && node.labels.includes('BOOK')) ||
-          String(node.id).startsWith('LIVRE_')
-        )
+        // Identify book nodes using the helper function (Principe #2)
+        const bookNodes = connectedNodes.filter(isBookNode)
 
         console.log(`📈 Connected knowledge base loaded (design-optimized):`)
         console.log(`  • Connected Nodes: ${connectedNodes.length} (zero orphans ✓)`)
@@ -329,8 +334,8 @@ function BorgesLibrary() {
           console.warn(`⚠️ Relationship count was limited to ${relationshipsLimit}`)
         }
 
-        // TEMPORARY: Use all nodes to debug interface
-        // TODO: Fix Connected Subgraph First filtering
+        // Connected subgraph filtering now respects Principle #2 (books always included)
+        // Books are guaranteed visible even without relationships
         const finalNodes = connectedNodes.length > 0 ? connectedNodes : nodesData.nodes
 
         setReconciliationData({

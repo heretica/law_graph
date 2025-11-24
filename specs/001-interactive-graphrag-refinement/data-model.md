@@ -128,6 +128,24 @@ This document defines the Neo4j graph schema extensions for provenance tracking,
   subgraph_hash: string,     // Hash of subgraph structure
   context: string            // Text context around pattern
 })
+
+(:BookIngestion {
+  id: string,                // "ingestion-<uuid>"
+  book_id: string,           // ID of the book being ingested
+  file_path: string,         // Original file path
+  file_format: string,       // "pdf", "epub", "txt"
+  status: string,            // "queued", "processing", "completed", "failed", "rolled_back"
+  progress: float,           // 0.0 to 1.0 progress indicator
+  chunks_count: int,         // Number of text chunks created
+  entities_extracted: int,   // Number of entities extracted
+  relationships_created: int, // Number of relationships created
+  inter_book_links: int,     // Number of cross-book connections made
+  started_at: datetime,      // Ingestion start time
+  completed_at: datetime,    // Ingestion completion time
+  error_log: string,         // Error details if failed
+  admin_id: string,          // Admin who initiated ingestion
+  config_hash: string        // Hash of nano-graphRAG config used
+})
 ```
 
 ---
@@ -259,6 +277,22 @@ This document defines the Neo4j graph schema extensions for provenance tracking,
   justification: string
 }]->(Entity)
 // For user-created relationships
+
+// Book Ingestion Relationships (Admin-only, US2)
+(BookIngestion)-[:INGESTS]->(BOOK)
+// Links ingestion job to resulting book
+
+(BookIngestion)-[:CREATED_ENTITY]->(Entity)
+// Tracks which entities were created by this ingestion
+
+(BookIngestion)-[:CREATED_RELATIONSHIP]->(Entity)
+// Points to source entity of relationships created by this ingestion
+
+(BookIngestion)-[:LINKED_TO_EXISTING {
+  similarity_score: float,
+  link_type: string           // "semantic_match", "exact_match"
+}]->(Entity)
+// Tracks inter-book connections made during ingestion
 ```
 
 ---
@@ -294,6 +328,13 @@ CREATE INDEX pattern_cross_domain_idx IF NOT EXISTS FOR (op:OntologicalPattern) 
 CREATE INDEX instance_pattern_idx IF NOT EXISTS FOR (pi:PatternInstance) ON (pi.pattern_id);
 CREATE INDEX instance_book_idx IF NOT EXISTS FOR (pi:PatternInstance) ON (pi.book_id);
 
+// Book Ingestion Indexes (US2)
+CREATE CONSTRAINT ingestion_id_unique IF NOT EXISTS FOR (bi:BookIngestion) REQUIRE bi.id IS UNIQUE;
+CREATE INDEX ingestion_status_idx IF NOT EXISTS FOR (bi:BookIngestion) ON (bi.status);
+CREATE INDEX ingestion_book_idx IF NOT EXISTS FOR (bi:BookIngestion) ON (bi.book_id);
+CREATE INDEX ingestion_admin_idx IF NOT EXISTS FOR (bi:BookIngestion) ON (bi.admin_id);
+CREATE INDEX ingestion_started_idx IF NOT EXISTS FOR (bi:BookIngestion) ON (bi.started_at);
+
 // Composite Indexes for Common Queries
 CREATE INDEX query_user_timestamp_idx IF NOT EXISTS FOR (q:Query) ON (q.user_id, q.timestamp);
 CREATE INDEX edit_editor_timestamp_idx IF NOT EXISTS FOR (ge:GraphEdit) ON (ge.editor_id, ge.timestamp);
@@ -313,6 +354,7 @@ Mapping feature spec entities to Neo4j schema:
 | **Graph Edit** | `(:GraphEdit)` | Full edit history with old/new values |
 | **Ontological Pattern** | `(:OntologicalPattern)` + `(:PatternInstance)` | Pattern definition + concrete instances |
 | **Query Iteration** | `(:Query)` with versioning | `version`, `parent_query_id` for iteration tracking |
+| **Book Ingestion** | `(:BookIngestion)` | Admin-only job tracking via nano-graphRAG pipeline |
 
 ---
 

@@ -10,13 +10,22 @@
 
 **Tests**: Not explicitly requested in spec - tests are OPTIONAL and NOT included in this task list
 
-**Organization**: Tasks are grouped by user story (P1, P1, P1) to enable independent implementation and testing of each story.
+**Organization**: Tasks are grouped by user story (P1, P1, P1, P1) to enable independent implementation and testing of each story.
 
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (US1, US2, US3)
+- **[Story]**: Which user story this task belongs to (US1, US2, US3, US4)
 - Include exact file paths in descriptions
+
+## User Story Mapping (Updated 2025-11-23)
+
+| Story | Title | Priority | Status |
+|-------|-------|----------|--------|
+| US1 | Trace graphRAG answer to source knowledge | P1 | ✅ Backend complete |
+| **US2** | **Add new books (Admin only)** | **P1** | **NEW** |
+| US3 | Correct graph relationships interactively | P1 | Previously US2 |
+| US4 | Re-query after graph refinement | P1 | Previously US3 |
 
 ---
 
@@ -98,11 +107,61 @@
 - **Backend Status**: ✅ All provenance APIs implemented and verified working
 - **Frontend Status**: ✅ All components created - ProvenancePanel, EntityDetailModal, RelationshipTooltip
 - **3D Graph Issue**: ✅ RESOLVED - Upgraded Next.js from 14.0.0 to 14.2.0, graph now rendering 293 nodes + 1432 links
-- **Remaining**: Integration of ProvenancePanel into BorgesLibrary layout and wiring click handlers 
+- **Remaining**: Integration of ProvenancePanel into BorgesLibrary layout and wiring click handlers
 
 ---
 
-## Phase 4: User Story 2 - Correct Graph Relationships Interactively (Priority: P1)
+## Phase 4: User Story 2 - Add New Books (Priority: P1) - Admin Only 🆕
+
+**Goal**: Enable administrators to add new books via nano-graphRAG pipeline with schema consistency enforcement
+
+**Independent Test**: Admin runs CLI/API ingestion → book processed with nano-graphRAG → entities appear in Neo4j with correct schema → rollback removes all content
+
+**Access Control**: This feature is **restricted to administrators only**. Public users cannot add books.
+
+**Schema Consistency**: New books MUST be modeled identically to existing books using the same nano-graphRAG pipeline configuration.
+
+**Acceptance Criteria**:
+- AC1: Admin runs ingestion command → system uses same nano-graphRAG config as existing books
+- AC2: Entities created follow exact same schema (node labels, properties) as existing
+- AC3: Relationships use same types and property structures as existing
+- AC4: New and existing books indistinguishable in structure (only content differs)
+- AC5: Processing errors show clear messages with retry/rollback options
+- AC6: Rollback removes all book content without affecting others
+- AC7: Public users see no book addition functionality
+
+### Backend Implementation (reconciliation-api) - US2
+
+- [X] T100 [US2] Create BookIngestion model in reconciliation-api/models/book_ingestion.py with properties: id, book_id, file_path, file_format, status, progress, chunks_count, entities_extracted, relationships_created, inter_book_links, started_at, completed_at, error_log, admin_id, config_hash
+- [X] T101 [US2] Create admin authentication decorator in reconciliation-api/middleware/admin_auth.py using X-Admin-API-Key header
+- [X] T102 [US2] Create BookIngestionService in reconciliation-api/services/book_ingestion_service.py with nano-graphRAG pipeline wrapper
+- [X] T103 [US2] Implement schema validation in book_ingestion_service.py comparing new book output against existing Neo4j schema (node labels, relationship types, properties)
+- [X] T104 [US2] Implement inter-book entity linking using vector similarity matching (>0.85 threshold) with inter-book weight boost (1.2x)
+- [X] T105 [US2] Implement progress tracking in book_ingestion_service.py with status updates every 10 seconds
+- [X] T106 [US2] Implement rollback mechanism in book_ingestion_service.py: MATCH (n {book_id: $book_id}) DETACH DELETE n
+- [X] T107 [US2] Create ingestion endpoint blueprint in reconciliation-api/endpoints/ingestion.py
+- [X] T108 [US2] Implement POST /admin/ingest endpoint per book-ingestion-api.yaml with admin auth
+- [X] T109 [P] [US2] Implement GET /admin/ingest/{job_id} endpoint for status polling
+- [X] T110 [P] [US2] Implement POST /admin/ingest/{job_id}/rollback endpoint
+- [X] T111 [P] [US2] Implement GET /admin/ingest/jobs endpoint for listing all jobs
+- [X] T112 [US2] Register ingestion blueprint with admin auth in reconciliation-api/reconciliation_api.py
+
+### CLI Implementation (reconciliation-api) - US2
+
+- [X] T113 [US2] Create CLI directory structure reconciliation-api/cli/__init__.py
+- [X] T114 [US2] Implement ingest_book.py CLI in reconciliation-api/cli/ingest_book.py with --file, --title, --author, --genre, --publication-date flags
+- [X] T115 [US2] Add batch processing support with --batch flag for multiple books
+- [X] T116 [US2] Add progress display for CLI with real-time status updates
+
+### Neo4j Schema Updates - US2
+
+- [X] T117 [US2] Create Neo4j indexes for BookIngestion in reconciliation-api/migrations/003_book_ingestion_indexes.cypher: CREATE INDEX ingestion_status_idx, CREATE INDEX ingestion_book_idx, CREATE INDEX ingestion_admin_idx
+
+**Checkpoint**: User Story 2 complete - admins can add books via CLI or API, schema validated, rollback works
+
+---
+
+## Phase 5: User Story 3 - Correct Graph Relationships Interactively (Priority: P1)
 
 **Goal**: Enable domain experts to edit relationship types/properties in graph with justification, see edits reflected immediately
 
@@ -117,33 +176,33 @@
 
 ### Backend Implementation (reconciliation-api)
 
-- [ ] T028 [US2] Create edit manager service in reconciliation-api/services/edit_manager.py with methods: apply_edit(edit_request), validate_edit(edit_request), rollback_edit(edit_id), get_edit_history(target_id)
-- [ ] T029 [US2] Implement edit validation in reconciliation-api/services/edit_manager.py to check: relationship exists, new type is valid, no dangling references created, no orphan nodes created (Constitutional Principle III)
-- [ ] T030 [US2] Implement edit API endpoint POST /api/edits/relationship in reconciliation-api/endpoints/edits.py that accepts RelationshipEditRequest (source_id, target_id, old_type, new_type, properties, justification, editor_id) per edit-api.yaml
-- [ ] T031 [P] [US2] Implement edit API endpoint POST /api/edits/relationship/add in reconciliation-api/endpoints/edits.py that creates new user-added relationship with AddRelationshipRequest (source_id, target_id, relationship_type, description, properties, bidirectional, justification, editor_id)
-- [ ] T032 [P] [US2] Implement edit API endpoint GET /api/edits/{edit_id} in reconciliation-api/endpoints/edits.py that retrieves GraphEdit details
-- [ ] T033 [P] [US2] Implement edit API endpoint POST /api/edits/{edit_id}/rollback in reconciliation-api/endpoints/edits.py that reverts edit by creating inverse edit (old_value ↔ new_value swap)
-- [ ] T034 [P] [US2] Implement edit API endpoint GET /api/edits/entity/{entity_id}/history in reconciliation-api/endpoints/edits.py that returns all edits applied to entity with limit parameter
-- [ ] T035 [P] [US2] Implement edit API endpoint POST /api/edits/validate in reconciliation-api/endpoints/edits.py that returns ValidationResult (valid, errors, warnings, impact) without applying edit
-- [ ] T036 [US2] Create edit persistence in reconciliation-api/services/edit_manager.py to: create GraphEdit node, update target relationship in Neo4j, add manual_flag=true property, store edit_history JSON in relationship properties
-- [ ] T037 [US2] Add edit conflict detection in reconciliation-api/services/edit_manager.py to check if relationship modified since edit form opened, return EditConflict with resolution_options if detected
+- [ ] T028 [US3] Create edit manager service in reconciliation-api/services/edit_manager.py with methods: apply_edit(edit_request), validate_edit(edit_request), rollback_edit(edit_id), get_edit_history(target_id)
+- [ ] T029 [US3] Implement edit validation in reconciliation-api/services/edit_manager.py to check: relationship exists, new type is valid, no dangling references created, no orphan nodes created (Constitutional Principle III)
+- [ ] T030 [US3] Implement edit API endpoint POST /api/edits/relationship in reconciliation-api/endpoints/edits.py that accepts RelationshipEditRequest (source_id, target_id, old_type, new_type, properties, justification, editor_id) per edit-api.yaml
+- [ ] T031 [P] [US3] Implement edit API endpoint POST /api/edits/relationship/add in reconciliation-api/endpoints/edits.py that creates new user-added relationship with AddRelationshipRequest (source_id, target_id, relationship_type, description, properties, bidirectional, justification, editor_id)
+- [ ] T032 [P] [US3] Implement edit API endpoint GET /api/edits/{edit_id} in reconciliation-api/endpoints/edits.py that retrieves GraphEdit details
+- [ ] T033 [P] [US3] Implement edit API endpoint POST /api/edits/{edit_id}/rollback in reconciliation-api/endpoints/edits.py that reverts edit by creating inverse edit (old_value ↔ new_value swap)
+- [ ] T034 [P] [US3] Implement edit API endpoint GET /api/edits/entity/{entity_id}/history in reconciliation-api/endpoints/edits.py that returns all edits applied to entity with limit parameter
+- [ ] T035 [P] [US3] Implement edit API endpoint POST /api/edits/validate in reconciliation-api/endpoints/edits.py that returns ValidationResult (valid, errors, warnings, impact) without applying edit
+- [ ] T036 [US3] Create edit persistence in reconciliation-api/services/edit_manager.py to: create GraphEdit node, update target relationship in Neo4j, add manual_flag=true property, store edit_history JSON in relationship properties
+- [ ] T037 [US3] Add edit conflict detection in reconciliation-api/services/edit_manager.py to check if relationship modified since edit form opened, return EditConflict with resolution_options if detected
 
 ### Frontend Implementation (borges_graph)
 
-- [ ] T038 [P] [US2] Create edits service in borges_graph/src/lib/services/edits.ts with methods: editRelationship(request), addRelationship(request), validateEdit(request), getEditHistory(entityId), rollbackEdit(editId)
-- [ ] T039 [US2] Create EditRelationshipModal component in borges_graph/src/components/EditRelationshipModal.tsx with form fields: relationship type dropdown, properties editor (key-value pairs), justification text area, visual preview of change
-- [ ] T040 [US2] Create EditHistoryPanel component in borges_graph/src/components/EditHistoryPanel.tsx that displays chronological list of edits with: timestamp, editor, change summary (old → new), rollback button
-- [ ] T041 [US2] Update GraphVisualization3DForce component in borges_graph/src/components/GraphVisualization3DForce.tsx to add right-click context menu on edges with "Edit Relationship" option that opens EditRelationshipModal
-- [ ] T042 [US2] Add visual distinction in borges_graph/src/components/GraphVisualization3DForce.tsx for manually edited relationships: different color (e.g., orange) or dashed edge style vs auto-extracted (solid blue) per FR-008
-- [ ] T043 [US2] Implement optimistic UI update in borges_graph/src/lib/services/edits.ts: immediately update graph visualization after edit save, revert if API call fails
-- [ ] T044 [US2] Add edit validation before save in borges_graph/src/components/EditRelationshipModal.tsx: call /api/edits/validate endpoint, show warnings/errors to user before confirming save
-- [ ] T045 [US2] Integrate EditHistoryPanel into borges_graph/src/components/BorgesLibrary.tsx as sidebar panel that opens when "View Edit History" clicked on entity/relationship
+- [ ] T038 [P] [US3] Create edits service in borges_graph/src/lib/services/edits.ts with methods: editRelationship(request), addRelationship(request), validateEdit(request), getEditHistory(entityId), rollbackEdit(editId)
+- [ ] T039 [US3] Create EditRelationshipModal component in borges_graph/src/components/EditRelationshipModal.tsx with form fields: relationship type dropdown, properties editor (key-value pairs), justification text area, visual preview of change
+- [ ] T040 [US3] Create EditHistoryPanel component in borges_graph/src/components/EditHistoryPanel.tsx that displays chronological list of edits with: timestamp, editor, change summary (old → new), rollback button
+- [ ] T041 [US3] Update GraphVisualization3DForce component in borges_graph/src/components/GraphVisualization3DForce.tsx to add right-click context menu on edges with "Edit Relationship" option that opens EditRelationshipModal
+- [ ] T042 [US3] Add visual distinction in borges_graph/src/components/GraphVisualization3DForce.tsx for manually edited relationships: different color (e.g., orange) or dashed edge style vs auto-extracted (solid blue) per FR-008
+- [ ] T043 [US3] Implement optimistic UI update in borges_graph/src/lib/services/edits.ts: immediately update graph visualization after edit save, revert if API call fails
+- [ ] T044 [US3] Add edit validation before save in borges_graph/src/components/EditRelationshipModal.tsx: call /api/edits/validate endpoint, show warnings/errors to user before confirming save
+- [ ] T045 [US3] Integrate EditHistoryPanel into borges_graph/src/components/BorgesLibrary.tsx as sidebar panel that opens when "View Edit History" clicked on entity/relationship
 
-**Checkpoint**: At this point, User Stories 1 AND 2 are functional - users can trace answers AND edit graph relationships with full audit trail
+**Checkpoint**: At this point, User Stories 1, 2 AND 3 are functional - users can trace answers, admins can add books, AND users can edit graph relationships with full audit trail
 
 ---
 
-## Phase 5: User Story 3 - Re-query After Graph Refinement (Priority: P1)
+## Phase 6: User Story 4 - Re-query After Graph Refinement (Priority: P1)
 
 **Goal**: Enable users to re-run queries after edits and see before/after answer comparison with highlighted differences
 
@@ -158,34 +217,34 @@
 
 ### Backend Implementation (reconciliation-api)
 
-- [ ] T046 [US3] Create query comparator service in reconciliation-api/services/query_comparator.py with methods: rerun_query(original_query_id, user_id, mode), compare_answers(query_id_1, query_id_2, comparison_options), get_query_diff(query_id, diff_type)
-- [ ] T047 [US3] Implement answer comparison in reconciliation-api/services/query_comparator.py using: diff-match-patch for textual diff (word-level), sentence-transformers (all-MiniLM-L6-v2) for semantic similarity, entity overlap analysis for attribution
-- [ ] T048 [US3] Implement edit attribution in reconciliation-api/services/query_comparator.py to identify which GraphEdits between two query versions caused specific answer changes by: comparing USED_ENTITY sets, comparing TRAVERSED_RELATIONSHIP sets, mapping changed entities/relationships to edited nodes
-- [ ] T049 [US3] Implement query comparison API endpoint POST /api/queries/rerun in reconciliation-api/endpoints/query_comparison.py that accepts RerunQueryRequest (original_query_id, user_id, mode, note) and returns RerunQueryResponse with new_query_id and comparison_summary per query-comparison-api.yaml
-- [ ] T050 [P] [US3] Implement query comparison API endpoint POST /api/queries/compare in reconciliation-api/endpoints/query_comparison.py that accepts CompareQueriesRequest (query_id_1, query_id_2, comparison_options) and returns QueryComparison with answer_diff, entity_diff, relationship_diff, edit_attribution
-- [ ] T051 [P] [US3] Implement query comparison API endpoint GET /api/queries/{query_id}/versions in reconciliation-api/endpoints/query_comparison.py that returns QueryVersionHistory with all query versions linked by parent_query_id chain
-- [ ] T052 [P] [US3] Implement query comparison API endpoint GET /api/queries/{query_id}/diff in reconciliation-api/endpoints/query_comparison.py that returns QueryDiff showing text_diff, semantic_diff, entity_changes between query and its parent
-- [ ] T053 [P] [US3] Implement query comparison API endpoint GET /api/queries/{query_id}/impact in reconciliation-api/endpoints/query_comparison.py that returns EditImpactAnalysis with edits_between_versions, impact_breakdown (high/medium/low impact edits), causal_chains
-- [ ] T054 [US3] Create query versioning in reconciliation-api/services/query_comparator.py to: create new Query node with incremented version, link to parent via REVISED_FROM relationship with edit_summary, preserve original query immutably
-- [ ] T055 [US3] Enhance graphrag_interceptor.py to detect when query is re-run (mode="rerun", original_query_id provided) and automatically create query version chain
+- [ ] T046 [US4] Create query comparator service in reconciliation-api/services/query_comparator.py with methods: rerun_query(original_query_id, user_id, mode), compare_answers(query_id_1, query_id_2, comparison_options), get_query_diff(query_id, diff_type)
+- [ ] T047 [US4] Implement answer comparison in reconciliation-api/services/query_comparator.py using: diff-match-patch for textual diff (word-level), sentence-transformers (all-MiniLM-L6-v2) for semantic similarity, entity overlap analysis for attribution
+- [ ] T048 [US4] Implement edit attribution in reconciliation-api/services/query_comparator.py to identify which GraphEdits between two query versions caused specific answer changes by: comparing USED_ENTITY sets, comparing TRAVERSED_RELATIONSHIP sets, mapping changed entities/relationships to edited nodes
+- [ ] T049 [US4] Implement query comparison API endpoint POST /api/queries/rerun in reconciliation-api/endpoints/query_comparison.py that accepts RerunQueryRequest (original_query_id, user_id, mode, note) and returns RerunQueryResponse with new_query_id and comparison_summary per query-comparison-api.yaml
+- [ ] T050 [P] [US4] Implement query comparison API endpoint POST /api/queries/compare in reconciliation-api/endpoints/query_comparison.py that accepts CompareQueriesRequest (query_id_1, query_id_2, comparison_options) and returns QueryComparison with answer_diff, entity_diff, relationship_diff, edit_attribution
+- [ ] T051 [P] [US4] Implement query comparison API endpoint GET /api/queries/{query_id}/versions in reconciliation-api/endpoints/query_comparison.py that returns QueryVersionHistory with all query versions linked by parent_query_id chain
+- [ ] T052 [P] [US4] Implement query comparison API endpoint GET /api/queries/{query_id}/diff in reconciliation-api/endpoints/query_comparison.py that returns QueryDiff showing text_diff, semantic_diff, entity_changes between query and its parent
+- [ ] T053 [P] [US4] Implement query comparison API endpoint GET /api/queries/{query_id}/impact in reconciliation-api/endpoints/query_comparison.py that returns EditImpactAnalysis with edits_between_versions, impact_breakdown (high/medium/low impact edits), causal_chains
+- [ ] T054 [US4] Create query versioning in reconciliation-api/services/query_comparator.py to: create new Query node with incremented version, link to parent via REVISED_FROM relationship with edit_summary, preserve original query immutably
+- [ ] T055 [US4] Enhance graphrag_interceptor.py to detect when query is re-run (mode="rerun", original_query_id provided) and automatically create query version chain
 
 ### Frontend Implementation (borges_graph)
 
-- [ ] T056 [P] [US3] Create query comparison service in borges_graph/src/lib/services/queryComparison.ts with methods: rerunQuery(queryId, note), compareQueries(queryId1, queryId2, options), getQueryVersions(queryId), getQueryDiff(queryId, diffType), getEditImpact(queryId)
-- [ ] T057 [US3] Create QueryComparison component in borges_graph/src/components/QueryComparison.tsx that displays side-by-side view with: original answer (left), new answer (right), diff highlighting (additions in green, deletions in red), entity/relationship change panel (bottom)
-- [ ] T058 [US3] Create AnswerDiffView component in borges_graph/src/components/AnswerDiffView.tsx using diff-match-patch to render word-level textual differences with color highlighting and inline/side-by-side toggle
-- [ ] T059 [P] [US3] Create EditAttributionPanel component in borges_graph/src/components/EditAttributionPanel.tsx that shows: list of edits between query versions, which edits caused which answer changes (causal chains), confidence scores for attributions
-- [ ] T060 [P] [US3] Create QueryVersionTimeline component in borges_graph/src/components/QueryVersionTimeline.tsx that displays chronological timeline of query versions with: version number, timestamp, change summary, graph state snapshot, click to view that version
-- [ ] T061 [US3] Add "Re-run Query" button to borges_graph/src/components/QueryInterface.tsx that appears after query answered and any edits made, calls rerunQuery() and opens QueryComparison component
-- [ ] T062 [US3] Update borges_graph/src/components/ProvenancePanel.tsx to show version indicator (v1, v2, etc.) and "View Version History" link that opens QueryVersionTimeline
-- [ ] T063 [US3] Implement graph state snapshot in borges_graph/src/lib/services/queryComparison.ts to capture: entity/relationship counts, edit counts, significant edits list when query version created
-- [ ] T064 [US3] Add "Mark as Validated" button in borges_graph/src/components/QueryComparison.tsx that sets query.status="validated" via API call, visually indicates validated graph states in timeline
+- [ ] T056 [P] [US4] Create query comparison service in borges_graph/src/lib/services/queryComparison.ts with methods: rerunQuery(queryId, note), compareQueries(queryId1, queryId2, options), getQueryVersions(queryId), getQueryDiff(queryId, diffType), getEditImpact(queryId)
+- [ ] T057 [US4] Create QueryComparison component in borges_graph/src/components/QueryComparison.tsx that displays side-by-side view with: original answer (left), new answer (right), diff highlighting (additions in green, deletions in red), entity/relationship change panel (bottom)
+- [ ] T058 [US4] Create AnswerDiffView component in borges_graph/src/components/AnswerDiffView.tsx using diff-match-patch to render word-level textual differences with color highlighting and inline/side-by-side toggle
+- [ ] T059 [P] [US4] Create EditAttributionPanel component in borges_graph/src/components/EditAttributionPanel.tsx that shows: list of edits between query versions, which edits caused which answer changes (causal chains), confidence scores for attributions
+- [ ] T060 [P] [US4] Create QueryVersionTimeline component in borges_graph/src/components/QueryVersionTimeline.tsx that displays chronological timeline of query versions with: version number, timestamp, change summary, graph state snapshot, click to view that version
+- [ ] T061 [US4] Add "Re-run Query" button to borges_graph/src/components/QueryInterface.tsx that appears after query answered and any edits made, calls rerunQuery() and opens QueryComparison component
+- [ ] T062 [US4] Update borges_graph/src/components/ProvenancePanel.tsx to show version indicator (v1, v2, etc.) and "View Version History" link that opens QueryVersionTimeline
+- [ ] T063 [US4] Implement graph state snapshot in borges_graph/src/lib/services/queryComparison.ts to capture: entity/relationship counts, edit counts, significant edits list when query version created
+- [ ] T064 [US4] Add "Mark as Validated" button in borges_graph/src/components/QueryComparison.tsx that sets query.status="validated" via API call, visually indicates validated graph states in timeline
 
 **Checkpoint**: All P1 user stories are now complete - full interpretable GraphRAG with edit-requery-compare loop
 
 ---
 
-## Phase 6: Polish & Cross-Cutting Concerns
+## Phase 7: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories and production readiness
 
@@ -218,7 +277,7 @@
 - [ ] T083 Update Railway deployment config for reconciliation-api to increase memory limit to 1GB (for sentence-transformers model loading) in railway.toml
 - [ ] T084 [P] Update Vercel deployment config for borges_graph to set environment variables for API base URL: NEXT_PUBLIC_API_URL=https://reconciliation-api.railway.app
 - [ ] T085 Add CORS configuration in reconciliation-api/reconciliation_api.py to allow requests from Vercel domain: https://borges-graph.vercel.app
-- [ ] T086 Test end-to-end workflow on staging: submit query → trace provenance → edit relationship → re-run query → compare answers, verify all 15 acceptance scenarios pass (5 from US1, 5 from US2, 5 from US3)
+- [ ] T086 Test end-to-end workflow on staging: submit query → trace provenance → admin adds book → edit relationship → re-run query → compare answers, verify all 22 acceptance scenarios pass (5 from US1, 7 from US2, 5 from US3, 5 from US4)
 
 ---
 
@@ -228,17 +287,19 @@
 
 - **Setup (Phase 1)**: No dependencies - can start immediately
 - **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories
-- **User Stories (Phase 3, 4, 5)**: All depend on Foundational phase completion
+- **User Stories (Phase 3, 4, 5, 6)**: All depend on Foundational phase completion
   - Phase 3 (US1): Can start after Phase 2 complete - No dependencies on other stories
-  - Phase 4 (US2): Can start after Phase 2 complete - No dependencies on other stories (though works best with US1 for testing)
-  - Phase 5 (US3): Depends on Phase 4 (US2) - Requires edits to exist for re-query comparison testing
-- **Polish (Phase 6)**: Depends on all user stories being complete
+  - Phase 4 (US2): Can start after Phase 2 complete - Admin-only book ingestion (independent of US1)
+  - Phase 5 (US3): Can start after Phase 2 complete - Graph editing (benefits from US1 for context)
+  - Phase 6 (US4): Depends on Phase 5 (US3) - Requires edits to exist for re-query comparison testing
+- **Polish (Phase 7)**: Depends on all user stories being complete
 
 ### User Story Dependencies
 
 - **User Story 1 (US1)**: Can start after Foundational (Phase 2) - Independently testable with just provenance tracing
-- **User Story 2 (US2)**: Can start after Foundational (Phase 2) - Independently testable with edit operations (though benefits from US1 for context)
-- **User Story 3 (US3)**: Depends on User Story 2 (US2) completion - Requires edits to exist for meaningful re-query testing
+- **User Story 2 (US2)**: Can start after Foundational (Phase 2) - Admin-only book ingestion via nano-graphRAG
+- **User Story 3 (US3)**: Can start after Foundational (Phase 2) - Independently testable with edit operations (though benefits from US1 for context)
+- **User Story 4 (US4)**: Depends on User Story 3 (US3) completion - Requires edits to exist for meaningful re-query testing
 
 ### Within Each User Story
 
@@ -261,17 +322,22 @@
 - Frontend components (T022, T023, T024) can run in parallel after T020-T021
 - T020 (provenance service) and T021 (ProvenancePanel) can start once backend endpoints exist
 
-**Phase 4 - User Story 2**:
+**Phase 4 - User Story 2** (Book Ingestion):
+- Backend endpoints (T108, T109, T110, T111) can run in parallel after T100-T107
+- CLI tasks (T113, T114, T115, T116) can run in parallel after service is complete
+- Neo4j indexes (T117) can run in parallel with other tasks
+
+**Phase 5 - User Story 3** (Editing):
 - Backend endpoints (T031, T032, T033, T034, T035) can run in parallel after T028-T030
 - Frontend components (T038, T039, T040) can run in parallel
 - T042 (visual distinction) and T043 (optimistic UI) can run in parallel
 
-**Phase 5 - User Story 3**:
+**Phase 6 - User Story 4** (Re-query):
 - Backend endpoints (T050, T051, T052, T053) can run in parallel after T046-T048
 - Frontend components (T056, T058, T059, T060) can run in parallel
 - T057 (QueryComparison) and T058 (AnswerDiffView) can start together
 
-**Phase 6 - Polish**:
+**Phase 7 - Polish**:
 - All API improvements (T065-T072) can run in parallel
 - All Interface improvements (T073-T080) can run in parallel
 - Integration tasks (T081-T086) must run sequentially
@@ -342,7 +408,7 @@ With 2 developers:
 
 ### Task Assignment by Repository
 
-**reconciliation-api tasks**: T001, T003, T004, T005, T006, T007, T008, T013-T019, T028-T037, T046-T055, T065-T072, T081, T083, T085
+**reconciliation-api tasks**: T001, T003, T004, T005, T006, T007, T008, T013-T019, T028-T037, T046-T055, T065-T072, T081, T083, T085, T100-T117 (US2 Book Ingestion)
 
 **borges_graph tasks**: T002, T009-T012, T020-T027, T038-T045, T056-T064, T073-T080, T082, T084
 
@@ -393,7 +459,7 @@ npm run dev  # Runs on http://localhost:3000
 ## Notes
 
 - **[P] tasks** = different files, no dependencies, can run in parallel
-- **[Story] label** (US1, US2, US3) maps task to specific user story for traceability
+- **[Story] label** (US1, US2, US3, US4) maps task to specific user story for traceability
 - Each user story should be independently completable and testable
 - Commit after each task or logical group of related tasks
 - Stop at any checkpoint to validate story independently
@@ -407,25 +473,27 @@ npm run dev  # Runs on http://localhost:3000
 
 ## Summary
 
-**Total Tasks**: 86 tasks
+**Total Tasks**: 104 tasks
 - Phase 1 (Setup): 3 tasks
 - Phase 2 (Foundational): 9 tasks
 - Phase 3 (US1 - Provenance): 15 tasks
-- Phase 4 (US2 - Editing): 18 tasks
-- Phase 5 (US3 - Comparison): 19 tasks
-- Phase 6 (Polish): 22 tasks
+- Phase 4 (US2 - Book Ingestion): 18 tasks ← NEW
+- Phase 5 (US3 - Editing): 18 tasks
+- Phase 6 (US4 - Comparison): 19 tasks
+- Phase 7 (Polish): 22 tasks
 
 **Task Distribution**:
-- reconciliation-api (Backend): 44 tasks
+- reconciliation-api (Backend): 62 tasks
 - borges_graph (Frontend): 39 tasks
 - Integration: 3 tasks
 
-**Parallel Opportunities**: 31 tasks marked with [P] can run in parallel within their phase
+**Parallel Opportunities**: 35 tasks marked with [P] can run in parallel within their phase
 
 **Independent Test Criteria**:
 - US1: Submit query → trace provenance → verify all elements navigable
-- US2: View relationship → edit → verify immediate update and history
-- US3: Make edit → re-run query → verify before/after comparison
+- US2: Admin runs ingestion → book processed → entities appear with correct schema → rollback removes content
+- US3: View relationship → edit → verify immediate update and history
+- US4: Make edit → re-run query → verify before/after comparison
 
 **MVP Scope**: Phase 1 + Phase 2 + Phase 3 (User Story 1 only) = 27 tasks for interpretable GraphRAG
 
@@ -505,15 +573,20 @@ python tests/fixtures_real_data.py
 
 ### ❌ Not Started
 
-**Phase 4: User Story 2 - Graph Editing** (0/18 tasks)
+**Phase 4: User Story 2 - Book Ingestion** (0/18 tasks) ← NEW
+- [ ] T100-T112: Backend ingestion APIs and service
+- [ ] T113-T116: CLI implementation
+- [ ] T117: Neo4j indexes
+
+**Phase 5: User Story 3 - Graph Editing** (0/18 tasks)
 - [ ] T028-T037: Backend editing APIs
 - [ ] T038-T045: Frontend editing UI
 
-**Phase 5: User Story 3 - Re-query & Comparison** (0/19 tasks)
+**Phase 6: User Story 4 - Re-query & Comparison** (0/19 tasks)
 - [ ] T046-T055: Backend comparison APIs
 - [ ] T056-T064: Frontend comparison UI
 
-**Phase 6: Polish & Integration** (0/22 tasks)
+**Phase 7: Polish & Integration** (0/22 tasks)
 - [ ] T065-T072: Backend polish
 - [ ] T073-T080: Frontend polish
 - [ ] T081-T086: Integration & deployment
@@ -544,10 +617,10 @@ python tests/fixtures_real_data.py
 
 ### 📊 Progress Summary
 
-**Overall Progress**: 32/86 tasks completed (37%)
+**Overall Progress**: 32/104 tasks completed (31%)
 - Phase 1-2 (Foundation): ✅ 100% complete (12/12 tasks)
 - Phase 3 (MVP): ✅ 100% backend, ⚠️ Frontend blocked (20/20 tasks marked complete with notes)
-- Phase 4-6 (Future work): ⏸️ 0% started (54/54 tasks pending)
+- Phase 4-7 (Future work): ⏸️ 0% started (72/72 tasks pending)
 
 **Backend Status**: ✅ MVP fully implemented and verified
 - Provenance tracking: ✅ Complete

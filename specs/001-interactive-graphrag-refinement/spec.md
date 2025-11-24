@@ -28,11 +28,35 @@ A researcher queries the system about cross-disciplinary patterns (e.g., "How do
 
 ---
 
-### User story 2 - Correct graph relationships interactively (Priority: P1)
+### User story 2 - Add new books or bodies of literature (Priority: P1) - Admin only
+
+An **administrator** (not public users) wants to expand the Borges Library by adding new books or literary collections. They need a backend process to ingest new content that integrates seamlessly with the existing knowledge graph, leveraging the nano-graphRAG pipeline for entity extraction and relationship building.
+
+**Why this priority**: The value of the Borges Library grows with its literary corpus. Easy book addition is foundational to the system's growth and adoption. This enables curators to incorporate world literature progressively while **protecting graph integrity from public modifications**.
+
+**Access Control**: This feature is **restricted to administrators only**. Public users can explore and query the graph but cannot add books. This protects the knowledge graph from corruption.
+
+**Schema Consistency**: New books MUST be modeled identically to existing books in the database. The ingestion pipeline MUST use the same entity types, relationship types, property schemas, and provenance structures as the current data model. This ensures graph homogeneity and query consistency.
+
+**Independent Test**: Can be fully tested by an admin running the book ingestion pipeline via CLI or admin API, verifying the output matches the existing database schema, and confirming new entities integrate correctly with existing graph structure.
+
+**Acceptance Scenarios**:
+
+1. **Given** an admin has a new book file, **when** they run the ingestion command, **then** the system processes it using the same nano-graphRAG pipeline configuration as existing books
+2. **Given** a book is processed, **when** entities are created, **then** they follow the exact same schema (node labels, property names, types) as existing book entities in Neo4j
+3. **Given** relationships are extracted, **when** stored, **then** they use the same relationship types and property structures as existing relationships
+4. **Given** a book finishes processing, **when** the graph is queried, **then** new and existing books are indistinguishable in structure (only content differs)
+5. **Given** a processing error occurs, **when** the admin reviews logs, **then** they see clear error messages with recovery options (retry, rollback)
+6. **Given** a book was incorrectly processed, **when** the admin initiates rollback, **then** the system removes all content from that book without affecting others
+7. **Given** a public user accesses the system, **when** they explore, **then** no book addition functionality is visible or accessible
+
+---
+
+### User story 3 - Correct graph relationships interactively (Priority: P1)
 
 A domain expert notices that the GraphRAG made an incorrect assumption about how two entities are related (e.g., "This protein interacts with this gene, not regulates it"). They want to edit the relationship directly in the interface, specifying the correct relationship type and providing a justification.
 
-**Why this priority**: human-in-the-loop refinement is the unique value proposition. Without the ability to correct the graph, interpretability alone is insufficient. This enables the system to learn from expert feedback and improve over time. The user must be able to intervene in the knowledge structure otherwise the user only understands the structure. 
+**Why this priority**: human-in-the-loop refinement is the unique value proposition. Without the ability to correct the graph, interpretability alone is insufficient. This enables the system to learn from expert feedback and improve over time. The user must be able to intervene in the knowledge structure otherwise the user only understands the structure.
 
 **Independent Test**: can be fully tested by identifying a relationship in the graph visualization, clicking "Edit relationship," changing its type/properties, saving the change, and verifying the edit is reflected immediately in the graph and available for future queries.
 
@@ -46,7 +70,7 @@ A domain expert notices that the GraphRAG made an incorrect assumption about how
 
 ---
 
-### User story 3 - Re-query after graph refinement (priority: P1)
+### User story 4 - Re-query after graph refinement (priority: P1)
 
 After correcting relationships in the graph, the user wants to re-run their original query to see how the answer changes based on the refined knowledge structure. They expect a side-by-side comparison of the original answer versus the new answer, with highlighted differences.
 
@@ -78,20 +102,27 @@ After correcting relationships in the graph, the user wants to re-run their orig
 
 ### Functional Requirements
 
-- **FR-001**: System MUST display full provenance for every GraphRAG answer, including entities, relationships, community reports, and source text chunks
-- **FR-002**: System MUST allow users to edit existing relationships by changing type, properties, or directionality
-- **FR-003**: System MUST record edit history for all graph modifications, including editor identity, timestamp, old/new values, and justification
-- **FR-004**: System MUST support re-running queries after graph edits and display before/after answer comparisons
-- **FR-005**: System MUST enable users to add new entities and relationships manually with full provenance documentation
-- **FR-006**: System MUST discover recurring ontological patterns across multiple books or disciplines
-- **FR-007**: System MUST provide click-through navigation from answers → entities → relationships → text chunks
-- **FR-008**: System MUST visually distinguish between automatically extracted and manually added/edited knowledge
-- **FR-009**: System MUST support rollback of edits to previous graph states
-- **FR-010**: System MUST validate that edited relationships maintain graph consistency (no dangling references)
-- **FR-011**: System MUST highlight which graph edits influenced answer changes during re-query
-- **FR-012**: System MUST allow users to save and name pattern discoveries for future reference
-- **FR-013**: System MUST support conflict resolution when multiple users edit the same graph element
-- **FR-014**: System MUST display pattern discovery results ranked by frequency, cross-domain coverage, and significance
+- **FR-001** : system MUST display full provenance for every GraphRAG answer, including entities, relationships, community reports, and source text chunks
+- **FR-002** : system MUST allow users to edit existing relationships by changing type, properties, or directionality
+- **FR-003** : system MUST record edit history for all graph modifications, including editor identity, timestamp, old/new values, and justification
+- **FR-004** : system MUST support re-running queries after graph edits and display before/after answer comparisons
+- **FR-005** : system MUST enable users to add new entities and relationships manually with full provenance documentation
+- **FR-006** : system MUST discover recurring ontological patterns across multiple books or disciplines
+- **FR-007** : system MUST provide click-through navigation from answers → entities → relationships → text chunks
+- **FR-008** : system MUST visually distinguish between automatically extracted and manually added/edited knowledge
+- **FR-009** : system MUST support rollback of edits to previous graph states
+- **FR-010**: system MUST validate that edited relationships maintain graph consistency (no dangling references)
+- **FR-011** : system MUST highlight which graph edits influenced answer changes during re-query
+- **FR-012** : system MUST allow users to save and name pattern discoveries for future reference
+- **FR-013** : system MUST support conflict resolution when multiple users edit the same graph element
+- **FR-014** : system MUST display pattern discovery results ranked by frequency, cross-domain coverage, and significance
+- **FR-015** : system MUST provide a backend/CLI book ingestion pipeline restricted to administrators only
+- **FR-016** : system MUST process new books through the nano-graphRAG pipeline using identical configuration as existing books
+- **FR-017** : system MUST ensure new books follow the exact same schema (node labels, relationship types, properties) as existing database content
+- **FR-018** : system MUST automatically connect new book entities to existing graph entities where semantic relationships exist
+- **FR-019** : system MUST support rollback of book ingestion to remove incorrectly processed content
+- **FR-020** : system MUST log ingestion progress (chunks processed, entities extracted, relationships created) for admin monitoring
+- **FR-021** : system MUST NOT expose any book addition functionality to public users
 
 ### Key Entities
 
@@ -101,6 +132,7 @@ After correcting relationships in the graph, the user wants to re-run their orig
 - **Graph Edit**: A modification to the graph structure (properties: edit_type, target_id, old_value, new_value, justification, editor, timestamp)
 - **Ontological Pattern**: A recurring relationship structure across domains (properties: pattern_name, motif_structure, instances, frequency, cross_domain_count, significance_score)
 - **Query Iteration**: A versioned query execution with corresponding graph state (properties: query_text, graph_snapshot_id, answer, provenance, timestamp)
+- **Book Ingestion**: A book processing job through the nano-graphRAG pipeline (properties: book_id, file_path, metadata, status, progress, chunks_count, entities_extracted, relationships_created, started_at, completed_at, error_log)
 
 ## Success Criteria *(mandatory)*
 
@@ -116,6 +148,10 @@ After correcting relationships in the graph, the user wants to re-run their orig
 - **SC-008**: Users report increased trust in GraphRAG answers due to interpretability (measured via survey)
 - **SC-009**: Expert users validate that graph refinements improve answer quality in 70%+ of test cases
 - **SC-010**: Pattern discovery completes in under 30 seconds for graphs with up to 10,000 entities
+- **SC-011**: Users can add a new book (average 300 pages) and have it fully processed within 10 minutes
+- **SC-012**: 90% of new book entities are correctly connected to semantically related existing entities
+- **SC-013**: Book rollback completes within 30 seconds and removes 100% of associated content
+- **SC-014**: Users can track ingestion progress at any time with updates at least every 10 seconds
 
 ## Assumptions *(optional)*
 

@@ -249,9 +249,173 @@ These align with the existing technology stack (TypeScript 5.2.2, Python 3.11+, 
 
 ---
 
+---
+
+## 5. nano-graphRAG Book Ingestion (US2 - Added 2025-11-23)
+
+**Decision**: Use nano-graphRAG as the core pipeline for all book processing, wrapped in a service layer that enforces schema consistency.
+
+**Rationale**:
+- nano-graphRAG (>=0.0.4) is already a project dependency
+- Provides proven entity extraction, relationship building, and community detection
+- Existing books were processed with this pipeline, ensuring consistency
+- Library supports configuration-driven processing
+- Constitution Principle VI mandates building on nano-graphRAG foundation
+
+### 5.1 Pipeline Integration
+
+**Implementation Approach**:
+```python
+# reconciliation-api/services/book_ingestion_service.py
+from nano_graphrag import GraphRAG
+
+class BookIngestionService:
+    def __init__(self, config: IngestionConfig):
+        self.graphrag = GraphRAG(working_dir=config.output_dir)
+        self.neo4j_client = Neo4jClient()
+        self.schema_validator = SchemaValidator()
+
+    async def ingest_book(self, book_path: str, metadata: BookMetadata) -> IngestionJob:
+        job = IngestionJob(book_id=metadata.id, status="processing")
+        try:
+            # 1. Run nano-graphRAG pipeline (same config as existing books)
+            await self.graphrag.insert(book_path)
+
+            # 2. Validate schema consistency
+            self.schema_validator.validate(job.output_dir)
+
+            # 3. Import to Neo4j with transaction
+            await self.neo4j_client.import_book(job.output_dir, metadata)
+
+            # 4. Link to existing entities (inter-book connections)
+            await self.link_to_existing_entities(job.book_id)
+
+            job.status = "completed"
+        except Exception as e:
+            job.status = "failed"
+            job.error_log = str(e)
+            await self.rollback(job.book_id)
+        return job
+```
+
+**Alternatives Considered**:
+- Custom entity extraction: Rejected - nano-graphRAG already optimized
+- Direct LLM calls: Rejected - would require reimplementing chunking, community detection
+
+### 5.2 Schema Consistency Enforcement
+
+**Decision**: Schema validation layer that compares new book output against existing Neo4j schema before import.
+
+**Schema Definition** (from existing books):
+```
+Node Labels:
+  - Entity (name, type, description, source_chunks, confidence_score)
+  - Chunk (content, book_id, page, section, embedding)
+  - Book (title, author, genre, publication_date)
+  - Community (id, summary, members, level)
+
+Relationship Types:
+  - RELATED_TO (type, weight, evidence_chunks)
+  - MENTIONS (book -> entity)
+  - BELONGS_TO (chunk -> book)
+  - PART_OF (entity -> community)
+  - HAS_CHUNK (book -> chunk)
+```
+
+**Validation Rules**:
+1. All node labels must exist in schema
+2. All relationship types must exist in schema
+3. Required properties must be present
+4. Data types must match
+
+### 5.3 Admin Access Control
+
+**Decision**: API key-based authentication for admin endpoints + CLI tool for direct server access.
+
+**Implementation**:
+```python
+# Admin API endpoint (protected)
+@app.route('/admin/ingest', methods=['POST'])
+@require_admin_key
+def ingest_book():
+    ...
+
+# CLI tool
+# python -m cli.ingest_book --file book.pdf --title "Title" --author "Author"
+```
+
+**Security**:
+- Admin API key stored in environment variables
+- No UI exposure of book addition to public users
+- CLI requires server access
+
+### 5.4 Rollback Mechanism
+
+**Decision**: Transaction-based ingestion with atomic rollback capability.
+
+**Implementation**:
+```cypher
+// Rollback query - removes all book content atomically
+MATCH (n {book_id: $book_id})
+DETACH DELETE n
+```
+
+**Performance**: SC-013 requires rollback <30 seconds for average book
+
+### 5.5 Inter-Book Entity Linking
+
+**Decision**: Semantic similarity matching using vector embeddings after initial import.
+
+**Implementation**:
+```python
+def link_to_existing(new_entity: Entity) -> List[Relationship]:
+    similar = self.vector_search(new_entity.embedding, k=10)
+    relationships = []
+    for match in similar:
+        if match.book_id != new_entity.book_id:  # Inter-book bonus
+            weight = match.similarity * 1.2
+        else:
+            weight = match.similarity
+        if weight > 0.85:  # Similarity threshold
+            relationships.append(Relationship(
+                source=new_entity.id,
+                target=match.id,
+                type="RELATED_TO",
+                weight=weight
+            ))
+    return relationships
+```
+
+**Performance**: SC-012 requires 90% correct entity connections
+
+### 5.6 New Files Required
+
+| File | Purpose |
+|------|---------|
+| `reconciliation-api/services/book_ingestion_service.py` | nano-graphRAG pipeline wrapper |
+| `reconciliation-api/models/book_ingestion.py` | Ingestion job model |
+| `reconciliation-api/endpoints/ingestion.py` | Admin API endpoints |
+| `reconciliation-api/cli/ingest_book.py` | CLI tool |
+| `specs/.../contracts/book-ingestion-api.yaml` | API specification |
+
+---
+
+## Summary Table (Updated)
+
+| Decision Area | Choice | Key Library/Tool | Scalability |
+|--------------|--------|------------------|-------------|
+| **Frontend Testing** | Jest + RTL | `@testing-library/react`, `jest-canvas-mock` | Good for 100s of tests |
+| **Backend Testing** | pytest + testcontainers | `testcontainers[neo4j]`, `pytest-asyncio` | Excellent for integration tests |
+| **Pattern Discovery** | Custom Cypher + NetworkX | `networkx`, `apoc.path.subgraphAll` | 10k-100k entities |
+| **Provenance Storage** | Dedicated Query nodes | Native Neo4j with temporal properties | <500ms retrieval |
+| **Answer Comparison** | diff-match-patch + sentence-transformers | `diff-match-patch`, `all-MiniLM-L6-v2` | <200ms for typical answers |
+| **Book Ingestion** | nano-graphRAG pipeline | `nano-graphrag>=0.0.4` | 300 pages in <10 min |
+
+---
+
 ## Next Steps
 
 Proceed to Phase 1: Design & Contracts
-- Generate data-model.md with Neo4j schema
-- Create API contracts for provenance, edit, pattern, and comparison endpoints
+- Generate data-model.md with Neo4j schema (including Book Ingestion entities)
+- Create API contracts for provenance, edit, pattern, comparison, and **book-ingestion** endpoints
 - Update agent context with new technologies

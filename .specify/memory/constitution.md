@@ -1,41 +1,36 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: 1.0.0 → 1.1.0 (Minor - Added Babel Library Mimetism Principle)
+Version Change: 1.1.0 → 1.2.0 (Minor - Added Extensible Literature Foundation Principle)
 
 Modified Principles:
-- REORDERED: Principle I - End-to-End Interpretability (was V, now I)
-- REORDERED: Principle III - No Orphan Nodes (was I, now III)
-- REORDERED: Principle IV - Book-Centric Architecture (was II, now IV)
-- REORDERED: Principle V - Inter-Book Knowledge Exploration (was III, now V)
+- None modified
 
 Added Principles:
-- NEW: Principle II - Babel Library Mimetism (Infinite Exploration Architecture)
+- NEW: Principle VI - Extensible Literature Foundation (nano-graphRAG integration and easy book addition)
 
 Removed Principles:
-- REMOVED: Principle IV - Relationship Visibility (user decision)
+- None removed
 
 Added Sections:
-- Principle II now formalizes the Borges/Babel Library philosophical foundation
+- Principle VI formalizes the relationship with nano-graphRAG and the easy book addition requirement
 
 Templates Requiring Updates:
-✅ plan-template.md - Constitution Check section will reference 5 principles (I-V)
-✅ spec-template.md - User stories must consider infinite exploration and progressive discovery
-✅ tasks-template.md - Tasks must validate against Babel Library mimetism requirements
+✅ plan-template.md - Constitution Check section will reference 6 principles (I-VI)
+✅ spec-template.md - User stories must consider book addition workflows
+✅ tasks-template.md - Tasks must validate against extensibility requirements
 
 Follow-up TODOs:
 - None - all placeholders have been filled
 
 Change Rationale:
-- MINOR version (1.1.0) because new principle added without breaking existing ones
-- Babel Library Mimetism formalizes the infinite exploration concept from Borges' story
-- This principle ties together progressive loading, reconciliation, and multi-book exploration
-- The reordering prioritizes end-to-end interpretability as the foundational principle
-- Implementation requirements align with existing codebase (progressive loading 300→500→1000,
-  reconciliation API, Neo4j + GraphRAG merge, centrality-based prioritization)
+- MINOR version (1.2.0) because new principle added without breaking existing ones
+- Extensible Literature Foundation formalizes the nano-graphRAG foundation and book addition requirement
+- This principle ensures the system remains open to new literary content
+- Implementation requirements align with nano-graphRAG architecture and modular design
 -->
 
-# Borges Library constitution
+# The Borges Library constitution
 
 ## Core principles
 
@@ -165,6 +160,42 @@ to discover through single-book analysis.
 
 ---
 
+### VI. Extensible literature foundation
+
+**The system MUST be built upon the nano-graphRAG library and designed for easy addition of new books or bodies of literature.**
+
+The Borges Library originates from and builds upon the nano-graphRAG library as its
+foundational knowledge extraction and retrieval layer. The architecture MUST prioritize
+the seamless integration of new literary content:
+
+- **nano-graphRAG foundation** : the system leverages nano-graphRAG for entity extraction, relationship building, and graph-based retrieval
+- **Modular book ingestion** : adding new books MUST be a straightforward, standardized process
+- **Scalable corpus expansion** : the system MUST handle growing collections without architectural changes
+- **Literature-agnostic processing**: The ingestion pipeline MUST work with diverse literary formats and genres
+
+**Rationale**: The value of the Borges Library grows with its literary corpus. By
+building on nano-graphRAG and prioritizing extensibility, we ensure that:
+1. The system inherits a proven, well-tested GraphRAG implementation
+2. Users and administrators can expand the library with minimal friction
+3. New bodies of literature integrate seamlessly with existing knowledge
+4. The architecture remains adaptable to diverse literary traditions and formats
+
+This principle ensures the Borges Library is not a static collection but a living,
+growing repository that can incorporate world literature progressively.
+
+**Implementation requirements**:
+- Book ingestion MUST follow a documented, repeatable pipeline based on nano-graphRAG
+- New book addition MUST NOT require code changes to core system components
+- Configuration-driven book registration MUST specify metadata, source files, and processing parameters
+- Ingestion pipelines MUST support batch processing for adding multiple books
+- Progress tracking MUST provide visibility into book processing status
+- Rollback mechanisms MUST allow removal of incorrectly processed books
+- The system MUST validate new book integration against existing graph consistency rules
+- Documentation MUST include step-by-step guides for adding new literary content
+- API endpoints MUST support programmatic book addition for automation workflows
+
+---
+
 
 ---
 
@@ -241,4 +272,4 @@ This constitution is maintained in version control at `.specify/memory/constitut
 For development workflow guidance, consult the runtime documentation in `README.md`
 and project-specific instructions in `CLAUDE.md`.
 
-**Version**: 1.1.0 | **Ratified**: 2025-11-18 | **Last Amended**: 2025-11-18
+**Version**: 1.2.0 | **Ratified**: 2025-11-18 | **Last Amended**: 2025-11-23

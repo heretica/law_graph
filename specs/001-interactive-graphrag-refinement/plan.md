@@ -1,132 +1,38 @@
 # Implementation Plan: Interactive GraphRAG Refinement System
 
-**Branch**: `001-interactive-graphrag-refinement` | **Date**: 2025-11-18 | **Spec**: [spec.md](./spec.md)
+**Branch**: `001-interactive-graphrag-refinement` | **Date**: 2025-11-23 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/001-interactive-graphrag-refinement/spec.md`
-
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
-Build an end-to-end interpretable GraphRAG system where users can trace answers to source text chunks, interactively refine the knowledge graph by editing entities and relationships, discover cross-domain ontological patterns, and see the impact of graph refinements on answer quality through re-querying with before/after comparisons.
-
-**Technical Approach**: Extend the existing Borges Library architecture (Next.js frontend on Vercel + Python Flask API on Railway + Neo4j database) with new features for provenance tracking, graph editing with versioning, pattern discovery algorithms, and query comparison interfaces. Leverage existing D3.js/3D-force-graph visualizations for edit interactions and existing nano-graphrag implementation for enhanced provenance capture.
+Build an end-to-end interpretable GraphRAG system that enables users to trace answers back to source text chunks, allows administrators to add new books via the nano-graphRAG pipeline (admin-only, schema-consistent), enables interactive graph refinement by domain experts, and provides answer comparison after edits.
 
 ## Technical Context
 
-**Language/Version**:
-- Frontend: TypeScript 5.2.2 with Next.js 14.0.0
-- Backend: Python 3.11+ with Flask 3.0.0
-
-**Primary Dependencies**:
-- Frontend: React 18.2, D3.js 7.8.5, 3D-force-graph 1.79.0, TailwindCSS 3.3.5
-- Backend: Flask-CORS 4.0.0, neo4j 5.14.0, httpx 0.25.1, nano-graphrag (current version in repo)
-
-**Storage**: Neo4j AURA Database (relationship edits, provenance chains, edit history), Railway data volume (book_data mounted from local)
-
-**Testing**: - for testing, use pytest for backend, & React Testing Library for frontend. **No mock data should be generated for testing, use only read data**. Also use the Playwright MCP for interface testing. 
-
-**Target Platform**:
-- Frontend: Vercel (serverless deployment)
-- Backend: Railway (containerized Python)
-- Database: Neo4j AuraDB 
-
+**Language/Version**: Python 3.11 (backend), TypeScript 5.2.2 (frontend)
+**Primary Dependencies**: Flask 3.0.0, neo4j 5.14.0, nano-graphrag >=0.0.4, Next.js 14.2.0, 3d-force-graph
+**Storage**: Neo4j 5.14+ (graph), JSON KV stores (caches, embeddings), GraphML (book data)
+**Testing**: pytest (backend), TypeScript strict mode (frontend type checking)
+**Target Platform**: Web application (Vercel frontend, Railway backend)
 **Project Type**: Web application (frontend + backend)
-
-**Performance Goals**:
-- Provenance trace: <500ms to load full chain (answer → chunks)
-- Graph edits: <1 second to persist and reflect in UI
-- Re-query: <3 seconds to compare before/after answers
-- Pattern discovery: <30 seconds for 10k entity graph
-- Visualization: 30+ FPS for up to 1000 nodes
-
-**Constraints**:
-- Railway memory limits (~512MB-1GB per service)
-- Vercel serverless function timeout (10s for hobby, 60s for pro)
-- Neo4j query performance (<200ms for single-hop relationships)
-- Book data volume size limits on Railway
-
-**Scale/Scope**:
-- Initial: 20-50 books in corpus
-- Users: Research teams (10-100 concurrent users)
-- Graph size: 10k-100k entities, 50k-500k relationships
-- Edits: Support 1000+ manual edits with full history
-- Patterns: Discover 10-50 meaningful cross-domain motifs
+**Performance Goals**: Graph queries <2s, API responses <200ms, visualization ≥30fps for 500 nodes
+**Constraints**: Book processing <10 minutes (300 pages), rollback <30 seconds
+**Scale/Scope**: 8+ books, 10,000+ entities, multi-user concurrent access
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-### Principle I: End-to-End Interpretability ✅
+| Principle | Requirement | Status | Implementation |
+|-----------|-------------|--------|----------------|
+| **I. End-to-end interpretability** | Navigation from chunks to RAG answers | ✅ PASS | US1: Provenance chains, click-through navigation |
+| **II. Babel Library Mimetism** | Infinite exploration, progressive discovery | ✅ PASS | Progressive loading 300→500→1000 nodes, centrality-based |
+| **III. No Orphan Nodes** | All displayed nodes have relationships | ✅ PASS | API filters exclude nodes with zero relationships |
+| **IV. Book-centric Architecture** | Books as core entities in all queries | ✅ PASS | All queries anchor on book nodes |
+| **V. Inter-book Exploration** | Prioritize cross-book relationships | ✅ PASS | Ranking weights favor inter-book connections |
+| **VI. Extensible Literature Foundation** | nano-graphRAG foundation, easy book addition | ✅ PASS | US2: Admin-only CLI ingestion, schema consistency |
 
-**Status**: PASS - Core feature requirement
-
-This feature is designed specifically to achieve principle I:
-- FR-001: Display full provenance (answer → entities → relationships → text chunks)
-- FR-007: Click-through navigation across entire pipeline
-- User Story 1 (P1): Trace GraphRAG answer to source knowledge
-
-**Implementation alignment**:
-- Provenance Chain entity captures complete reasoning path
-- Neo4j will store bidirectional links between chunks, entities, and answers
-- UI will provide navigation from any answer element to its sources
-
-### Principle II: Babel Library Mimetism (Infinite Exploration Architecture) ✅
-
-**Status**: PASS - Enhanced by pattern discovery and graph editing
-
-This feature extends principle II:
-- Graph editing enables exploration through refinement (no dead ends)
-- Pattern discovery surfaces emergent meaning from chaos
-- Re-querying creates infinite exploration through iterative refinement
-- User Story 4 (P2): Discover ontological patterns across domains
-
-**Implementation alignment**:
-- Pattern discovery (FR-006) identifies emergent thematic clusters
-- Edit-requery loop creates progressive revelation through user interaction
-- No terminal nodes: every entity can be edited → explored further
-
-### Principle III: No Orphan Nodes ✅
-
-**Status**: PASS - Enforced in existing system, maintained in edits
-
-FR-010 validates graph consistency including no dangling references. When editing relationships, validation will ensure no nodes become orphaned.
-
-**Implementation alignment**:
-- Existing reconciliation API already filters orphan nodes
-- Edit validation will check relationship count before allowing deletions
-- Pattern discovery will ignore orphan nodes by definition (requires relationships)
-
-### Principle IV: Book-Centric Architecture ✅
-
-**Status**: PASS - Maintained through provenance links
-
-All entities, relationships, and text chunks maintain book source attribution:
-- Provenance Chain entity includes book_id for all source chunks
-- Pattern discovery can group findings by source books
-- Edit history records which books are affected by changes
-
-**Implementation alignment**:
-- Existing text chunk storage preserves book provenance (confirmed in architecture)
-- FR-001 requires "book source and page location" for all chunks
-- Pattern discovery will report cross-book frequency
-
-### Principle V: Inter-Book Knowledge Exploration ✅
-
-**Status**: PASS - Core value of pattern discovery
-
-User Story 4 (P2) explicitly discovers cross-domain patterns:
-- "recurring relationship structures across seemingly unrelated domains"
-- FR-006: Pattern discovery across multiple books/disciplines
-- SC-004: Identify patterns in corpus of 20+ books
-
-**Implementation alignment**:
-- Pattern discovery algorithm will prioritize cross-book relationships
-- Ontological Pattern entity tracks cross_domain_count
-- Visualizations will highlight inter-book bridges
-
-### Gate Decision: ✅ PASS
-
-All 5 constitutional principles are satisfied. Proceed to Phase 0 research.
+**All 6 constitutional principles satisfied.**
 
 ## Project Structure
 
@@ -134,99 +40,118 @@ All 5 constitutional principles are satisfied. Proceed to Phase 0 research.
 
 ```text
 specs/001-interactive-graphrag-refinement/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
+├── plan.md              # This file
+├── research.md          # Phase 0 output
+├── data-model.md        # Phase 1 output
+├── quickstart.md        # Phase 1 output
+├── contracts/           # Phase 1 output (API specifications)
 │   ├── provenance-api.yaml
 │   ├── edit-api.yaml
 │   ├── pattern-api.yaml
-│   └── query-comparison-api.yaml
-├── checklists/
-│   └── requirements.md  # Spec quality checklist
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+│   ├── query-comparison-api.yaml
+│   └── book-ingestion-api.yaml  # NEW: Admin book addition
+└── tasks.md             # Phase 2 output
 ```
 
 ### Source Code (repository root)
 
-**Selected Structure**: Web application (existing architecture)
-
 ```text
-3_borges-interface/                    # Next.js frontend (Vercel)
+# Web application structure (frontend + backend)
+
+reconciliation-api/                  # Flask Backend
+├── reconciliation_api.py            # Main Flask application
+├── graphrag_interceptor.py          # GraphRAG query enrichment
+├── endpoints/
+│   ├── books.py                     # Book management (admin)
+│   ├── provenance.py                # Provenance tracking
+│   ├── edits.py                     # Graph edit operations
+│   └── ingestion.py                 # NEW: Book ingestion (admin-only)
+├── models/
+│   ├── query.py                     # Query models
+│   ├── graph_edit.py                # Edit models
+│   ├── book_ingestion.py            # NEW: Ingestion job model
+│   └── ontological_pattern.py       # Pattern models
+├── services/
+│   ├── neo4j_client.py              # Neo4j operations
+│   ├── provenance_tracker.py        # Answer lineage
+│   ├── book_ingestion_service.py    # NEW: nano-graphRAG pipeline
+│   └── validation.py                # Data validation
+├── cli/                             # NEW: Admin CLI commands
+│   └── ingest_book.py               # Book ingestion CLI
+└── test/
+
+3_borges-interface/                  # Next.js Frontend
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── provenance/         # NEW: Provenance tracing endpoints
-│   │   │   ├── edits/              # NEW: Graph edit operations
-│   │   │   └── patterns/           # NEW: Pattern discovery
+│   │   │   ├── reconciliation/
+│   │   │   ├── graphrag/
+│   │   │   └── books/
 │   │   └── page.tsx
 │   ├── components/
-│   │   ├── BorgesLibrary.tsx       # EXISTING: Main interface
-│   │   ├── GraphVisualization3DForce.tsx  # EXISTING: 3D graph
-│   │   ├── ProvenancePanel.tsx     # NEW: Provenance display
-│   │   ├── EditRelationshipModal.tsx  # NEW: Edit interface
-│   │   ├── PatternDiscoveryPanel.tsx  # NEW: Pattern results
-│   │   ├── QueryComparison.tsx     # NEW: Before/after diff
-│   │   └── TextChunkModal.tsx      # EXISTING: Enhanced for provenance
-│   ├── lib/
-│   │   ├── services/
-│   │   │   ├── reconciliation.ts   # EXISTING: Enhanced with edit/provenance
-│   │   │   ├── provenance.ts       # NEW: Provenance tracing service
-│   │   │   ├── edits.ts            # NEW: Edit operations service
-│   │   │   └── patterns.ts         # NEW: Pattern discovery service
-│   │   └── utils/
-│   │       ├── colorService.ts     # EXISTING
-│   │       ├── graphHighlight.ts   # EXISTING
-│   │       └── diff.ts             # NEW: Answer comparison utility
-│   └── types/
-│       ├── provenance.ts           # NEW: Provenance types
-│       ├── edit.ts                 # NEW: Edit operation types
-│       └── pattern.ts              # NEW: Pattern types
+│   │   ├── GraphVisualization3D.tsx
+│   │   ├── ProvenancePanel.tsx      # US1: Provenance display
+│   │   ├── EditModal.tsx            # US3: Relationship editing
+│   │   ├── ComparisonView.tsx       # US4: Answer comparison
+│   │   └── ...
+│   ├── types/
+│   │   ├── provenance.ts
+│   │   ├── edit.ts
+│   │   └── pattern.ts
+│   └── hooks/
 └── package.json
 
-reconciliation-api/                    # Python Flask API (Railway)
-├── reconciliation_api.py           # EXISTING: Enhanced with new endpoints
-├── endpoints/
-│   ├── provenance.py               # NEW: Provenance tracking
-│   ├── edits.py                    # NEW: Graph edit operations
-│   ├── patterns.py                 # NEW: Pattern discovery
-│   └── query_comparison.py         # NEW: Re-query comparison
-├── services/
-│   ├── neo4j_client.py             # EXISTING: Enhanced for edits
-│   ├── provenance_tracker.py       # NEW: Provenance chain builder
-│   ├── edit_manager.py             # NEW: Edit versioning & validation
-│   ├── pattern_detector.py         # NEW: Ontological pattern discovery
-│   └── query_comparator.py         # NEW: Answer comparison logic
-├── models/
-│   ├── provenance_chain.py         # NEW: Provenance data model
-│   ├── graph_edit.py               # NEW: Edit history model
-│   └── ontological_pattern.py      # NEW: Pattern model
-├── graphrag_interceptor.py         # EXISTING: Enhanced for provenance capture
-├── requirements.txt                # EXISTING: Add pattern matching libs
-└── tests/
-    ├── test_provenance.py          # NEW
-    ├── test_edits.py               # NEW
-    └── test_patterns.py            # NEW
-
-book_data/                             # EXISTING: Mounted as Railway volume
-└── [book_folders]/                    # Unchanged
-
-.specify/
-└── [configuration files]              # Project management
-
+book_data/                           # Book storage (mounted volume)
+├── [existing books]/
+└── [new books added via US2]/
 ```
 
-**Structure Decision**: Extend the existing web application architecture (3_borges-interface + reconciliation-api) rather than creating new services. This minimizes deployment complexity and leverages existing Neo4j connections, GraphRAG integration, and visualization components.
-
-**Key Integration Points**:
-1. Frontend makes API calls to new provenance/edit/pattern endpoints on Railway
-2. Railway API extends existing Neo4j queries for edit storage and provenance
-3. Existing D3.js/3D-force-graph components gain edit interaction handlers
-4. Existing reconciliation layer enhanced to track provenance during queries
+**Structure Decision**: Web application with Flask backend + Next.js frontend. Backend handles all nano-graphRAG integration, Neo4j queries, and admin operations. Frontend provides interactive visualization and user interactions.
 
 ## Complexity Tracking
 
-**No constitutional violations detected.**
+> No constitution violations requiring justification.
 
-Constitution Check passed all 5 principles. Proceed to Phase 0.
+| Decision | Rationale |
+|----------|-----------|
+| Admin-only book ingestion | Protects graph integrity from public modifications (Constitution VI) |
+| Schema consistency enforcement | Ensures new books match existing Neo4j model (Constitution VI) |
+| CLI + API for book ingestion | Supports both manual admin use and automation workflows |
+
+## User Story Mapping
+
+| User Story | Priority | Key Components |
+|------------|----------|----------------|
+| US1: Trace graphRAG to source | P1 | Provenance API, click-through navigation, attribution graph |
+| US2: Add new books (admin) | P1 | nano-graphRAG pipeline, CLI tool, schema validation |
+| US3: Edit graph relationships | P1 | Edit API, modal UI, edit history, rollback |
+| US4: Re-query after refinement | P1 | Query comparison API, diff visualization |
+
+## Key Technical Decisions
+
+### nano-graphRAG Integration (US2)
+
+The book ingestion pipeline leverages nano-graphRAG for:
+1. **Text chunking**: Split book content into semantic chunks
+2. **Entity extraction**: Identify entities using LLM
+3. **Relationship building**: Extract relationships between entities
+4. **Community detection**: Build hierarchical communities
+5. **Vector embeddings**: Generate entity embeddings for semantic search
+
+**Schema Consistency Requirements**:
+- Node labels: `Entity`, `Chunk`, `Book`, `Community`
+- Relationship types: `RELATED_TO`, `MENTIONS`, `BELONGS_TO`, `PART_OF`
+- Properties: Match existing Neo4j schema exactly
+- Provenance: All new content links back to book source
+
+### Admin Access Control (US2)
+
+- Book ingestion endpoints require admin authentication
+- No UI exposure of book addition to public users
+- CLI tool for batch processing
+
+### Graph Edit System (US3)
+
+- Optimistic locking for concurrent edit handling
+- Full audit trail with rollback capability
+- Validation against graph consistency rules

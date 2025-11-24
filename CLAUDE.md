@@ -15,6 +15,8 @@ La bibliothèque borges doit permettre une interprétatbilité de bout-en-bout d
 
 ## Active Technologies
 - Neo4j 5.14+ (relationship edits, provenance chains, edit history), Railway data volume (book_data mounted from local) (001-interactive-graphrag-refinement)
+- Python 3.11 (backend), TypeScript 5.2.2 (frontend) + Flask 3.0.0, neo4j 5.14.0, nano-graphrag >=0.0.4, Next.js 14.2.0, 3d-force-graph (001-interactive-graphrag-refinement)
+- Neo4j 5.14+ (graph), JSON KV stores (caches, embeddings), GraphML (book data) (001-interactive-graphrag-refinement)
 
 ## Recent Changes
 - 001-interactive-graphrag-refinement: Added Neo4j 5.14+ (relationship edits, provenance chains, edit history), Railway data volume (book_data mounted from local)
