@@ -4,10 +4,10 @@ const RECONCILIATION_API_URL = process.env.NEXT_PUBLIC_RECONCILIATION_API_URL ||
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { bookId: string; chunkId: string } }
+  { params }: { params: Promise<{ bookId: string; chunkId: string }> }
 ) {
   try {
-    const { bookId, chunkId } = params
+    const { bookId, chunkId } = await params
 
     console.log(`API Route: Fetching chunk ${chunkId} from book ${bookId}`)
 

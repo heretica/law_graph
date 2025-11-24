@@ -23,10 +23,10 @@ const RECONCILIATION_API_URL = process.env.NEXT_PUBLIC_RECONCILIATION_API_URL ||
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { bookId: string } }
+  { params }: { params: Promise<{ bookId: string }> }
 ) {
   try {
-    const { bookId } = params
+    const { bookId } = await params
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('query') || ''
 
@@ -46,7 +46,8 @@ export async function GET(
     }
 
   } catch (error) {
-    console.error(`Error getting graph for book ${params.bookId}:`, error)
+    const { bookId } = await params
+    console.error(`Error getting graph for book ${bookId}:`, error)
 
     // Return mock data as fallback
     const mockData: GraphData = {

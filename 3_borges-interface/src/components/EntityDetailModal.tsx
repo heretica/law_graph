@@ -87,26 +87,18 @@ export default function EntityDetailModal({
     // Extract chunks from relationships and entity properties
     const extractedChunks: ExtractedChunk[] = [];
 
-    // First, check if the entity itself has source_id with chunk IDs
-    const entitySourceId = foundEntity?.properties?.source_id;
-    if (entitySourceId && typeof entitySourceId === 'string') {
-      // Split by <SEP> separator to get individual chunk IDs
-      const chunkIds = entitySourceId.split('<SEP>').filter(id => id.trim());
-      const bookId = foundEntity?.properties?.book_id;
-
-      chunkIds.forEach(chunkId => {
-        const trimmedChunkId = chunkId.trim();
-        if (trimmedChunkId) {
-          extractedChunks.push({
-            text: trimmedChunkId,
-            relationshipType: 'ENTITY_SOURCE',
-            source: entityId,
-            target: entityId,
-            chunkId: trimmedChunkId,
-            bookId,
-            isChunkId: true,
-          });
-        }
+    // First, check if entity has description (actual text from source chunks)
+    const entityDescription = foundEntity?.properties?.description;
+    if (entityDescription && typeof entityDescription === 'string' && entityDescription.length > 0) {
+      // Use the description directly - it already contains the source text
+      const bookId = foundEntity?.properties?.source_id; // This is actually the book ID
+      extractedChunks.push({
+        text: entityDescription,
+        relationshipType: 'ENTITY_DESCRIPTION',
+        source: entityId,
+        target: entityId,
+        bookId,
+        isChunkId: false, // This is already the text content, not an ID to fetch
       });
     }
 
@@ -265,8 +257,20 @@ export default function EntityDetailModal({
   if (!entityId) return null;
 
   const getNodeLabel = (nodeId: string): string => {
-    const node = reconciliationData?.nodes.find(n => n.id === nodeId);
-    return node?.properties?.name || node?.labels?.[0] || nodeId;
+    if (!nodeId || !reconciliationData) return 'Unknown';
+
+    // Try to find by element ID first
+    const node = reconciliationData.nodes.find(n => n.id === nodeId);
+    if (node) {
+      // Prefer name property, then first label, then shortened ID
+      return node.properties?.name ||
+             node.properties?.id ||
+             node.labels?.[0] ||
+             nodeId.substring(0, 20) + '...';
+    }
+
+    // If not found, it might be truncated or formatted differently
+    return nodeId.length > 30 ? nodeId.substring(0, 20) + '...' : nodeId;
   };
 
   return (

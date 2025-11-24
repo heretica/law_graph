@@ -292,13 +292,15 @@ function BorgesLibrary() {
           console.error('⚠️ Failed to load relationships, continuing with nodes only:', relError)
         }
 
-        // Helper function to identify book nodes (Principle #2)
+        // Helper function to identify book nodes (Principle #2: Books as core entities)
         const isBookNode = (node: any): boolean => {
-          return (node as any).type === 'Book' ||
-            (node.labels && node.labels.includes('Livres')) ||
-            (node.labels && node.labels.includes('BOOK')) ||
-            String(node.id).startsWith('LIVRE_') ||
-            String(node.properties?.id || '').startsWith('LIVRE_')
+          // Check if node has BOOK label (primary check)
+          if (node.labels && node.labels.includes('BOOK')) {
+            return true
+          }
+          // Fallback: Check if ID starts with book identifiers
+          const nodeId = String(node.properties?.id || node.id || '')
+          return nodeId.startsWith('LIVRE_') || nodeId.startsWith('book_')
         }
 
         // Apply Connected Subgraph First filter (Principe #1: No orphans)
