@@ -663,14 +663,23 @@ export default function EntityDetailModal({
                                       <span className="text-xs text-gray-400">
                                         via {chunk.relationshipType}
                                       </span>
-                                      {chunk.isChunkId && (
+                                      {chunk.isChunkId && chunk.bookId && (
                                         <span className="text-xs px-2 py-1 bg-yellow-900/50 text-yellow-300 rounded animate-pulse">
                                           Fetching...
                                         </span>
                                       )}
+                                      {chunk.isChunkId && !chunk.bookId && (
+                                        <span className="text-xs px-2 py-1 bg-red-900/50 text-red-300 rounded">
+                                          Book not available
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
-                                      {chunk.isChunkId ? (
+                                      {chunk.isChunkId && !chunk.bookId ? (
+                                        <div className="italic text-gray-500">
+                                          📚 This chunk is from a book not available locally ({chunk.bookName || 'Unknown'})
+                                        </div>
+                                      ) : chunk.isChunkId ? (
                                         <div className="italic text-gray-500">
                                           Loading chunk content from: {chunk.chunkId}
                                         </div>
@@ -715,14 +724,23 @@ export default function EntityDetailModal({
                                   📖 {chunk.bookName}
                                 </span>
                               )}
-                              {chunk.isChunkId && (
+                              {chunk.isChunkId && chunk.bookId && (
                                 <span className="text-xs px-2 py-1 bg-yellow-900/50 text-yellow-300 rounded animate-pulse">
                                   Fetching...
                                 </span>
                               )}
+                              {chunk.isChunkId && !chunk.bookId && (
+                                <span className="text-xs px-2 py-1 bg-red-900/50 text-red-300 rounded">
+                                  Book not available
+                                </span>
+                              )}
                             </div>
                             <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
-                              {chunk.isChunkId ? (
+                              {chunk.isChunkId && !chunk.bookId ? (
+                                <div className="italic text-gray-500">
+                                  📚 This chunk is from a book not available locally ({chunk.bookName || 'Unknown'})
+                                </div>
+                              ) : chunk.isChunkId ? (
                                 <div className="italic text-gray-500">
                                   Loading chunk content from: {chunk.chunkId}
                                 </div>
