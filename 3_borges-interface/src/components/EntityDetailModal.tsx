@@ -50,8 +50,65 @@ interface ExtractedChunk {
   source: string;
   target: string;
   bookId?: string;
+  bookName?: string; // Human-readable book name for display
   chunkId?: string;
   isChunkId?: boolean;
+}
+
+// Helper to extract book ID from a node name or ID (e.g., "LIVRE_Peau de bison" -> "peau_bison_frison")
+function extractBookDirFromName(nodeName: string): string | null {
+  if (!nodeName) return null;
+
+  // Map of known book names to their directory names
+  const bookMapping: Record<string, string> = {
+    'peau de bison': 'peau_bison_frison',
+    'la vallée sans hommes': 'vallee_sans_hommes_frison',
+    'vallée sans hommes': 'vallee_sans_hommes_frison',
+    'vallee sans hommes': 'vallee_sans_hommes_frison',
+    'la promesse de l\'aube': 'racines_ciel_gary', // This book shares content with Les Racines du Ciel (same author)
+    'promesse de l\'aube': 'racines_ciel_gary',
+    'les racines du ciel': 'racines_ciel_gary',
+    'racines du ciel': 'racines_ciel_gary',
+    'chien blanc': 'chien_blanc_gary',
+    'a rebours': 'a_rebours_huysmans',
+    'à rebours': 'a_rebours_huysmans',
+    'la maison vide': 'la_maison_vide_laurent_mauvignier',
+    'maison vide': 'la_maison_vide_laurent_mauvignier',
+    'policeman': 'policeman_decoin',
+    'le tilleul du soir': 'tilleul_soir_anglade',
+    'tilleul du soir': 'tilleul_soir_anglade',
+    'villa triste': 'villa_triste_modiano',
+  };
+
+  const cleanName = nodeName.toLowerCase()
+    .replace(/^livre_/, '')
+    .replace(/"/g, '')
+    .trim();
+
+  // Try exact match first
+  if (bookMapping[cleanName]) {
+    return bookMapping[cleanName];
+  }
+
+  // Try partial match
+  for (const [key, value] of Object.entries(bookMapping)) {
+    if (cleanName.includes(key) || key.includes(cleanName)) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+// Helper to extract human-readable book name
+function extractBookDisplayName(nodeName: string): string {
+  if (!nodeName) return 'Unknown Book';
+
+  // Remove LIVRE_ prefix and clean up
+  return nodeName
+    .replace(/^LIVRE_/, '')
+    .replace(/"/g, '')
+    .trim() || 'Unknown Book';
 }
 
 export default function EntityDetailModal({
@@ -91,14 +148,17 @@ export default function EntityDetailModal({
     const entityDescription = foundEntity?.properties?.description;
     if (entityDescription && typeof entityDescription === 'string' && entityDescription.length > 0) {
       // Use the description directly - it already contains the source text
-      // API FIX (2025-11-25): book_id is now separate from source_id (which contains chunk IDs)
-      const bookId = foundEntity?.properties?.book_id || foundEntity?.properties?.source_id;
+      // Only use book_id, don't fallback to source_id (which may be a chunk ID)
+      const bookId = foundEntity?.properties?.book_id || foundEntity?.properties?.book_dir;
+      // For bookName, try to get a human-readable name
+      const bookName = bookId ? extractBookDisplayName(bookId) : undefined;
       extractedChunks.push({
         text: entityDescription,
         relationshipType: 'ENTITY_DESCRIPTION',
         source: entityId,
         target: entityId,
-        bookId,
+        bookId: bookId || undefined,
+        bookName,
         isChunkId: false, // This is already the text content, not an ID to fetch
       });
     }
@@ -125,8 +185,87 @@ export default function EntityDetailModal({
       });
     }
 
+    // Helper to resolve node name from ID
+    const resolveNodeName = (nodeId: string): string | null => {
+      if (!nodeId || !reconciliationData) return null;
+
+      // Find the node by element ID
+      const node = reconciliationData.nodes.find(n => n.id === nodeId);
+      if (node) {
+        return node.properties?.name || node.properties?.id || null;
+      }
+
+      // If node not found, the nodeId might already be the name (for display purposes)
+      // This happens when the relationship was serialized with names instead of IDs
+      if (nodeId.includes('LIVRE_') || nodeId.startsWith('La ') || nodeId.startsWith('Les ')) {
+        return nodeId;
+      }
+
+      return null;
+    };
+
     // Then extract chunks from relationships
+    // For inter-book entities, we need to determine which book each chunk belongs to
+    // by looking at the related book node in the relationship
     relatedRelationships.forEach(rel => {
+      // Helper to find book context from relationship
+      const getBookFromRelationship = (): { bookId: string | null; bookName: string | null } => {
+        // First try entity's own book_id (but skip for multi-book entities)
+        // We only use entity's book_id if this specific relationship doesn't have book context
+
+        // Look for a book node in the relationship (source or target)
+        const sourceNode = reconciliationData?.nodes.find(n => n.id === rel.source);
+        const targetNode = reconciliationData?.nodes.find(n => n.id === rel.target);
+
+        // Also get names for fallback matching
+        const sourceName = sourceNode?.properties?.name || resolveNodeName(rel.source);
+        const targetName = targetNode?.properties?.name || resolveNodeName(rel.target);
+
+        // Check if either node is a book by multiple criteria
+        const sourceIsBook = sourceNode?.properties?.entity_type === 'BOOK' ||
+                            sourceNode?.labels?.includes('Book') ||
+                            sourceName?.startsWith('LIVRE_') ||
+                            sourceName?.toLowerCase().includes('livre');
+        const targetIsBook = targetNode?.properties?.entity_type === 'BOOK' ||
+                            targetNode?.labels?.includes('Book') ||
+                            targetName?.startsWith('LIVRE_') ||
+                            targetName?.toLowerCase().includes('livre');
+
+        if (sourceIsBook && sourceName) {
+          const bookDir = extractBookDirFromName(sourceName);
+          const displayName = extractBookDisplayName(sourceName);
+          console.log(`📖 Found book from source: ${sourceName} -> dir: ${bookDir}`);
+          return { bookId: bookDir, bookName: displayName };
+        }
+
+        if (targetIsBook && targetName) {
+          const bookDir = extractBookDirFromName(targetName);
+          const displayName = extractBookDisplayName(targetName);
+          console.log(`📖 Found book from target: ${targetName} -> dir: ${bookDir}`);
+          return { bookId: bookDir, bookName: displayName };
+        }
+
+        // Try relationship properties - check both book_id and book_dir
+        if (rel.properties?.book_id || rel.properties?.book_dir) {
+          const relBookId = rel.properties.book_id || rel.properties.book_dir;
+          const relBookName = rel.properties.book_name || extractBookDisplayName(relBookId);
+          console.log(`📖 Found book from relationship properties: ${relBookId}`);
+          return { bookId: relBookId, bookName: relBookName };
+        }
+
+        // Fallback to entity's own book_id
+        if (foundEntity?.properties?.book_id) {
+          return {
+            bookId: foundEntity.properties.book_id,
+            bookName: foundEntity.properties.book_name || foundEntity.properties.book_id
+          };
+        }
+
+        return { bookId: null, bookName: null };
+      };
+
+      const { bookId, bookName } = getBookFromRelationship();
+
       // Check for graphml_source_chunks property
       const chunkText = rel.properties?.graphml_source_chunks;
       if (chunkText && typeof chunkText === 'string') {
@@ -137,7 +276,6 @@ export default function EntityDetailModal({
             const trimmed = id.trim();
             return trimmed && trimmed.startsWith('chunk-') && trimmed !== 'book_linkage';
           });
-          const bookId = foundEntity?.properties?.book_id || rel.properties?.book_id;
 
           chunkIds.forEach(chunkId => {
             const trimmedChunkId = chunkId.trim();
@@ -148,7 +286,8 @@ export default function EntityDetailModal({
                 source: rel.source,
                 target: rel.target,
                 chunkId: trimmedChunkId,
-                bookId,
+                bookId: bookId || undefined,
+                bookName: bookName || undefined,
                 isChunkId: true,
               });
             }
@@ -169,7 +308,8 @@ export default function EntityDetailModal({
             source: rel.source,
             target: rel.target,
             chunkId: isChunkId ? chunkText : undefined,
-            bookId: isChunkId ? (foundEntity?.properties?.book_id || rel.properties?.book_id) : undefined,
+            bookId: isChunkId ? (bookId || undefined) : undefined,
+            bookName: isChunkId ? (bookName || undefined) : undefined,
             isChunkId,
           });
         }
@@ -185,7 +325,6 @@ export default function EntityDetailModal({
             const trimmed = id.trim();
             return trimmed && trimmed.startsWith('chunk-') && trimmed !== 'book_linkage';
           });
-          const bookId = foundEntity?.properties?.book_id || rel.properties?.book_id;
 
           chunkIds.forEach(chunkId => {
             const trimmedChunkId = chunkId.trim();
@@ -196,7 +335,8 @@ export default function EntityDetailModal({
                 source: rel.source,
                 target: rel.target,
                 chunkId: trimmedChunkId,
-                bookId,
+                bookId: bookId || undefined,
+                bookName: bookName || undefined,
                 isChunkId: true,
               });
             }
@@ -217,7 +357,8 @@ export default function EntityDetailModal({
             source: rel.source,
             target: rel.target,
             chunkId: isChunkId ? sourceChunk : undefined,
-            bookId: isChunkId ? (foundEntity?.properties?.book_id || rel.properties?.book_id) : undefined,
+            bookId: isChunkId ? (bookId || undefined) : undefined,
+            bookName: isChunkId ? (bookName || undefined) : undefined,
             isChunkId,
           });
         }
@@ -457,61 +598,156 @@ export default function EntityDetailModal({
                 </div>
               )}
 
-              {/* Source Text Chunks */}
-              {chunks.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-400 uppercase mb-2">
-                    📄 Source Text Chunks ({chunks.length})
-                    {fetchingChunks && (
-                      <span className="ml-2 text-xs text-yellow-400 animate-pulse">
-                        Loading full text...
-                      </span>
-                    )}
-                  </h3>
-                  <div className="text-xs text-gray-400 mb-3">
-                    Original text from the books where this entity appears
-                  </div>
-                  <div className="space-y-3">
-                    {chunks.map((chunk, index) => (
-                      <div key={index} className="p-4 bg-borges-dark rounded border border-gray-700">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs px-2 py-1 bg-purple-900/50 text-purple-300 rounded">
-                            Chunk {index + 1}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            via {chunk.relationshipType}
-                          </span>
-                          {chunk.isChunkId && (
-                            <span className="text-xs px-2 py-1 bg-yellow-900/50 text-yellow-300 rounded animate-pulse">
-                              Fetching...
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
-                          {chunk.isChunkId ? (
-                            <div className="italic text-gray-500">
-                              Loading chunk content from: {chunk.chunkId}
+              {/* Source Text Chunks - Grouped by Book */}
+              {chunks.length > 0 && (() => {
+                // Group chunks by book
+                const chunksByBook = chunks.reduce((acc, chunk) => {
+                  const bookKey = chunk.bookName || chunk.bookId || 'Unknown Book';
+                  if (!acc[bookKey]) {
+                    acc[bookKey] = [];
+                  }
+                  acc[bookKey].push(chunk);
+                  return acc;
+                }, {} as Record<string, ExtractedChunk[]>);
+
+                const bookKeys = Object.keys(chunksByBook);
+                const isMultiBook = bookKeys.length > 1;
+
+                return (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-400 uppercase mb-2">
+                      📄 Source Text Chunks ({chunks.length})
+                      {isMultiBook && (
+                        <span className="ml-2 text-xs text-blue-400">
+                          from {bookKeys.length} books
+                        </span>
+                      )}
+                      {fetchingChunks && (
+                        <span className="ml-2 text-xs text-yellow-400 animate-pulse">
+                          Loading full text...
+                        </span>
+                      )}
+                    </h3>
+                    <div className="text-xs text-gray-400 mb-3">
+                      Original text from the books where this entity appears
+                    </div>
+
+                    {/* Group by book for multi-book entities */}
+                    {isMultiBook ? (
+                      <div className="space-y-4">
+                        {bookKeys.map(bookKey => {
+                          const bookChunks = chunksByBook[bookKey];
+                          const loadedChunks = bookChunks.filter(c => !c.isChunkId);
+                          const pendingChunks = bookChunks.filter(c => c.isChunkId);
+
+                          return (
+                            <div key={bookKey} className="border border-gray-600 rounded-lg overflow-hidden">
+                              {/* Book Header */}
+                              <div className="bg-yellow-900/30 px-4 py-2 border-b border-gray-600">
+                                <span className="text-sm font-medium text-yellow-300">
+                                  📖 {bookKey}
+                                </span>
+                                <span className="ml-2 text-xs text-gray-400">
+                                  ({loadedChunks.length} loaded, {pendingChunks.length} pending)
+                                </span>
+                              </div>
+
+                              {/* Chunks for this book */}
+                              <div className="p-3 space-y-3">
+                                {bookChunks.slice(0, 5).map((chunk, index) => (
+                                  <div key={index} className="p-3 bg-borges-dark rounded border border-gray-700">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="text-xs px-2 py-1 bg-purple-900/50 text-purple-300 rounded">
+                                        Chunk {index + 1}
+                                      </span>
+                                      <span className="text-xs text-gray-400">
+                                        via {chunk.relationshipType}
+                                      </span>
+                                      {chunk.isChunkId && (
+                                        <span className="text-xs px-2 py-1 bg-yellow-900/50 text-yellow-300 rounded animate-pulse">
+                                          Fetching...
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                      {chunk.isChunkId ? (
+                                        <div className="italic text-gray-500">
+                                          Loading chunk content from: {chunk.chunkId}
+                                        </div>
+                                      ) : (
+                                        <HighlightedText
+                                          text={chunk.text}
+                                          entities={entity ? [{
+                                            id: entity.id,
+                                            type: entity.properties?.entity_type || entity.labels?.[0] || 'Entity',
+                                            color: '#fbbf24',
+                                            score: 1.0
+                                          }] : []}
+                                        />
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                                {bookChunks.length > 5 && (
+                                  <div className="text-xs text-gray-500 text-center py-2">
+                                    ... and {bookChunks.length - 5} more chunks from this book
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          ) : (
-                            <HighlightedText
-                              text={chunk.text}
-                              entities={entity ? [{
-                                id: entity.id,
-                                type: entity.properties?.entity_type || entity.labels?.[0] || 'Entity',
-                                color: '#fbbf24',
-                                score: 1.0
-                              }] : []}
-                            />
-                          )}
-                        </div>
-                        <div className="mt-2 text-xs text-gray-500">
-                          {getNodeLabel(chunk.source)} → {getNodeLabel(chunk.target)}
-                        </div>
+                          );
+                        })}
                       </div>
-                    ))}
+                    ) : (
+                      /* Single book - flat list */
+                      <div className="space-y-3">
+                        {chunks.map((chunk, index) => (
+                          <div key={index} className="p-4 bg-borges-dark rounded border border-gray-700">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs px-2 py-1 bg-purple-900/50 text-purple-300 rounded">
+                                Chunk {index + 1}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                via {chunk.relationshipType}
+                              </span>
+                              {chunk.bookName && (
+                                <span className="text-xs px-2 py-1 bg-yellow-900/30 text-yellow-300 rounded">
+                                  📖 {chunk.bookName}
+                                </span>
+                              )}
+                              {chunk.isChunkId && (
+                                <span className="text-xs px-2 py-1 bg-yellow-900/50 text-yellow-300 rounded animate-pulse">
+                                  Fetching...
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                              {chunk.isChunkId ? (
+                                <div className="italic text-gray-500">
+                                  Loading chunk content from: {chunk.chunkId}
+                                </div>
+                              ) : (
+                                <HighlightedText
+                                  text={chunk.text}
+                                  entities={entity ? [{
+                                    id: entity.id,
+                                    type: entity.properties?.entity_type || entity.labels?.[0] || 'Entity',
+                                    color: '#fbbf24',
+                                    score: 1.0
+                                  }] : []}
+                                />
+                              )}
+                            </div>
+                            <div className="mt-2 text-xs text-gray-500">
+                              {getNodeLabel(chunk.source)} → {getNodeLabel(chunk.target)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {chunks.length === 0 && (
                 <div className="p-4 bg-gray-900/50 border border-gray-700 rounded text-gray-400 text-sm">
