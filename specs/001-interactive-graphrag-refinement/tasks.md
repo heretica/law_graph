@@ -1138,4 +1138,101 @@ $ curl -s http://localhost:5002/books | python3 -m json.tool | grep -i maison
 - Prevention best practices: Added for Neo4j queries
 - Debugging commands: Quick reference available
 
-**Last Updated**: 2025-11-24 23:30
+**Last Updated**: 2025-11-25 10:45
+
+---
+
+## Frontend Chunk Retrieval Optimization (2025-11-25) ⚡
+
+**Feature**: Updated frontend to work with optimized chunk retrieval API that uses LRU caching.
+
+### Changes Made
+
+#### 1. EntityDetailModal.tsx - book_id Property Fix
+**Problem**: After the API fix (2025-11-24), `source_id` now contains chunk IDs instead of book ID. Frontend was using wrong property for chunk API calls.
+
+**Solution**: Updated EntityDetailModal to:
+1. Use `book_id` property (new) instead of `source_id` for API calls
+2. Extract chunk IDs from `source_id` property (now contains `<SEP>` separated chunk IDs)
+3. Create proper chunk fetch requests using the correct book/chunk combination
+
+**Code Changes** (Lines 90-126):
+```typescript
+// API FIX (2025-11-25): book_id is now separate from source_id (which contains chunk IDs)
+const bookId = foundEntity?.properties?.book_id || foundEntity?.properties?.source_id;
+
+// Also extract chunk IDs from entity's source_id property (contains chunk IDs separated by <SEP>)
+const entitySourceId = foundEntity?.properties?.source_id;
+const entityBookId = foundEntity?.properties?.book_id;
+if (entitySourceId && typeof entitySourceId === 'string' && entitySourceId.includes('chunk-')) {
+  // source_id now contains chunk IDs, not book ID
+  const chunkIds = entitySourceId.split('<SEP>').filter(id => id.trim() && id.includes('chunk-'));
+  chunkIds.forEach(chunkId => {
+    // ... create EXTRACTED_FROM chunk entries
+  });
+}
+```
+
+### API Optimization Verified
+
+**LRU Cache Performance** (tested locally):
+- Cold cache: ~4-6ms to load chunk files from disk
+- Warm cache: <0.01ms (instant) - returns cached data
+- Cache stats: 3 hits, 2 misses after 5 requests
+- Speedup: **~7500x faster** with cache
+
+**Test Results**:
+```
+=== Cache Statistics ===
+Cache info: CacheInfo(hits=3, misses=2, maxsize=20, currsize=2)
+
+=== Performance Summary ===
+Cold cache avg: 4.19ms
+Warm cache avg: 0.00ms
+Speedup factor: 7533.6x faster with cache
+```
+
+### Frontend Verification
+
+**Graph Visualization**: ✅ Working
+- 105 nodes loaded successfully
+- 191 relationships displayed
+- Design principles compliance: 100%
+- Zero orphan nodes confirmed
+
+**Console Output**:
+```
+📈 Connected knowledge base loaded (design-optimized):
+  • Connected Nodes: 105 (zero orphans ✓)
+  • Book Entities: 22 (core nodes highlighted ✓)
+  • Total Relationships: 191
+  • Density: 1.82 relationships per node
+  🎯 Design principles compliance: 100%
+```
+
+### Constitutional Principle Compliance
+
+**Principle I: End-to-end Interpretability** ✅ ENHANCED
+- Entity→Chunk linkage working via API
+- LRU cache ensures fast provenance navigation
+- Chunk content retrieved successfully from Neo4j
+
+**Principle III: No Orphan Nodes** ✅ MAINTAINED
+- 105 connected nodes, zero orphans
+- All nodes have at least 1 relationship
+
+### Files Modified
+
+| File | Change | Purpose |
+|------|--------|---------|
+| `3_borges-interface/src/components/EntityDetailModal.tsx` | Lines 90-126 | Use book_id for API calls, extract chunks from source_id |
+
+### Task Status
+
+- [X] Backend LRU cache optimization (reconciliation_api.py)
+- [X] Frontend EntityDetailModal book_id fix
+- [X] Graph visualization verified (105 nodes, 191 links)
+- [X] API chunk retrieval tested (7500x speedup with cache)
+- [X] Constitutional principles verified (100% compliance)
+
+**Status**: ✅ **FRONTEND OPTIMIZATION COMPLETE** | API cache working | Graph rendering | Chunk retrieval functional

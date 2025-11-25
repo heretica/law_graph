@@ -792,20 +792,73 @@ export default function GraphVisualization3D({
       } : 'none'
     })
 
+    // Map entity_type from Neo4j to French display labels
+    const entityTypeToFrench: Record<string, string> = {
+      'PERSON': 'Personnes',
+      'GEO': 'Lieux',
+      'LOCATION': 'Lieux',
+      'EVENT': 'Événements',
+      'CONCEPT': 'Concepts',
+      'ORGANIZATION': 'Organisations',
+      'Book': 'Livres',
+      'Community': 'Communautés',
+      // Handle malformed entity_type values (with quotes or pipes)
+      '("PERSON': 'Personnes',
+      '|"PERSON': 'Personnes',
+      '("GEO': 'Lieux',
+      '|"GEO': 'Lieux',
+      '("EVENT': 'Événements',
+      '|"EVENT': 'Événements',
+      '|EVENT': 'Événements',
+      '("CONCEPT': 'Concepts',
+      '|"CONCEPT': 'Concepts',
+      '|CONCEPT': 'Concepts',
+    }
+
+    // Helper function to get entity type from node data
+    const getEntityType = (node: ReconciliationData['nodes'][0]): string => {
+      // First try entity_type property (most reliable)
+      if (node.properties?.entity_type) {
+        const rawType = node.properties.entity_type.toString().trim()
+        return entityTypeToFrench[rawType] || rawType
+      }
+      // Then try the second label (first is usually "Entity")
+      if (node.labels.length > 1) {
+        const secondLabel = node.labels[1]
+        return entityTypeToFrench[secondLabel] || secondLabel
+      }
+      // Finally fall back to first label
+      const firstLabel = node.labels[0] || 'default'
+      return entityTypeToFrench[firstLabel] || firstLabel
+    }
+
+    // Color mapping synchronized with legend (exact hex matches)
+    const typeColors: Record<string, string> = {
+      'Personnes': '#ff4757',       // Bright red - matches legend
+      'Lieux': '#00d2d3',          // Cyan - matches legend
+      'Événements': '#5352ed',     // Blue - matches legend
+      'Concepts': '#7bed9f',       // Green - matches legend
+      'Organisations': '#ffa502',  // Orange - matches legend
+      'Livres': '#ff6348',         // Pink/coral - matches legend
+      'Communautés': '#ff69b4',    // Pink - for communities
+      'default': '#dfe4ea'         // Light gray - matches legend
+    }
+
     // Group-based initial positioning (D3-inspired clustering by type) - MUCH CLOSER
-    const typeClusterCenters = {
+    const typeClusterCenters: Record<string, THREE.Vector3> = {
       'Personnes': new THREE.Vector3(-50, 50, -25),     // Top-left-back
       'Lieux': new THREE.Vector3(50, 50, -25),          // Top-right-back
       'Événements': new THREE.Vector3(-50, -50, -25),   // Bottom-left-back
       'Concepts': new THREE.Vector3(50, -50, -25),      // Bottom-right-back
       'Organisations': new THREE.Vector3(0, 0, 50),     // Front-center
       'Livres': new THREE.Vector3(0, 0, -75),          // Back-center
+      'Communautés': new THREE.Vector3(0, 75, 0),      // Top-center
       'default': new THREE.Vector3(0, 0, 0)            // Origin
     }
 
     const initialPositions: THREE.Vector3[] = sortedNodes.map((node) => {
-      const nodeType = node.labels[0] || 'default'
-      const clusterCenter = typeClusterCenters[nodeType as keyof typeof typeClusterCenters] || typeClusterCenters.default
+      const nodeType = getEntityType(node)
+      const clusterCenter = typeClusterCenters[nodeType] || typeClusterCenters.default
 
       // Add random offset around cluster center (much smaller radius for tight clustering)
       const offset = new THREE.Vector3(
@@ -817,21 +870,11 @@ export default function GraphVisualization3D({
       return clusterCenter.clone().add(offset)
     })
 
-    // Color mapping synchronized with legend (exact hex matches)
-    const typeColors = {
-      'Personnes': '#ff4757',       // Bright red - matches legend
-      'Lieux': '#00d2d3',          // Cyan - matches legend
-      'Événements': '#5352ed',     // Blue - matches legend
-      'Concepts': '#7bed9f',       // Green - matches legend
-      'Organisations': '#ffa502',  // Orange - matches legend
-      'Livres': '#ff6348',         // Pink/coral - matches legend
-      'default': '#dfe4ea'         // Light gray - matches legend
-    }
-
     // Create 3D nodes
     const nodes3D: Node3D[] = sortedNodes.map((node, index) => {
-      const nodeType = node.labels[0] || 'default'
-      const color = typeColors[nodeType as keyof typeof typeColors] || typeColors.default
+      // Use entity_type property for proper type classification
+      const nodeType = getEntityType(node)
+      const color = typeColors[nodeType] || typeColors.default
       const size = Math.max(20 + (node.degree / 2), 15) // Much larger nodes for visibility
 
       return {
@@ -842,7 +885,8 @@ export default function GraphVisualization3D({
         centrality_score: node.centrality_score,
         position: initialPositions[index],
         color: color, // Use hex string directly
-        size
+        size,
+        properties: node.properties // Pass through properties for access in tooltips
       }
     })
 
@@ -1388,6 +1432,10 @@ export default function GraphVisualization3D({
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ff6348' }}></div>
             <span>Livres</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ff69b4' }}></div>
+            <span>Communautés</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#dfe4ea' }}></div>
