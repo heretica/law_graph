@@ -149,17 +149,12 @@ interface HealthStatus {
 
 export class ReconciliationService {
   private readonly apiUrl: string;
-  private readonly directApiUrl: string; // Direct Railway API for graph endpoints (bypasses Vercel cold start)
   private readonly maxRetries = 3;
   private readonly retryDelay = 1000; // 1 second
 
   constructor() {
-    // Use local API routes for most endpoints
+    // Use Vercel proxy for all API routes (avoids CORS issues)
     this.apiUrl = '/api/reconciliation';
-    // Use direct Railway API for graph endpoints in production to avoid Vercel cold start latency
-    this.directApiUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-      ? 'https://reconciliation-api-production.up.railway.app'
-      : '/api/reconciliation';
   }
 
   /**
@@ -212,8 +207,8 @@ export class ReconciliationService {
     if (options.limit) params.append('limit', options.limit.toString());
     if (options.centrality_type) params.append('centrality_type', options.centrality_type);
 
-    // Use direct Railway API for graph data (bypasses Vercel proxy for faster loading)
-    const response = await this.retryFetch(`${this.directApiUrl}/graph/nodes?${params}`);
+    // Use Vercel proxy for graph data (avoids CORS issues)
+    const response = await this.retryFetch(`${this.apiUrl}/graph/nodes?${params}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch nodes: ${response.status}`);
     }
@@ -331,8 +326,8 @@ export class ReconciliationService {
       params.append('node_ids', chunk.join(','));
       params.append('limit', limit.toString());
 
-      // Use direct Railway API for graph data (bypasses Vercel proxy for faster loading)
-      const url = `${this.directApiUrl}/graph/relationships?${params}`;
+      // Use Vercel proxy for graph data (avoids CORS issues)
+      const url = `${this.apiUrl}/graph/relationships?${params}`;
       const result = await fetchWithRetry(url, 3);
 
       // Update progress as each chunk completes

@@ -215,6 +215,29 @@ function BorgesLibrary() {
   const graphLoadingRef = useRef(false)
   const lastLoadedBookRef = useRef<string | null>(null)
 
+  // Borges quotes from "Fictions" for loading screen
+  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0)
+  const borgesQuotes = [
+    "« L'univers (que d'autres appellent la Bibliothèque) se compose d'un nombre indéfini, et peut-être infini, de galeries hexagonales... »",
+    "« La Bibliothèque existe ab aeterno. De cette vérité dont le corollaire immédiat est l'éternité future du monde, aucun esprit raisonnable ne peut douter. »",
+    "« Il suffit qu'un livre soit concevable pour qu'il existe. »",
+    "« Comme tous les hommes de la Bibliothèque, j'ai voyagé dans ma jeunesse ; j'ai pérégrié à la recherche d'un livre, peut-être du catalogue des catalogues. »",
+    "« L'univers, avec son élégante provision de rayonnages, de tomes énigmatiques, d'infatigables escaliers pour le voyageur et de latrines pour le bibliothécaire assis, ne peut être que l'œuvre d'un dieu. »",
+    "« La certitude que tout est écrit nous annule ou fait de nous des fantômes. »",
+    "« Les impies affirment que le nonsens est la règle dans la Bibliothèque et que les passages raisonnables, ou seulement de la plus humble cohérence, constituent une exception quasi miraculeuse. »",
+    "« Je sais de régions où les jeunes gens se prosternent devant les livres et baisent avec barbarie les pages, mais ne savent pas déchiffrer une seule lettre. »"
+  ]
+
+  // Rotate quotes every 5 seconds during loading
+  useEffect(() => {
+    if (showLoadingOverlay || isLoadingGraph) {
+      const interval = setInterval(() => {
+        setCurrentQuoteIndex((prev) => (prev + 1) % borgesQuotes.length)
+      }, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [showLoadingOverlay, isLoadingGraph, borgesQuotes.length])
+
   // Function to extract chunks related to a specific entity
   const extractEntityChunks = (entityId: string) => {
     if (!reconciliationData?.relationships) {
@@ -1037,7 +1060,10 @@ function BorgesLibrary() {
                       // Keep query visible in search bar during processing
                     }
                   }}
-                  className="borges-btn-primary disabled:opacity-50"
+                  className={`borges-btn-primary disabled:opacity-50 ${isProcessing ? 'animate-pulse-brightness' : ''}`}
+                  style={isProcessing ? {
+                    animation: 'pulseBrightness 1.2s ease-in-out infinite'
+                  } : undefined}
                 >
                   {isProcessing ? <span className="animate-blue-white-glow">Processing...</span> : 'Recherche'}
                 </button>
@@ -1150,9 +1176,9 @@ function BorgesLibrary() {
             {/* Loading Overlay for returning users (tutorial already seen) */}
             {showLoadingOverlay && !showTutorial && (
               <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center">
-                <div className="text-center">
+                <div className="text-center max-w-2xl px-8">
                   {/* Hexagon Library Assembly Animation */}
-                  <svg className="w-48 h-48 mx-auto mb-4" viewBox="0 0 200 200" fill="none">
+                  <svg className="w-32 h-32 mx-auto mb-6" viewBox="0 0 200 200" fill="none">
                     <style>{`
                       @keyframes hexAssemble1 { 0% { opacity: 0; transform: translate(-30px, -20px); } 50% { opacity: 0.6; } 100% { opacity: 0.8; transform: translate(0, 0); } }
                       @keyframes hexAssemble2 { 0% { opacity: 0; transform: translate(30px, -20px); } 50% { opacity: 0.5; } 100% { opacity: 0.7; transform: translate(0, 0); } }
@@ -1228,22 +1254,40 @@ function BorgesLibrary() {
                     <line className="book-line-overlay" x1="82" y1="75" x2="118" y2="75" stroke="#a0a0a0" strokeWidth="0.5" style={{ animationDelay: '0.5s' }} />
                     <line className="book-line-overlay" x1="84" y1="85" x2="116" y2="85" stroke="#a0a0a0" strokeWidth="0.5" style={{ animationDelay: '1s' }} />
                   </svg>
+
+                  {/* Project concept introduction */}
+                  <h2 className="text-xl font-semibold text-borges-light mb-3 tracking-wide">Le Graphe de Borges</h2>
+                  <p className="text-borges-light-muted text-sm mb-6 leading-relaxed">
+                    Révéler les connexions invisibles entre des univers littéraires qui ne se parlent jamais.
+                    Inspiré de la <span className="text-borges-light">Bibliothèque de Babel</span> imaginée par Jorge Luis Borges,
+                    ce graphe explore les résonances cachées entre les œuvres — thèmes partagés, échos narratifs,
+                    et correspondances insoupçonnées.
+                  </p>
+
                   {/* Loading progress indicator */}
                   {loadingProgress && (
-                    <div className="mb-4 text-borges-light-muted text-sm">
+                    <div className="mb-4 text-borges-light text-sm font-medium">
                       {loadingProgress.step === 'nodes' && (
-                        <span>Chargement des galeries... {loadingProgress.current}/{loadingProgress.total} nœuds</span>
+                        <span>Exploration des galeries hexagonales... {loadingProgress.current}/{loadingProgress.total}</span>
                       )}
                       {loadingProgress.step === 'relations' && (
-                        <span>Tissage des connexions... {loadingProgress.current}/{loadingProgress.total} lots</span>
+                        <span>Tissage des connexions infinies... {loadingProgress.current}/{loadingProgress.total}</span>
                       )}
                       {loadingProgress.step === 'building' && (
-                        <span>Construction du graphe... {loadingProgress.current} nœuds connectés</span>
+                        <span>Cristallisation de la Bibliothèque... {loadingProgress.current} nœuds</span>
                       )}
                     </div>
                   )}
-                  <div className="text-borges-light-muted text-xs italic max-w-lg text-center px-4">
-                    « L&apos;univers (que d&apos;autres appellent la Bibliothèque) se compose d&apos;un nombre indéfini, et peut-être infini, de galeries hexagonales... »
+
+                  {/* Rotating Borges quote with fade animation */}
+                  <div className="mt-6 border-t border-borges-border pt-6">
+                    <div
+                      key={currentQuoteIndex}
+                      className="text-borges-light-muted text-xs italic max-w-lg mx-auto transition-opacity duration-1000 animate-fade-in"
+                    >
+                      {borgesQuotes[currentQuoteIndex]}
+                    </div>
+                    <div className="text-borges-muted text-xs mt-2">— Jorge Luis Borges, <span className="italic">La Bibliothèque de Babel</span></div>
                   </div>
                 </div>
               </div>
