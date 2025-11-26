@@ -181,6 +181,7 @@ function BorgesLibrary() {
   const [currentQuery, setCurrentQuery] = useState<string>('')
   const [queryAnswer, setQueryAnswer] = useState<string>('')
   const [showAnswer, setShowAnswer] = useState(false)
+  const [answerPanelHeight, setAnswerPanelHeight] = useState(30) // Default 30vh on mobile
   // Entity coloring state for interpretability
   const [coloredEntities, setColoredEntities] = useState<EntityColorInfo[]>([])
 
@@ -1419,12 +1420,41 @@ function BorgesLibrary() {
         />
       )}
 
-      {/* Answer Panel - Responsive: Compact bottom sheet on mobile, side panel on desktop */}
+      {/* Answer Panel - Responsive: Resizable bottom sheet on mobile, side panel on desktop */}
       {showAnswer && (
-        <div className="borges-panel fixed bottom-0 left-0 right-0 md:bottom-4 md:left-4 md:right-auto w-full md:w-[400px] max-h-[30vh] md:max-h-[45vh] overflow-auto text-borges-light shadow-borges-lg z-30 rounded-t-2xl md:rounded-borges-md safe-area-bottom swipe-panel">
-          {/* Mobile drag handle */}
-          <div className="md:hidden flex justify-center py-1">
-            <div className="w-12 h-1 bg-borges-border rounded-full"></div>
+        <div
+          className="borges-panel fixed bottom-0 left-0 right-0 md:bottom-4 md:left-4 md:right-auto w-full md:w-[400px] md:max-h-[45vh] overflow-hidden text-borges-light shadow-borges-lg z-30 rounded-t-2xl md:rounded-borges-md safe-area-bottom flex flex-col"
+          style={{
+            height: typeof window !== 'undefined' && window.innerWidth < 768 ? `${answerPanelHeight}vh` : undefined,
+            maxHeight: typeof window !== 'undefined' && window.innerWidth < 768 ? `${answerPanelHeight}vh` : undefined
+          }}
+        >
+          {/* Mobile drag handle - draggable to resize */}
+          <div
+            className="md:hidden flex justify-center py-2 cursor-ns-resize touch-none select-none"
+            onTouchStart={(e) => {
+              const startY = e.touches[0].clientY
+              const startHeight = answerPanelHeight
+              const viewportHeight = window.innerHeight
+
+              const handleTouchMove = (moveEvent: TouchEvent) => {
+                const currentY = moveEvent.touches[0].clientY
+                const deltaY = startY - currentY
+                const deltaVh = (deltaY / viewportHeight) * 100
+                const newHeight = Math.min(80, Math.max(15, startHeight + deltaVh))
+                setAnswerPanelHeight(newHeight)
+              }
+
+              const handleTouchEnd = () => {
+                document.removeEventListener('touchmove', handleTouchMove)
+                document.removeEventListener('touchend', handleTouchEnd)
+              }
+
+              document.addEventListener('touchmove', handleTouchMove)
+              document.addEventListener('touchend', handleTouchEnd)
+            }}
+          >
+            <div className="w-12 h-1.5 bg-borges-border rounded-full"></div>
           </div>
           <div className="flex justify-between items-start mb-2 md:mb-3 px-1">
             <h3 className="text-sm md:text-h3 text-borges-light font-medium">La réponse du GraphRAG</h3>
@@ -1471,9 +1501,9 @@ function BorgesLibrary() {
             </div>
           )}
 
-          <div>
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             <div className="text-xs text-borges-light-muted mb-1 hidden md:block">Réponse:</div>
-            <div className="max-h-40 md:max-h-80 overflow-y-auto pr-2">
+            <div className="flex-1 overflow-y-auto pr-2">
               <HighlightedText
                 text={queryAnswer}
                 entities={coloredEntities}
