@@ -387,13 +387,19 @@ function BorgesLibrary() {
         let relationships: any[] = []
         let relationshipsFiltered = false
         let relationshipsLimit = 0
-        setLoadingProgress({ step: 'relations', current: 0, total: 8000 })
+        const totalChunks = Math.ceil(nodeIds.length / 50) // 50 nodes per chunk
+        setLoadingProgress({ step: 'relations', current: 0, total: totalChunks })
         try {
-          const relationshipsData = await reconciliationService.getRelationships(nodeIds, 8000)
+          const relationshipsData = await reconciliationService.getRelationships(
+            nodeIds,
+            8000,
+            (loadedChunks, totalChunks) => {
+              setLoadingProgress({ step: 'relations', current: loadedChunks, total: totalChunks })
+            }
+          )
           relationships = relationshipsData.success ? relationshipsData.relationships : []
           relationshipsFiltered = relationshipsData.filtered || false
           relationshipsLimit = relationshipsData.limit_applied || 0
-          setLoadingProgress({ step: 'relations', current: relationships.length, total: 8000 })
         } catch (relError) {
           console.error('⚠️ Failed to load relationships, continuing with nodes only:', relError)
         }
@@ -1159,13 +1165,13 @@ function BorgesLibrary() {
                   {loadingProgress && (
                     <div className="mb-4 text-borges-light-muted text-sm">
                       {loadingProgress.step === 'nodes' && (
-                        <span>Chargement des galeries... {loadingProgress.current}/{loadingProgress.total}</span>
+                        <span>Chargement des galeries... {loadingProgress.current}/{loadingProgress.total} nœuds</span>
                       )}
                       {loadingProgress.step === 'relations' && (
-                        <span>Tissage des connexions... {loadingProgress.current > 0 ? loadingProgress.current : '...'}</span>
+                        <span>Tissage des connexions... {loadingProgress.current}/{loadingProgress.total} lots</span>
                       )}
                       {loadingProgress.step === 'building' && (
-                        <span>Construction du graphe... {loadingProgress.current} nœuds</span>
+                        <span>Construction du graphe... {loadingProgress.current} nœuds connectés</span>
                       )}
                     </div>
                   )}

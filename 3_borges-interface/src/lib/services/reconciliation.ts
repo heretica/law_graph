@@ -217,8 +217,13 @@ export class ReconciliationService {
    * Get relationships for specific node IDs
    * Uses GET with chunking to avoid URL length limits
    * Includes retry logic for transient failures
+   * @param onProgress - Optional callback for progress updates during chunked loading
    */
-  async getRelationships(nodeIds: string[], limit: number = 10000): Promise<{
+  async getRelationships(
+    nodeIds: string[],
+    limit: number = 10000,
+    onProgress?: (loaded: number, total: number) => void
+  ): Promise<{
     success: boolean;
     relationships: Neo4jRelationship[];
     count: number;
@@ -312,7 +317,9 @@ export class ReconciliationService {
 
     // Fetch relationships for each chunk with sequential requests to avoid overload
     const chunkResults = [];
-    for (const chunk of chunks) {
+    let loadedRelationships = 0;
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
       const params = new URLSearchParams();
       params.append('node_ids', chunk.join(','));
       params.append('limit', limit.toString());
@@ -320,6 +327,14 @@ export class ReconciliationService {
       const url = `${this.apiUrl}/graph/relationships?${params}`;
       const result = await fetchWithRetry(url, 3);
       chunkResults.push(result);
+
+      // Update progress callback with cumulative loaded relationships
+      if (result.success && result.relationships) {
+        loadedRelationships += result.relationships.length;
+      }
+      if (onProgress) {
+        onProgress(i + 1, chunks.length);
+      }
     }
 
     // Combine results from all chunks
