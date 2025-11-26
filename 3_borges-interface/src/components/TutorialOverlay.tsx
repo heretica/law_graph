@@ -38,23 +38,23 @@ const tutorialSteps: TutorialStep[] = [
     highlight: 'query'
   },
   {
-    title: 'Mode Ascendant (Local)',
-    description: 'Part des chunks de texte pour remonter vers les entités. Idéal pour des questions précises sur des passages spécifiques. Explore en profondeur un contexte local.',
+    title: 'Mode ascendant',
+    description: 'Part du texte pour remonter vers les entités (Personne, Lieu, Concept, Livre et Événement).',
     highlight: 'ascendant'
   },
   {
-    title: 'Mode Descendant (Global)',
-    description: 'Part des entités de haut niveau pour descendre vers les textes. Idéal pour des questions thématiques ou conceptuelles. Explore la structure globale du graphe.',
+    title: 'Mode descendant',
+    description: 'Part des entités de haut niveau pour descendre vers les textes. Idéal pour des questions thématiques ou conceptuelles.',
     highlight: 'descendant'
   },
   {
     title: 'Lancez la recherche',
-    description: 'Cliquez sur "Recherche Borges" pour exécuter votre requête. Le système construira un chemin à travers le graphe de connaissances.',
+    description: 'Cliquez sur "Recherche" pour exécuter votre recherche. Le système construira un chemin à travers le graphe et le traversera pour vous répondre.',
     highlight: 'search-btn'
   },
   {
     title: 'Qu\'est-ce que le GraphRAG ?',
-    description: 'Le GraphRAG (Graph Retrieval-Augmented Generation) extrait des entités et relations de vos textes pour créer un graphe de connaissances. Il utilise ce graphe pour répondre à vos questions en naviguant les connexions entre concepts.',
+    description: 'Ce graphe devient alors une carte de connaissance dans laquelle un Large Language Model peut naviguer pour répondre précisément à une question.',
     highlight: 'graphrag-explain'
   },
   {
@@ -69,7 +69,7 @@ const tutorialSteps: TutorialStep[] = [
   },
   {
     title: 'Naviguez dans les panneaux',
-    description: 'Explorez la provenance complète : des nœuds aux relations, des relations aux chunks de texte source. Chaque élément est cliquable pour une navigation de bout en bout.',
+    description: 'Explorez la provenance complète : des noeuds aux relations, des relations aux textes sources. Chaque élément est cliquable pour une navigation de bout en bout.',
     highlight: 'panels'
   }
 ]

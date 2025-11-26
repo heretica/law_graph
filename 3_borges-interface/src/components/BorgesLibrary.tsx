@@ -983,7 +983,7 @@ function BorgesLibrary() {
                   }}
                   className="borges-btn-primary disabled:opacity-50"
                 >
-                  {isProcessing ? 'Processing...' : 'Recherche Borges'}
+                  {isProcessing ? 'Processing...' : 'Recherche'}
                 </button>
 
               </div>
