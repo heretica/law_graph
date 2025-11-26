@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 
 const GraphVisualization3DForce = dynamic(() => import('./GraphVisualization3DForce'), {
@@ -211,6 +211,10 @@ function BorgesLibrary() {
   // Store query result nodes for entity lookup
   const [queryResultNodes, setQueryResultNodes] = useState<any[]>([])
 
+  // Ref to prevent double execution of loadReconciliationGraph (React Strict Mode)
+  const graphLoadingRef = useRef(false)
+  const lastLoadedBookRef = useRef<string | null>(null)
+
   // Function to extract chunks related to a specific entity
   const extractEntityChunks = (entityId: string) => {
     if (!reconciliationData?.relationships) {
@@ -363,16 +367,27 @@ function BorgesLibrary() {
   }
 
 
-  const GRAPH_CACHE_KEY = 'borges-graph-cache'
   const GRAPH_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+  const getGraphCacheKey = () => `borges-graph-cache-${selectedBook || 'all'}`
 
   const loadReconciliationGraph = async () => {
+    // Guard against double execution (React Strict Mode) and redundant calls for same book
+    if (graphLoadingRef.current) {
+      console.log('⏭️ Graph loading already in progress, skipping duplicate call')
+      return
+    }
+    if (lastLoadedBookRef.current === selectedBook && reconciliationData?.nodes?.length) {
+      console.log('⏭️ Graph already loaded for this book, skipping')
+      return
+    }
+
+    graphLoadingRef.current = true
     setIsLoadingGraph(true)
     setLoadingProgress({ step: 'nodes', current: 0, total: 300 })
 
     // Check localStorage cache first for faster returning user experience
     try {
-      const cached = localStorage.getItem(GRAPH_CACHE_KEY)
+      const cached = localStorage.getItem(getGraphCacheKey())
       if (cached) {
         const { data, timestamp } = JSON.parse(cached)
         if (Date.now() - timestamp < GRAPH_CACHE_TTL) {
@@ -382,10 +397,12 @@ function BorgesLibrary() {
           setIsLoadingGraph(false)
           setShowLoadingOverlay(false)
           setLoadingProgress(null)
+          graphLoadingRef.current = false
+          lastLoadedBookRef.current = selectedBook
           return
         } else {
           console.log('🔄 Cache expired, fetching fresh data')
-          localStorage.removeItem(GRAPH_CACHE_KEY)
+          localStorage.removeItem(getGraphCacheKey())
         }
       }
     } catch (cacheError) {
@@ -492,7 +509,7 @@ function BorgesLibrary() {
 
         // Save to cache for faster subsequent loads
         try {
-          localStorage.setItem(GRAPH_CACHE_KEY, JSON.stringify({
+          localStorage.setItem(getGraphCacheKey(), JSON.stringify({
             data: graphData,
             timestamp: Date.now()
           }))
@@ -507,6 +524,8 @@ function BorgesLibrary() {
       setIsLoadingGraph(false)
       setShowLoadingOverlay(false) // Hide loading overlay once data is loaded
       setLoadingProgress(null)
+      graphLoadingRef.current = false // Reset guard for future loads
+      lastLoadedBookRef.current = selectedBook // Mark book as loaded
     }
   }
 
