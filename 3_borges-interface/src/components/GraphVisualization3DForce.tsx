@@ -14,6 +14,7 @@ interface Node {
 }
 
 interface Link {
+  id?: string
   source: string | number
   target: string | number
   type?: string
@@ -280,10 +281,20 @@ export default function GraphVisualization3DForce({
         graph.onLinkClick((link: any) => {
           console.log('📌 Link clicked!', link, 'at position:', mousePosRef.current)
           if (link) {
+            // Helper to get source/target id regardless of whether it's an object or string
+            const getNodeId = (node: any) => typeof node === 'object' ? node?.id : node
+
             // Toggle pin: if same link clicked, unpin; otherwise pin new link
             setPinnedLink(prev => {
-              if (prev && prev.id === link.id) {
-                return null  // Unpin if same link
+              if (prev) {
+                // Compare by source+target since links may not have id property
+                const prevSource = getNodeId(prev.source)
+                const prevTarget = getNodeId(prev.target)
+                const linkSource = getNodeId(link.source)
+                const linkTarget = getNodeId(link.target)
+                if (prevSource === linkSource && prevTarget === linkTarget) {
+                  return null  // Unpin if same link
+                }
               }
               return link  // Pin new link
             })
