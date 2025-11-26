@@ -347,7 +347,8 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onComplete, isDataLoa
 
   const currentStep = tutorialSteps[step]
   const isLastStep = step === tutorialSteps.length - 1
-  const canProceed = !isLastStep || !isDataLoading
+  // Always allow proceeding - if data is still loading, hexagon animation will show
+  const canProceed = true
 
   return (
     <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
@@ -399,25 +400,16 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onComplete, isDataLoa
           {/* Continue button */}
           <button
             onClick={handleNext}
-            disabled={!canProceed}
-            className={`px-6 py-2 rounded-borges-sm font-medium transition-all duration-300 ${
-              canProceed
-                ? 'bg-borges-light text-borges-dark hover:bg-borges-light/90'
-                : 'bg-borges-light/50 text-borges-dark/50 cursor-wait'
-            }`}
+            className="px-6 py-2 rounded-borges-sm font-medium transition-all duration-300 bg-borges-light text-borges-dark hover:bg-borges-light/90"
           >
-            {isLastStep
-              ? (isDataLoading ? 'Chargement...' : 'Commencer l\'exploration →')
-              : 'Continuer →'
-            }
+            {isLastStep ? 'Commencer l\'exploration →' : 'Continuer →'}
           </button>
 
           {/* Skip link */}
           <div className="mt-3">
             <button
               onClick={handleSkip}
-              disabled={isLastStep && isDataLoading}
-              className="text-borges-light-muted/50 text-xs hover:text-borges-light-muted transition-colors underline disabled:cursor-wait disabled:no-underline"
+              className="text-borges-light-muted/50 text-xs hover:text-borges-light-muted transition-colors underline"
             >
               Passer le tutoriel
             </button>
