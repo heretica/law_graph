@@ -86,14 +86,14 @@ export default function QueryAnimationControls({
   }
 
   return (
-    <div className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4 ${className}`}>
+    <div className={`bg-borges-secondary rounded-borges-md p-4 space-y-4 border border-borges-border ${className}`}>
       {/* Main Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           {/* Play/Pause */}
           <button
             onClick={isPlaying ? onPause : onPlay}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-borges-accent text-borges-dark hover:opacity-90 transition-colors"
           >
             {isPlaying ? (
               <PauseIcon className="w-5 h-5" />
@@ -105,7 +105,7 @@ export default function QueryAnimationControls({
           {/* Reset */}
           <button
             onClick={onReset}
-            className="flex items-center justify-center w-8 h-8 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-borges-sm bg-borges-dark text-borges-light-muted hover:bg-borges-dark-hover transition-colors border border-borges-border"
             title="Reset Animation"
           >
             <ArrowPathIcon className="w-4 h-4" />
@@ -116,7 +116,7 @@ export default function QueryAnimationControls({
             <button
               onClick={() => onSeekToPhase(Math.max(0, currentPhaseIndex - 1))}
               disabled={currentPhaseIndex <= 0}
-              className="flex items-center justify-center w-8 h-8 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center w-8 h-8 rounded-borges-sm bg-borges-dark text-borges-light-muted hover:bg-borges-dark-hover transition-colors border border-borges-border disabled:opacity-50 disabled:cursor-not-allowed"
               title="Previous Phase"
             >
               <BackwardIcon className="w-4 h-4" />
@@ -124,7 +124,7 @@ export default function QueryAnimationControls({
             <button
               onClick={() => onSeekToPhase(Math.min(animationTimeline.length - 1, currentPhaseIndex + 1))}
               disabled={currentPhaseIndex >= animationTimeline.length - 1}
-              className="flex items-center justify-center w-8 h-8 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center w-8 h-8 rounded-borges-sm bg-borges-dark text-borges-light-muted hover:bg-borges-dark-hover transition-colors border border-borges-border disabled:opacity-50 disabled:cursor-not-allowed"
               title="Next Phase"
             >
               <ForwardIcon className="w-4 h-4" />
@@ -134,11 +134,11 @@ export default function QueryAnimationControls({
 
         {/* Speed Control */}
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Speed:</span>
+          <span className="text-sm text-borges-muted">Speed:</span>
           <select
             value={speed}
             onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-            className="text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-gray-900 dark:text-white"
+            className="text-sm bg-borges-dark border border-borges-border rounded-borges-sm px-2 py-1 text-borges-light"
           >
             <option value={0.5}>0.5x</option>
             <option value={1.0}>1.0x</option>
@@ -151,14 +151,14 @@ export default function QueryAnimationControls({
 
       {/* Timeline Scrubber */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+        <div className="flex items-center justify-between text-sm text-borges-muted">
           <span>Timeline Progress</span>
           <span>{formatTime(overallProgress * totalDuration)} / {formatTime(totalDuration)}</span>
         </div>
 
         {/* Interactive Timeline */}
         <div
-          className="relative h-6 bg-gray-200 dark:bg-gray-700 rounded-lg cursor-pointer"
+          className="relative h-6 bg-borges-dark rounded-borges-sm cursor-pointer border border-borges-border"
           onClick={handleTimelineClick}
         >
           {/* Phase Segments */}
@@ -170,12 +170,12 @@ export default function QueryAnimationControls({
             return (
               <div
                 key={phase.phase}
-                className={`absolute top-0 h-6 rounded-lg transition-all ${
+                className={`absolute top-0 h-6 rounded-borges-sm transition-all ${
                   isCurrentPhase
-                    ? 'bg-indigo-600 dark:bg-indigo-500'
+                    ? 'bg-borges-accent'
                     : index < currentPhaseIndex
-                    ? 'bg-green-500 dark:bg-green-600'
-                    : 'bg-gray-300 dark:bg-gray-600'
+                    ? 'bg-borges-accent/60'
+                    : 'bg-borges-secondary'
                 }`}
                 style={{
                   left: `${phaseStart}%`,
@@ -186,14 +186,14 @@ export default function QueryAnimationControls({
                 {/* Current Phase Progress */}
                 {isCurrentPhase && (
                   <div
-                    className="absolute top-0 h-6 bg-indigo-800 dark:bg-indigo-400 rounded-lg transition-all"
+                    className="absolute top-0 h-6 bg-borges-accent/80 rounded-borges-sm transition-all"
                     style={{ width: `${currentProgress * 100}%` }}
                   />
                 )}
 
                 {/* Phase Label */}
                 {phaseWidth > 15 && (
-                  <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-white">
+                  <div className={`absolute inset-0 flex items-center justify-center text-xs font-medium ${isCurrentPhase ? 'text-borges-dark' : 'text-borges-light'}`}>
                     {phase.phase}
                   </div>
                 )}
@@ -203,18 +203,18 @@ export default function QueryAnimationControls({
 
           {/* Overall Progress Indicator */}
           <div
-            className="absolute top-0 w-1 h-6 bg-white border-2 border-gray-800 rounded-full transition-all z-10"
+            className="absolute top-0 w-1 h-6 bg-borges-light border-2 border-borges-dark rounded-full transition-all z-10"
             style={{ left: `${overallProgress * 100}%`, transform: 'translateX(-50%)' }}
           />
         </div>
 
         {/* Phase Labels Below Timeline */}
-        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex justify-between text-xs text-borges-muted">
           {animationTimeline.map((phase, index) => (
             <div
               key={phase.phase}
-              className={`text-center cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 ${
-                index === currentPhaseIndex ? 'font-medium text-indigo-600 dark:text-indigo-400' : ''
+              className={`text-center cursor-pointer hover:text-borges-light-muted ${
+                index === currentPhaseIndex ? 'font-medium text-borges-accent' : ''
               }`}
               onClick={() => onSeekToPhase(index)}
               style={{
@@ -230,21 +230,21 @@ export default function QueryAnimationControls({
 
       {/* Current Phase Info */}
       {currentPhaseIndex >= 0 && (
-        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+        <div className="bg-borges-dark rounded-borges-md p-3 border border-borges-border">
           <div className="flex items-center justify-between mb-1">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+            <h4 className="text-sm font-medium text-borges-light">
               {animationTimeline[currentPhaseIndex]?.phase} Phase
             </h4>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-borges-muted">
               {(currentProgress * 100).toFixed(0)}% Complete
             </span>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-borges-light-muted">
             {animationTimeline[currentPhaseIndex]?.description}
           </p>
-          <div className="mt-2 w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+          <div className="mt-2 w-full bg-borges-secondary rounded-full h-2">
             <div
-              className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+              className="bg-borges-accent h-2 rounded-full transition-all duration-300"
               style={{ width: `${currentProgress * 100}%` }}
             />
           </div>

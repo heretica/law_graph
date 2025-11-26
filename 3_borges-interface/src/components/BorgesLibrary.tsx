@@ -8,8 +8,85 @@ const GraphVisualization3DForce = dynamic(() => import('./GraphVisualization3DFo
   loading: () => (
     <div className="flex flex-col items-center justify-center h-96 bg-black">
       <div className="text-center">
-        <div className="text-6xl mb-4">🌐</div>
-        <div className="text-white">Initialisation du graphe 3D...</div>
+        {/* Hexagon Library Assembly Animation - Books assembling into infinite library */}
+        <svg className="w-48 h-48 mx-auto mb-4" viewBox="0 0 200 200" fill="none">
+          {/* Animated hexagons assembling into library structure */}
+          <style>{`
+            @keyframes hexAssemble1 { 0% { opacity: 0; transform: translate(-30px, -20px); } 50% { opacity: 0.6; } 100% { opacity: 0.8; transform: translate(0, 0); } }
+            @keyframes hexAssemble2 { 0% { opacity: 0; transform: translate(30px, -20px); } 50% { opacity: 0.5; } 100% { opacity: 0.7; transform: translate(0, 0); } }
+            @keyframes hexAssemble3 { 0% { opacity: 0; transform: translate(0, 30px); } 50% { opacity: 0.4; } 100% { opacity: 0.6; transform: translate(0, 0); } }
+            @keyframes hexAssemble4 { 0% { opacity: 0; transform: translate(-20px, 20px); } 50% { opacity: 0.3; } 100% { opacity: 0.5; transform: translate(0, 0); } }
+            @keyframes hexAssemble5 { 0% { opacity: 0; transform: translate(20px, 20px); } 50% { opacity: 0.2; } 100% { opacity: 0.4; transform: translate(0, 0); } }
+            @keyframes bookShimmer { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+            .hex1 { animation: hexAssemble1 2s ease-out infinite; }
+            .hex2 { animation: hexAssemble2 2s ease-out 0.2s infinite; }
+            .hex3 { animation: hexAssemble3 2s ease-out 0.4s infinite; }
+            .hex4 { animation: hexAssemble4 2s ease-out 0.6s infinite; }
+            .hex5 { animation: hexAssemble5 2s ease-out 0.8s infinite; }
+            .book-line { animation: bookShimmer 3s ease-in-out infinite; }
+          `}</style>
+
+          {/* Central hexagon - main library cell */}
+          <polygon
+            className="hex1"
+            points="100,40 130,57.5 130,92.5 100,110 70,92.5 70,57.5"
+            stroke="#a0a0a0"
+            strokeWidth="1.5"
+            fill="none"
+          />
+
+          {/* Top hexagon */}
+          <polygon
+            className="hex2"
+            points="100,10 125,25 125,55 100,70 75,55 75,25"
+            stroke="#a0a0a0"
+            strokeWidth="1"
+            fill="none"
+          />
+
+          {/* Bottom left hexagon */}
+          <polygon
+            className="hex3"
+            points="70,95 95,110 95,140 70,155 45,140 45,110"
+            stroke="#a0a0a0"
+            strokeWidth="1"
+            fill="none"
+          />
+
+          {/* Bottom right hexagon */}
+          <polygon
+            className="hex4"
+            points="130,95 155,110 155,140 130,155 105,140 105,110"
+            stroke="#a0a0a0"
+            strokeWidth="1"
+            fill="none"
+          />
+
+          {/* Far left hexagon */}
+          <polygon
+            className="hex5"
+            points="50,60 75,75 75,105 50,120 25,105 25,75"
+            stroke="#a0a0a0"
+            strokeWidth="0.8"
+            fill="none"
+          />
+
+          {/* Far right hexagon */}
+          <polygon
+            className="hex5"
+            points="150,60 175,75 175,105 150,120 125,105 125,75"
+            stroke="#a0a0a0"
+            strokeWidth="0.8"
+            fill="none"
+            style={{ animationDelay: '1s' }}
+          />
+
+          {/* Book lines inside central hexagon - simulating shelves */}
+          <line className="book-line" x1="80" y1="65" x2="120" y2="65" stroke="#a0a0a0" strokeWidth="0.5" />
+          <line className="book-line" x1="82" y1="75" x2="118" y2="75" stroke="#a0a0a0" strokeWidth="0.5" style={{ animationDelay: '0.5s' }} />
+          <line className="book-line" x1="84" y1="85" x2="116" y2="85" stroke="#a0a0a0" strokeWidth="0.5" style={{ animationDelay: '1s' }} />
+        </svg>
+        <div className="text-borges-light-muted text-xs italic max-w-lg text-center">« L&apos;univers (que d&apos;autres appellent la Bibliothèque) se compose d&apos;un nombre indéfini, et peut-être infini, de galeries hexagonales... »</div>
       </div>
     </div>
   )
@@ -737,23 +814,34 @@ function BorgesLibrary() {
 
   return (
     <div className="min-h-screen bg-borges-dark text-borges-light">
-      {/* Header */}
-      <header className="p-6 border-b border-borges-secondary">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-light tracking-wide">
-            🏛️ Bibliothèque de Borges
-          </h1>
-          <p className="text-gray-400 mt-2">
-            Une exploration interactive des connexions infinies entre les livres
-          </p>
+      {/* Header - Basile Minimalism: content-first, subtle geometric accent */}
+      <header className={`p-6 border-b border-borges-border relative transition-all duration-300 ${selectedEntityId ? 'mr-[450px]' : ''}`}>
+        <div className="max-w-7xl mx-auto flex items-center gap-4">
+          {/* Subtle hexagonal brand accent */}
+          <svg className="w-8 h-8 flex-shrink-0 opacity-60" viewBox="0 0 100 100" fill="none">
+            <polygon
+              points="50,10 85,30 85,70 50,90 15,70 15,30"
+              stroke="#a0a0a0"
+              strokeWidth="2"
+              fill="none"
+            />
+          </svg>
+          <div>
+            <h1 className="text-display text-borges-light tracking-wide font-semibold">
+              Le graphe de Borges
+            </h1>
+            <p className="text-borges-light-muted mt-1 text-sm italic max-w-2xl">
+              « Tous les livres, quelque divers qu&apos;ils soient, comportent des éléments égaux : l&apos;espace, le point, la virgule, les vingt-deux lettres de l&apos;alphabet. »
+            </p>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="h-[calc(100vh-120px)]">
+      {/* Main Content - Adapts when side panel is open */}
+      <main className={`h-[calc(100vh-120px)] transition-all duration-300 ${selectedEntityId ? 'mr-[450px]' : ''}`}>
         <div className="h-full flex flex-col">
-          {/* Enhanced Query Bar with Controls */}
-          <div className="p-4 bg-borges-secondary border-b border-gray-600">
+          {/* Enhanced Query Bar with Controls - Basile Minimalism */}
+          <div className="p-4 bg-borges-secondary border-b border-borges-border">
             <div className="max-w-6xl mx-auto space-y-3">
               {/* Main Search Row */}
               <div className="flex gap-2">
@@ -762,7 +850,7 @@ function BorgesLibrary() {
                   value={selectedBook}
                   onChange={(e) => setSelectedBook(e.target.value)}
                   disabled={multiBook || isProcessing}
-                  className="px-3 py-2 bg-borges-dark border border-gray-600 rounded text-sm text-white focus:border-borges-accent focus:outline-none disabled:opacity-50"
+                  className="borges-input max-w-[200px] disabled:opacity-50"
                 >
                   {books.map((book) => (
                     <option key={book.id} value={book.id}>
@@ -775,14 +863,12 @@ function BorgesLibrary() {
                 <button
                   onClick={() => setMultiBook(!multiBook)}
                   disabled={isProcessing}
-                  className={`px-3 py-2 rounded text-sm font-medium transition-colors disabled:opacity-50 ${
-                    multiBook
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  className={`borges-btn-secondary text-sm disabled:opacity-50 ${
+                    multiBook ? 'border-borges-light text-borges-light' : ''
                   }`}
                   title="Query all books at once"
                 >
-                  📚 All Books
+                  All Books
                 </button>
 
                 {/* Search Input */}
@@ -791,27 +877,27 @@ function BorgesLibrary() {
                   placeholder="Posez une question..."
                   disabled={isProcessing}
                   id="search-input"
-                  className="flex-1 p-2 bg-borges-dark border border-gray-600 rounded text-white placeholder-gray-400 focus:border-borges-accent focus:outline-none disabled:opacity-50"
+                  className="borges-input flex-1 disabled:opacity-50"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !isProcessing) {
                       const query = (e.target as HTMLInputElement).value.trim()
                       if (query) {
                         handleSimpleQuery(query)
-                        ;(e.target as HTMLInputElement).value = ''
+                        // Keep query visible in search bar
                       }
                     }
                   }}
                 />
 
                 {/* Mode Toggle */}
-                <div className="flex gap-1 bg-gray-700 rounded p-1">
+                <div className="flex gap-1 bg-borges-dark rounded-borges-sm p-1 border border-borges-border">
                   <button
                     onClick={() => setMode('local')}
                     disabled={isProcessing}
-                    className={`px-2 py-1 text-xs rounded font-medium transition-colors disabled:opacity-50 ${
+                    className={`px-2 py-1 text-xs rounded-borges-sm font-medium transition-colors disabled:opacity-50 ${
                       mode === 'local'
-                        ? 'bg-borges-accent text-black'
-                        : 'text-gray-300 hover:bg-gray-600'
+                        ? 'bg-borges-light text-borges-dark'
+                        : 'text-borges-light-muted hover:text-borges-light'
                     }`}
                   >
                     Local
@@ -819,10 +905,10 @@ function BorgesLibrary() {
                   <button
                     onClick={() => setMode('global')}
                     disabled={isProcessing}
-                    className={`px-2 py-1 text-xs rounded font-medium transition-colors disabled:opacity-50 ${
+                    className={`px-2 py-1 text-xs rounded-borges-sm font-medium transition-colors disabled:opacity-50 ${
                       mode === 'global'
-                        ? 'bg-borges-accent text-black'
-                        : 'text-gray-300 hover:bg-gray-600'
+                        ? 'bg-borges-light text-borges-dark'
+                        : 'text-borges-light-muted hover:text-borges-light'
                     }`}
                   >
                     Global
@@ -837,54 +923,15 @@ function BorgesLibrary() {
                     const query = searchInput?.value.trim()
                     if (query && !isProcessing) {
                       handleSimpleQuery(query)
-                      searchInput.value = ''
+                      // Keep query visible in search bar during processing
                     }
                   }}
-                  className="px-4 py-2 bg-borges-accent text-black font-medium rounded hover:bg-yellow-500 transition-colors disabled:opacity-50"
+                  className="borges-btn-primary disabled:opacity-50"
                 >
-                  {isProcessing ? '⏳' : '🔍'}
+                  {isProcessing ? 'Processing...' : 'Search'}
                 </button>
 
-                {/* Provenance Panel Toggle */}
-                {currentQueryId && (
-                  <button
-                    onClick={() => setShowProvenancePanel(!showProvenancePanel)}
-                    className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                      showProvenancePanel
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                    title="Toggle provenance panel"
-                  >
-                    🔗 Provenance
-                  </button>
-                )}
               </div>
-
-              {/* Minimal Processing Indicator with 3D Wheel */}
-              {isProcessing && (
-                <div className="mt-2 mb-2 flex items-center justify-center gap-6 py-2">
-                  {/* Left: GraphRAG Processing */}
-                  <div className="flex items-center gap-2 text-sm text-gray-300 animate-pulse">
-                    <span className="text-blue-400">📚</span>
-                    <span>GraphRAG</span>
-                  </div>
-
-                  {/* Center: 3D Wheel + Timer */}
-                  <div className="flex flex-col items-center gap-1">
-                    <LoadingWheel3D size={32} speed={1.5} color="#D97706" />
-                    <span className="font-mono text-xs text-borges-accent">
-                      {formatElapsedTime(elapsedTime)}
-                    </span>
-                  </div>
-
-                  {/* Right: Neo4j Processing */}
-                  <div className="flex items-center gap-2 text-sm text-gray-300 animate-pulse">
-                    <span className="text-green-400">🔗</span>
-                    <span>Neo4j</span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -892,6 +939,72 @@ function BorgesLibrary() {
           <div className="flex-1 flex bg-black relative">
             {/* Main Graph Container */}
             <div className="flex-1 bg-black relative">
+              {/* Hexagonal Processing Indicator - Similar to startup animation */}
+              {/* Positioned inside graph container to avoid viewport-relative shifts */}
+              {/* Only shows during query processing, NOT during initial graph loading */}
+              {isProcessing && !isLoadingGraph && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
+                  {/* Hexagon Assembly Animation - positioned just below search bar, no countdown */}
+                  <div className="relative w-20 h-20">
+                    <svg viewBox="0 0 200 200" className="w-full h-full">
+                      <style>{`
+                        @keyframes hexPulse1 { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
+                        @keyframes hexPulse2 { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.85; } }
+                        @keyframes hexPulse3 { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.8; } }
+                        @keyframes shelfPulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.9; } }
+                        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 2px #a0a0a0); } 50% { filter: drop-shadow(0 0 6px #f5f5f5); } }
+                        .proc-hex-main { animation: hexPulse1 2s ease-in-out infinite, glowPulse 2s ease-in-out infinite; }
+                        .proc-hex-top { animation: hexPulse2 2.5s ease-in-out 0.2s infinite; }
+                        .proc-hex-bl { animation: hexPulse3 2.2s ease-in-out 0.4s infinite; }
+                        .proc-hex-br { animation: hexPulse3 2.4s ease-in-out 0.6s infinite; }
+                        .proc-shelf { animation: shelfPulse 1.5s ease-in-out infinite; }
+                      `}</style>
+
+                      {/* Central hexagon */}
+                      <polygon
+                        className="proc-hex-main"
+                        points="100,35 135,55 135,95 100,115 65,95 65,55"
+                        stroke="#f5f5f5"
+                        strokeWidth="2"
+                        fill="none"
+                      />
+
+                      {/* Book shelves inside */}
+                      <line className="proc-shelf" x1="75" y1="60" x2="125" y2="60" stroke="#a0a0a0" strokeWidth="1" style={{ animationDelay: '0s' }} />
+                      <line className="proc-shelf" x1="78" y1="72" x2="122" y2="72" stroke="#a0a0a0" strokeWidth="1" style={{ animationDelay: '0.2s' }} />
+                      <line className="proc-shelf" x1="80" y1="84" x2="120" y2="84" stroke="#a0a0a0" strokeWidth="1" style={{ animationDelay: '0.4s' }} />
+                      <line className="proc-shelf" x1="83" y1="96" x2="117" y2="96" stroke="#a0a0a0" strokeWidth="1" style={{ animationDelay: '0.6s' }} />
+
+                      {/* Top hexagon */}
+                      <polygon
+                        className="proc-hex-top"
+                        points="100,10 125,24 125,52 100,66 75,52 75,24"
+                        stroke="#a0a0a0"
+                        strokeWidth="1"
+                        fill="none"
+                      />
+
+                      {/* Bottom left hexagon */}
+                      <polygon
+                        className="proc-hex-bl"
+                        points="65,95 90,109 90,137 65,151 40,137 40,109"
+                        stroke="#a0a0a0"
+                        strokeWidth="1"
+                        fill="none"
+                      />
+
+                      {/* Bottom right hexagon */}
+                      <polygon
+                        className="proc-hex-br"
+                        points="135,95 160,109 160,137 135,151 110,137 110,109"
+                        stroke="#a0a0a0"
+                        strokeWidth="1"
+                        fill="none"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              )}
               <GraphErrorBoundary>
                 <GraphVisualization3DForce
                   reconciliationData={reconciliationData}
@@ -901,78 +1014,108 @@ function BorgesLibrary() {
                   onNodeClick={handleNodeClick}
                   isProcessing={isProcessing}
                   currentProcessingPhase={currentProcessingPhase}
+                  sidePanelOpen={!!selectedEntityId}
               />
 
-            {/* Loading Overlay with Star Animation */}
+            {/* Loading Overlay with Hexagon Library Animation */}
+            {/* Using fixed positioning to prevent movement when graph container resizes */}
             {isLoadingGraph && (
-              <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+              <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
                 <div className="text-center">
-                  <h2 className="text-2xl font-serif text-borges-accent mb-8 animate-pulse leading-relaxed">
-                    &ldquo;Il suffit qu&apos;un livre soit possible pour qu&apos;il existe&rdquo;
-                  </h2>
-                  <p className="text-sm text-gray-400 italic mb-6 font-serif">— Jorge Luis Borges</p>
+                  {/* Hexagon Library Assembly Animation */}
+                  <div className="relative w-72 h-72 mx-auto mb-8">
+                    <svg viewBox="0 0 200 200" className="w-full h-full">
+                      <style>{`
+                        @keyframes hexFloat1 { 0%, 100% { transform: translate(0, 0); opacity: 0.3; } 50% { transform: translate(-5px, -3px); opacity: 0.9; } }
+                        @keyframes hexFloat2 { 0%, 100% { transform: translate(0, 0); opacity: 0.25; } 50% { transform: translate(5px, -5px); opacity: 0.85; } }
+                        @keyframes hexFloat3 { 0%, 100% { transform: translate(0, 0); opacity: 0.2; } 50% { transform: translate(-3px, 5px); opacity: 0.8; } }
+                        @keyframes hexFloat4 { 0%, 100% { transform: translate(0, 0); opacity: 0.15; } 50% { transform: translate(4px, 3px); opacity: 0.75; } }
+                        @keyframes hexFloat5 { 0%, 100% { transform: translate(0, 0); opacity: 0.1; } 50% { transform: translate(-4px, -4px); opacity: 0.7; } }
+                        @keyframes bookSlide { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.9; } }
+                        @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 2px #a0a0a0); } 50% { filter: drop-shadow(0 0 8px #f5f5f5); } }
+                        .hex-main { animation: hexFloat1 3s ease-in-out infinite, glowPulse 2s ease-in-out infinite; }
+                        .hex-top { animation: hexFloat2 3.5s ease-in-out 0.3s infinite; }
+                        .hex-bl { animation: hexFloat3 3.2s ease-in-out 0.6s infinite; }
+                        .hex-br { animation: hexFloat4 3.8s ease-in-out 0.9s infinite; }
+                        .hex-left { animation: hexFloat5 4s ease-in-out 1.2s infinite; }
+                        .hex-right { animation: hexFloat5 3.6s ease-in-out 1.5s infinite; }
+                        .book-shelf { animation: bookSlide 2s ease-in-out infinite; }
+                      `}</style>
 
-                  {/* Star Constellation Loading Animation */}
-                  <div className="relative w-64 h-64 mx-auto mb-6">
-                    <svg viewBox="0 0 100 100" className="w-full h-full">
-                      {/* Constellation of stars that light up in sequence */}
-                      {[
-                        { x: 20, y: 15, delay: 0 },
-                        { x: 35, y: 25, delay: 0.2 },
-                        { x: 50, y: 20, delay: 0.4 },
-                        { x: 65, y: 30, delay: 0.6 },
-                        { x: 80, y: 18, delay: 0.8 },
-                        { x: 15, y: 40, delay: 1.0 },
-                        { x: 30, y: 50, delay: 1.2 },
-                        { x: 50, y: 45, delay: 1.4 },
-                        { x: 70, y: 55, delay: 1.6 },
-                        { x: 85, y: 45, delay: 1.8 },
-                        { x: 25, y: 70, delay: 2.0 },
-                        { x: 45, y: 75, delay: 2.2 },
-                        { x: 65, y: 80, delay: 2.4 },
-                        { x: 80, y: 70, delay: 2.6 },
-                      ].map((star, index) => (
-                        <g key={index}>
-                          {/* Star shape */}
-                          <path
-                            d={`M${star.x},${star.y - 2} L${star.x + 0.6},${star.y - 0.6} L${star.x + 2},${star.y} L${star.x + 0.6},${star.y + 0.6} L${star.x},${star.y + 2} L${star.x - 0.6},${star.y + 0.6} L${star.x - 2},${star.y} L${star.x - 0.6},${star.y - 0.6} Z`}
-                            fill="#F4C842"
-                            className="animate-pulse"
-                            style={{
-                              animationDelay: `${star.delay}s`,
-                              animationDuration: '1.5s',
-                              animationIterationCount: 'infinite',
-                              animationDirection: 'alternate'
-                            }}
-                          />
-                          {/* Glowing effect */}
-                          <circle
-                            cx={star.x}
-                            cy={star.y}
-                            r="1"
-                            fill="#F4C842"
-                            className="animate-pulse"
-                            style={{
-                              animationDelay: `${star.delay}s`,
-                              animationDuration: '1.5s',
-                              animationIterationCount: 'infinite',
-                              animationDirection: 'alternate'
-                            }}
-                          />
-                        </g>
-                      ))}
+                      {/* Central hexagon - main library cell */}
+                      <polygon
+                        className="hex-main"
+                        points="100,35 135,55 135,95 100,115 65,95 65,55"
+                        stroke="#a0a0a0"
+                        strokeWidth="2"
+                        fill="none"
+                      />
 
-                      {/* Connecting lines between stars */}
-                      <g stroke="#F4C842" strokeWidth="0.3" fill="none" opacity="0.3">
-                        <path d="M20,15 L35,25 L50,20 L65,30 L80,18" className="animate-pulse" style={{ animationDuration: '3s' }} />
-                        <path d="M15,40 L30,50 L50,45 L70,55 L85,45" className="animate-pulse" style={{ animationDuration: '3s', animationDelay: '0.5s' }} />
-                        <path d="M25,70 L45,75 L65,80 L80,70" className="animate-pulse" style={{ animationDuration: '3s', animationDelay: '1s' }} />
-                        <path d="M35,25 L30,50" className="animate-pulse" style={{ animationDuration: '3s', animationDelay: '1.5s' }} />
-                        <path d="M50,20 L50,45" className="animate-pulse" style={{ animationDuration: '3s', animationDelay: '2s' }} />
-                        <path d="M65,30 L70,55" className="animate-pulse" style={{ animationDuration: '3s', animationDelay: '2.5s' }} />
-                      </g>
+                      {/* Book shelves inside central hexagon */}
+                      <line className="book-shelf" x1="75" y1="60" x2="125" y2="60" stroke="#a0a0a0" strokeWidth="1" style={{ animationDelay: '0s' }} />
+                      <line className="book-shelf" x1="78" y1="72" x2="122" y2="72" stroke="#a0a0a0" strokeWidth="1" style={{ animationDelay: '0.3s' }} />
+                      <line className="book-shelf" x1="80" y1="84" x2="120" y2="84" stroke="#a0a0a0" strokeWidth="1" style={{ animationDelay: '0.6s' }} />
+                      <line className="book-shelf" x1="83" y1="96" x2="117" y2="96" stroke="#a0a0a0" strokeWidth="1" style={{ animationDelay: '0.9s' }} />
+
+                      {/* Top hexagon */}
+                      <polygon
+                        className="hex-top"
+                        points="100,5 130,22 130,56 100,73 70,56 70,22"
+                        stroke="#a0a0a0"
+                        strokeWidth="1"
+                        fill="none"
+                      />
+
+                      {/* Bottom left hexagon */}
+                      <polygon
+                        className="hex-bl"
+                        points="65,95 95,112 95,146 65,163 35,146 35,112"
+                        stroke="#a0a0a0"
+                        strokeWidth="1"
+                        fill="none"
+                      />
+
+                      {/* Bottom right hexagon */}
+                      <polygon
+                        className="hex-br"
+                        points="135,95 165,112 165,146 135,163 105,146 105,112"
+                        stroke="#a0a0a0"
+                        strokeWidth="1"
+                        fill="none"
+                      />
+
+                      {/* Far left hexagon */}
+                      <polygon
+                        className="hex-left"
+                        points="40,55 65,70 65,100 40,115 15,100 15,70"
+                        stroke="#a0a0a0"
+                        strokeWidth="0.8"
+                        fill="none"
+                      />
+
+                      {/* Far right hexagon */}
+                      <polygon
+                        className="hex-right"
+                        points="160,55 185,70 185,100 160,115 135,100 135,70"
+                        stroke="#a0a0a0"
+                        strokeWidth="0.8"
+                        fill="none"
+                      />
+
+                      {/* Additional outer hexagons for depth */}
+                      <polygon
+                        className="hex-left"
+                        points="100,130 125,145 125,175 100,190 75,175 75,145"
+                        stroke="#a0a0a0"
+                        strokeWidth="0.6"
+                        fill="none"
+                        style={{ animationDelay: '1.8s' }}
+                      />
                     </svg>
                   </div>
+
+                  <p className="text-sm text-borges-light mb-2 font-light tracking-wide max-w-lg text-center italic">« L&apos;univers (que d&apos;autres appellent la Bibliothèque) se compose d&apos;un nombre indéfini, et peut-être infini, de galeries hexagonales... »</p>
+                  <p className="text-sm text-borges-muted italic">— Jorge Luis Borges</p>
 
                 </div>
               </div>
@@ -980,17 +1123,6 @@ function BorgesLibrary() {
             </GraphErrorBoundary>
             </div>
 
-            {/* Provenance Panel - Side Panel */}
-            {showProvenancePanel && currentQueryId && (
-              <div className="w-96">
-                <ProvenancePanel
-                  queryId={currentQueryId}
-                  onEntityClick={handleProvenanceEntityClick}
-                  onRelationshipClick={handleRelationshipClick}
-                  onChunkClick={handleChunkClick}
-                />
-              </div>
-            )}
           </div>
         </div>
       </main>
@@ -1005,51 +1137,46 @@ function BorgesLibrary() {
         />
       )}
 
-      {/* Answer Panel - Bottom Left with GraphRAG Context like test_query_analysis.py */}
+      {/* Answer Panel - Bottom Left with GraphRAG Context - Basile Minimalism */}
       {showAnswer && (
-        <div className="fixed bottom-4 left-4 bg-borges-dark border border-borges-accent rounded-lg p-4 w-[500px] max-h-[600px] overflow-auto text-white shadow-2xl z-50">
+        <div className="borges-panel fixed bottom-4 left-4 w-[400px] max-h-[45vh] overflow-auto text-borges-light shadow-borges-lg z-30">
           <div className="flex justify-between items-start mb-3">
-            <h3 className="text-sm font-semibold text-borges-accent">📊 GraphRAG Analysis</h3>
+            <h3 className="text-h3 text-borges-light">GraphRAG Analysis</h3>
             <button
               onClick={() => setShowAnswer(false)}
-              className="text-gray-400 hover:text-white text-lg ml-2"
+              className="borges-btn-ghost text-lg"
             >
               ×
             </button>
           </div>
 
-          <div className="mb-3">
-            <div className="text-xs text-gray-400 mb-1">Question:</div>
-            <div className="text-xs text-borges-light font-medium line-clamp-2">{currentQuery}</div>
-          </div>
-
-          {/* GraphRAG Context Analysis like test_query_analysis.py */}
+          {/* GraphRAG Context Analysis - Basile Minimalism */}
           {searchPath && (
-            <div className="mb-3 p-2 bg-gray-800 rounded">
-              <div className="text-xs font-semibold text-borges-accent mb-2">🔍 Knowledge Base Analysis:</div>
+            <div className="mb-3 p-3 bg-borges-dark rounded-borges-sm border border-borges-border">
+              <div className="text-xs font-medium text-borges-light mb-2">Knowledge Base Analysis</div>
               <div className="text-xs space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">🏘️ Communities:</span>
-                  <span className="text-white">{searchPath.communities?.length || 0}</span>
+                  <span className="text-borges-light-muted">Communities:</span>
+                  <span className="text-borges-light">{searchPath.communities?.length || 0}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">👥 Entities:</span>
-                  <span className="text-white">{searchPath.entities?.length || 0}</span>
+                  <span className="text-borges-light-muted">Entities:</span>
+                  <span className="text-borges-light">{searchPath.entities?.length || 0}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">🔗 Relationships:</span>
-                  <span className="text-white">{searchPath.relations?.length || 0}</span>
+                  <span className="text-borges-light-muted">Relationships:</span>
+                  <span className="text-borges-light">{searchPath.relations?.length || 0}</span>
                 </div>
               </div>
               {searchPath.entities && searchPath.entities.length > 0 && (
                 <div className="mt-2">
-                  <div className="text-xs text-gray-400 mb-1">Key Entities Used:</div>
-                  <div className="text-xs text-gray-300 max-h-16 overflow-y-auto">
+                  <div className="text-xs text-borges-light-muted mb-1">Key Entities Used:</div>
+                  <div className="text-xs text-borges-light max-h-16 overflow-y-auto">
                     {searchPath.entities.slice(0, 5).map((entity: any, i: number) => (
                       <div key={i} className="truncate">• {entity.id || entity.name || entity}</div>
                     ))}
                     {searchPath.entities.length > 5 && (
-                      <div className="text-gray-500">... and {searchPath.entities.length - 5} more</div>
+                      <div className="text-borges-muted">... and {searchPath.entities.length - 5} more</div>
                     )}
                   </div>
                 </div>
@@ -1058,12 +1185,12 @@ function BorgesLibrary() {
           )}
 
           <div>
-            <div className="text-xs text-gray-400 mb-1">Réponse:</div>
+            <div className="text-xs text-borges-light-muted mb-1">Réponse:</div>
             <div className="max-h-80 overflow-y-auto pr-2">
               <HighlightedText
                 text={queryAnswer}
                 entities={coloredEntities}
-                className="text-sm text-gray-300 leading-relaxed break-words whitespace-pre-wrap"
+                className="text-sm text-borges-light leading-relaxed break-words whitespace-pre-wrap"
                 onEntityClick={handleEntityClick}
                 showTooltip={true}
               />

@@ -59,52 +59,52 @@ export default function QueryDebugPanel({
 
   const renderEntityTable = (entities: DebugEntity[]) => (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead className="bg-gray-50 dark:bg-gray-800">
+      <table className="min-w-full divide-y divide-borges-border">
+        <thead className="bg-borges-secondary">
           <tr>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+            <th className="px-3 py-3 text-left text-xs font-medium text-borges-light-muted uppercase tracking-wider">
               Name
             </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+            <th className="px-3 py-3 text-left text-xs font-medium text-borges-light-muted uppercase tracking-wider">
               Type
             </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+            <th className="px-3 py-3 text-left text-xs font-medium text-borges-light-muted uppercase tracking-wider">
               Rank
             </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+            <th className="px-3 py-3 text-left text-xs font-medium text-borges-light-muted uppercase tracking-wider">
               Score
             </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+            <th className="px-3 py-3 text-left text-xs font-medium text-borges-light-muted uppercase tracking-wider">
               Description
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+        <tbody className="bg-borges-dark divide-y divide-borges-border">
           {entities.map((entity, idx) => (
-            <tr key={entity.id || idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-              <td className="px-3 py-4 text-sm font-medium text-gray-900 dark:text-white">
+            <tr key={entity.id || idx} className="hover:bg-borges-dark-hover">
+              <td className="px-3 py-4 text-sm font-medium text-borges-light">
                 {entity.name || entity.id}
               </td>
-              <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+              <td className="px-3 py-4 text-sm text-borges-light-muted">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-borges-secondary text-borges-accent border border-borges-border">
                   {entity.type}
                 </span>
               </td>
-              <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
+              <td className="px-3 py-4 text-sm text-borges-light-muted">
                 {entity.rank}
               </td>
-              <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
+              <td className="px-3 py-4 text-sm text-borges-light-muted">
                 <div className="flex items-center">
-                  <div className="w-16 bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                  <div className="w-16 bg-borges-secondary rounded-full h-2">
                     <div
-                      className="bg-green-600 h-2 rounded-full"
+                      className="bg-borges-accent h-2 rounded-full"
                       style={{ width: `${Math.min(entity.score * 100, 100)}%` }}
                     />
                   </div>
                   <span className="ml-2 text-xs">{(entity.score * 100).toFixed(0)}%</span>
                 </div>
               </td>
-              <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-300 max-w-xs truncate">
+              <td className="px-3 py-4 text-sm text-borges-light-muted max-w-xs truncate">
                 {entity.description || 'No description'}
               </td>
             </tr>
@@ -117,24 +117,21 @@ export default function QueryDebugPanel({
   const renderCommunityCards = (communities: DebugCommunity[]) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {communities.map((community, idx) => (
-        <div key={community.id || idx} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+        <div key={community.id || idx} className="bg-borges-secondary rounded-borges-md p-4 border border-borges-border">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h4 className="text-base font-semibold text-borges-light">
               {community.title}
             </h4>
             <div className="flex items-center">
-              <span className="text-yellow-500">⭐</span>
-              <span className="ml-1 text-sm text-gray-600 dark:text-gray-300">
-                {community.impact_rating}/10
-              </span>
+              <span className="text-borges-accent">{community.impact_rating}/10</span>
             </div>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-300 mb-2 line-clamp-3">
+          <p className="text-sm text-borges-light-muted mb-2 line-clamp-3">
             {community.content}
           </p>
-          <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex justify-between items-center text-xs text-borges-muted">
             <span>Relevance: {(community.relevance * 100).toFixed(0)}%</span>
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded">
+            <span className="px-2 py-1 bg-borges-dark text-borges-light-muted rounded-borges-sm border border-borges-border">
               Community {community.id}
             </span>
           </div>
@@ -146,28 +143,28 @@ export default function QueryDebugPanel({
   const renderRelationshipList = (relationships: DebugRelationship[]) => (
     <div className="space-y-3">
       {relationships.slice(0, 20).map((rel, idx) => (
-        <div key={idx} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+        <div key={idx} className="bg-borges-secondary rounded-borges-md p-3 border border-borges-border">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center text-sm font-medium text-gray-900 dark:text-white">
-              <span className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-2 py-1 rounded text-xs">
+            <div className="flex items-center text-sm font-medium text-borges-light">
+              <span className="bg-borges-dark text-borges-light px-2 py-1 rounded-borges-sm text-xs border border-borges-border">
                 {rel.source}
               </span>
-              <span className="mx-2 text-gray-400">→</span>
-              <span className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2 py-1 rounded text-xs">
+              <span className="mx-2 text-borges-accent">→</span>
+              <span className="bg-borges-dark text-borges-light px-2 py-1 rounded-borges-sm text-xs border border-borges-border">
                 {rel.target}
               </span>
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="text-xs text-borges-muted">
               Weight: {rel.weight} | Order: {rel.traversal_order}
             </div>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-borges-light-muted">
             {rel.description}
           </p>
         </div>
       ))}
       {relationships.length > 20 && (
-        <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+        <div className="text-center text-sm text-borges-muted">
           ... and {relationships.length - 20} more relationships
         </div>
       )}
@@ -177,24 +174,24 @@ export default function QueryDebugPanel({
   const renderSourcesList = (sources: DebugTextSource[]) => (
     <div className="space-y-3">
       {sources.map((source, idx) => (
-        <div key={source.id || idx} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+        <div key={source.id || idx} className="bg-borges-secondary rounded-borges-md p-4 border border-borges-border">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+            <h4 className="text-sm font-medium text-borges-light">
               Source {source.id}
             </h4>
             <div className="flex items-center">
-              <div className="w-16 bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+              <div className="w-16 bg-borges-dark rounded-full h-2">
                 <div
-                  className="bg-purple-600 h-2 rounded-full"
+                  className="bg-borges-accent h-2 rounded-full"
                   style={{ width: `${source.relevance * 100}%` }}
                 />
               </div>
-              <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+              <span className="ml-2 text-xs text-borges-muted">
                 {(source.relevance * 100).toFixed(0)}%
               </span>
             </div>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-borges-light-muted">
             {source.content}
           </p>
         </div>
@@ -203,19 +200,19 @@ export default function QueryDebugPanel({
   )
 
   return (
-    <div className="border-t border-gray-200 dark:border-gray-700">
+    <div className="border-t border-borges-border">
       {/* Debug Panel Header */}
-      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800">
+      <div className="flex items-center justify-between p-4 bg-borges-secondary">
         <button
           onClick={onToggleVisibility}
-          className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          className="flex items-center text-sm font-medium text-borges-light-muted hover:text-borges-light"
         >
           {isVisible ? (
             <ChevronUpIcon className="w-4 h-4 mr-2" />
           ) : (
             <ChevronDownIcon className="w-4 h-4 mr-2" />
           )}
-          🔬 GraphRAG Debug Information
+          GraphRAG Debug Information
         </button>
 
         {isVisible && (
@@ -223,7 +220,7 @@ export default function QueryDebugPanel({
             {/* Animation Controls */}
             <button
               onClick={() => onTriggerAnimation?.()}
-              className="flex items-center px-3 py-1 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              className="borges-btn-primary text-xs"
             >
               {isAnimationPlaying ? (
                 <PauseIcon className="w-3 h-3 mr-1" />
@@ -234,7 +231,7 @@ export default function QueryDebugPanel({
             </button>
 
             {/* Performance Stats */}
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="text-xs text-borges-muted">
               Total: {context_stats.total_time_ms}ms | Mode: {context_stats.mode}
             </div>
           </div>
@@ -243,20 +240,20 @@ export default function QueryDebugPanel({
 
       {/* Debug Panel Content */}
       {isVisible && (
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-6 bg-borges-dark">
           {/* Animation Timeline */}
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+          <div className="bg-borges-secondary rounded-borges-md p-4">
+            <h3 className="text-sm font-medium text-borges-light mb-3">
               Processing Timeline
             </h3>
             <div className="flex space-x-1">
               {animation_timeline.map((phase, idx) => (
                 <div
                   key={phase.phase}
-                  className={`flex-1 h-8 rounded cursor-pointer transition-all ${
+                  className={`flex-1 h-8 rounded-borges-sm cursor-pointer transition-all ${
                     selectedPhase === Object.keys(processing_phases)[idx]
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
+                      ? 'bg-borges-accent text-borges-dark'
+                      : 'bg-borges-dark hover:bg-borges-dark-hover text-borges-light-muted'
                   }`}
                   onClick={() => handlePhaseSelect(Object.keys(processing_phases)[idx])}
                   title={phase.description}
@@ -270,7 +267,7 @@ export default function QueryDebugPanel({
           </div>
 
           {/* Processing Phases Tabs */}
-          <div className="border-b border-gray-200 dark:border-gray-700">
+          <div className="border-b border-borges-border">
             <nav className="-mb-px flex space-x-8">
               {[
                 { key: 'entities', label: 'Entities', count: processing_phases.entity_selection.entities?.length || 0 },
@@ -283,8 +280,8 @@ export default function QueryDebugPanel({
                   onClick={() => setActiveTab(tab.key as any)}
                   className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                     activeTab === tab.key
-                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                      ? 'border-borges-accent text-borges-accent'
+                      : 'border-transparent text-borges-muted hover:text-borges-light-muted hover:border-borges-border'
                   }`}
                 >
                   {tab.label} ({tab.count})

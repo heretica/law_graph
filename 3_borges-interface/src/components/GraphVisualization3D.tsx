@@ -792,20 +792,82 @@ export default function GraphVisualization3D({
       } : 'none'
     })
 
+    // Map entity_type from Neo4j to French display labels
+    const entityTypeToFrench: Record<string, string> = {
+      'PERSON': 'Personnes',
+      'GEO': 'Lieux',
+      'LOCATION': 'Lieux',
+      'EVENT': 'Événements',
+      'CONCEPT': 'Concepts',
+      'ORGANIZATION': 'Organisations',
+      'Book': 'Livres',
+      'Community': 'Communautés',
+      // Handle malformed entity_type values (with quotes or pipes)
+      '("PERSON': 'Personnes',
+      '|"PERSON': 'Personnes',
+      '("GEO': 'Lieux',
+      '|"GEO': 'Lieux',
+      '("EVENT': 'Événements',
+      '|"EVENT': 'Événements',
+      '|EVENT': 'Événements',
+      '("CONCEPT': 'Concepts',
+      '|"CONCEPT': 'Concepts',
+      '|CONCEPT': 'Concepts',
+    }
+
+    // Helper function to get entity type from node data
+    const getEntityType = (node: ReconciliationData['nodes'][0]): string => {
+      // First try entity_type property (most reliable)
+      if (node.properties?.entity_type) {
+        const rawType = node.properties.entity_type.toString().trim()
+        const mapped = entityTypeToFrench[rawType] || rawType
+        return mapped
+      }
+      // Then try the second label (first is usually "Entity")
+      if (node.labels.length > 1) {
+        const secondLabel = node.labels[1]
+        return entityTypeToFrench[secondLabel] || secondLabel
+      }
+      // Finally fall back to first label
+      const firstLabel = node.labels[0] || 'default'
+      return entityTypeToFrench[firstLabel] || firstLabel
+    }
+
+    // Debug: Log first few nodes to verify entity_type mapping
+    console.log('🎨 Entity type mapping debug - first 5 nodes:', sortedNodes.slice(0, 5).map(n => ({
+      name: n.properties.name,
+      entity_type: n.properties.entity_type,
+      labels: n.labels,
+      mappedType: getEntityType(n)
+    })))
+
+    // Color mapping synchronized with legend (exact hex matches)
+    const typeColors: Record<string, string> = {
+      'Personnes': '#ff4757',       // Bright red - matches legend
+      'Lieux': '#00d2d3',          // Cyan - matches legend
+      'Événements': '#5352ed',     // Blue - matches legend
+      'Concepts': '#7bed9f',       // Green - matches legend
+      'Organisations': '#ffa502',  // Orange - matches legend
+      'Livres': '#ff6348',         // Pink/coral - matches legend
+      'Communautés': '#ff69b4',    // Pink - for communities
+      'default': '#dfe4ea'         // Light gray - matches legend
+    }
+
     // Group-based initial positioning (D3-inspired clustering by type) - MUCH CLOSER
-    const typeClusterCenters = {
+    const typeClusterCenters: Record<string, THREE.Vector3> = {
       'Personnes': new THREE.Vector3(-50, 50, -25),     // Top-left-back
       'Lieux': new THREE.Vector3(50, 50, -25),          // Top-right-back
       'Événements': new THREE.Vector3(-50, -50, -25),   // Bottom-left-back
       'Concepts': new THREE.Vector3(50, -50, -25),      // Bottom-right-back
       'Organisations': new THREE.Vector3(0, 0, 50),     // Front-center
       'Livres': new THREE.Vector3(0, 0, -75),          // Back-center
+      'Communautés': new THREE.Vector3(0, 75, 0),      // Top-center
       'default': new THREE.Vector3(0, 0, 0)            // Origin
     }
 
     const initialPositions: THREE.Vector3[] = sortedNodes.map((node) => {
-      const nodeType = node.labels[0] || 'default'
-      const clusterCenter = typeClusterCenters[nodeType as keyof typeof typeClusterCenters] || typeClusterCenters.default
+      const nodeType = getEntityType(node)
+      const clusterCenter = typeClusterCenters[nodeType] || typeClusterCenters.default
 
       // Add random offset around cluster center (much smaller radius for tight clustering)
       const offset = new THREE.Vector3(
@@ -817,21 +879,11 @@ export default function GraphVisualization3D({
       return clusterCenter.clone().add(offset)
     })
 
-    // Color mapping synchronized with legend (exact hex matches)
-    const typeColors = {
-      'Personnes': '#ff4757',       // Bright red - matches legend
-      'Lieux': '#00d2d3',          // Cyan - matches legend
-      'Événements': '#5352ed',     // Blue - matches legend
-      'Concepts': '#7bed9f',       // Green - matches legend
-      'Organisations': '#ffa502',  // Orange - matches legend
-      'Livres': '#ff6348',         // Pink/coral - matches legend
-      'default': '#dfe4ea'         // Light gray - matches legend
-    }
-
     // Create 3D nodes
     const nodes3D: Node3D[] = sortedNodes.map((node, index) => {
-      const nodeType = node.labels[0] || 'default'
-      const color = typeColors[nodeType as keyof typeof typeColors] || typeColors.default
+      // Use entity_type property for proper type classification
+      const nodeType = getEntityType(node)
+      const color = typeColors[nodeType] || typeColors.default
       const size = Math.max(20 + (node.degree / 2), 15) // Much larger nodes for visibility
 
       return {
@@ -842,7 +894,8 @@ export default function GraphVisualization3D({
         centrality_score: node.centrality_score,
         position: initialPositions[index],
         color: color, // Use hex string directly
-        size
+        size,
+        properties: node.properties // Pass through properties for access in tooltips
       }
     })
 
@@ -1390,6 +1443,10 @@ export default function GraphVisualization3D({
             <span>Livres</span>
           </div>
           <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ff69b4' }}></div>
+            <span>Communautés</span>
+          </div>
+          <div className="flex items-center space-x-2">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#dfe4ea' }}></div>
             <span>Autres</span>
           </div>
@@ -1561,11 +1618,44 @@ export default function GraphVisualization3D({
                 <div className="text-xs text-gray-400 mb-1">Type</div>
                 <div className="text-sm">{(clickedItem.data as Node3D).type || 'Non défini'}</div>
               </div>
+              {/* Appears in Books - find connected BOOK nodes */}
+              {(() => {
+                const nodeId = (clickedItem.data as Node3D).id;
+                const connectedLinks = linksRef.current.filter(link =>
+                  link.source === nodeId || link.target === nodeId
+                );
+                const bookNodes = connectedLinks
+                  .map(link => {
+                    const otherNodeId = link.source === nodeId ? link.target : link.source;
+                    return nodesRef.current.find(n => n.id === otherNodeId);
+                  })
+                  .filter(node => node && (node.type === 'BOOK' || node.label?.startsWith('LIVRE_')))
+                  .filter((node, index, self) => self.findIndex(n => n?.id === node?.id) === index); // Dedupe
+
+                if (bookNodes.length > 0) {
+                  return (
+                    <div>
+                      <div className="text-xs text-gray-400 mb-1">📚 Appears in {bookNodes.length} {bookNodes.length === 1 ? 'Book' : 'Books'}</div>
+                      <div className="flex flex-wrap gap-1">
+                        {bookNodes.map(book => (
+                          <span
+                            key={book?.id}
+                            className="text-xs px-2 py-0.5 bg-yellow-900/30 border border-yellow-700/50 rounded-full text-yellow-300"
+                          >
+                            📖 {book?.label?.replace(/^LIVRE_/, '').replace(/"/g, '') || 'Unknown'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               {(clickedItem.data as Node3D).properties?.description && (
                 <div>
                   <div className="text-xs text-gray-400 mb-1">Description</div>
                   <div className="text-xs text-gray-300 leading-relaxed">
-                    {(clickedItem.data as Node3D).properties?.description?.substring(0, 200)}
+                    {(clickedItem.data as Node3D).properties?.description?.substring(0, 200).replace(/<SEP>/g, '; ')}
                     {(clickedItem.data as Node3D).properties?.description && (clickedItem.data as Node3D).properties?.description?.length > 200 && '...'}
                   </div>
                 </div>

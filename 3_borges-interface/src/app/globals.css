@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,8 +7,13 @@
 :root {
   --borges-dark: #0a0a0a;
   --borges-light: #f5f5f5;
-  --borges-accent: #d4af37;
+  --borges-accent: #7dd3fc;
   --borges-secondary: #2a2a2a;
+  --borges-muted: #666666;
+  --borges-dark-hover: #1a1a1a;
+  --borges-light-muted: #a0a0a0;
+  --borges-border: #333333;
+  --borges-focus: rgba(125, 211, 252, 0.4);
 }
 
 * {
@@ -21,12 +26,36 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
 }
 
 body {
   color: var(--borges-light);
   background: var(--borges-dark);
+}
+
+/* Focus states - T003 */
+*:focus-visible {
+  outline: 2px solid var(--borges-light);
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling - T004 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--borges-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--borges-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--borges-muted);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,4 +90,51 @@ body {
   50% {
     opacity: .5;
   }
+}
+
+/* ===== Phase 2: Foundational Utility Classes ===== */
+
+/* T005: Button styling utility classes */
+.borges-btn-primary {
+  @apply px-4 py-2 border border-borges-light text-borges-light
+    hover:bg-borges-light hover:text-borges-dark transition-colors rounded-borges-sm;
+}
+
+.borges-btn-secondary {
+  @apply px-4 py-2 bg-borges-secondary border border-borges-border
+    text-borges-light hover:border-borges-light-muted transition-colors rounded-borges-sm;
+}
+
+.borges-btn-ghost {
+  @apply px-4 py-2 text-borges-light-muted hover:text-borges-light transition-colors;
+}
+
+/* T006: Input field styling utility classes */
+.borges-input {
+  @apply w-full px-3 py-2 bg-borges-secondary border border-borges-border
+    text-borges-light placeholder-borges-muted rounded-borges-sm
+    focus:border-borges-light focus:ring-1 focus:ring-borges-light/40;
+}
+
+/* T007: Panel/card styling utility classes */
+.borges-panel {
+  @apply bg-borges-secondary border border-borges-border rounded-borges-md p-4 shadow-borges-md;
+}
+
+.borges-panel-title {
+  @apply text-h2 text-borges-light mb-4;
+}
+
+/* T008: Modal styling utility classes */
+.borges-modal-overlay {
+  @apply fixed inset-0 bg-black/80 z-50;
+}
+
+.borges-modal {
+  @apply bg-borges-secondary border border-borges-border
+    rounded-borges-lg shadow-borges-lg p-6;
+}
+
+.borges-modal-title {
+  @apply text-h2 text-borges-light mb-4;
 }

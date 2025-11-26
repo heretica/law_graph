@@ -11,7 +11,7 @@ interface LoadingWheel3DProps {
 export default function LoadingWheel3D({
   size = 40,
   speed = 1,
-  color = '#D97706'
+  color = '#a0a0a0' // Borges light-muted gray
 }: LoadingWheel3DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationRef = useRef<number>()

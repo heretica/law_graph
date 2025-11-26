@@ -112,9 +112,233 @@ export default function HighlightedText({
   }
 
   /**
+   * Render markdown-formatted text (headers, bold, italic, lists)
+   */
+  const renderMarkdown = (inputText: string): JSX.Element[] => {
+    const lines = inputText.split('\n')
+    const result: JSX.Element[] = []
+
+    lines.forEach((line, lineIndex) => {
+      // Trim line for matching but keep original for display
+      const trimmedLine = line.trim()
+
+      // Handle headers - check longer patterns first (#### before ### before ## before #)
+      const h4Match = trimmedLine.match(/^####\s*(.+)$/)
+      const h3Match = trimmedLine.match(/^###\s*(.+)$/)
+      const h2Match = trimmedLine.match(/^##\s*(.+)$/)
+      const h1Match = trimmedLine.match(/^#\s*(.+)$/)
+      const listMatch = trimmedLine.match(/^[-*]\s+(.+)$/)
+      const numberedListMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/)
+
+      if (h4Match) {
+        result.push(
+          <h4 key={`h4-${lineIndex}`} className="text-sm font-medium text-borges-light mt-2 mb-1">
+            {highlightEntitiesInLine(h4Match[1])}
+          </h4>
+        )
+      } else if (h3Match) {
+        result.push(
+          <h3 key={`h3-${lineIndex}`} className="text-base font-medium text-borges-light mt-2 mb-1">
+            {highlightEntitiesInLine(h3Match[1])}
+          </h3>
+        )
+      } else if (h2Match) {
+        result.push(
+          <h2 key={`h2-${lineIndex}`} className="text-lg font-semibold text-borges-light mt-3 mb-2">
+            {highlightEntitiesInLine(h2Match[1])}
+          </h2>
+        )
+      } else if (h1Match) {
+        result.push(
+          <h1 key={`h1-${lineIndex}`} className="text-xl font-semibold text-borges-light mt-4 mb-2">
+            {highlightEntitiesInLine(h1Match[1])}
+          </h1>
+        )
+      } else if (listMatch) {
+        result.push(
+          <li key={`li-${lineIndex}`} className="ml-4 text-borges-light-muted">
+            {highlightEntitiesInLine(listMatch[1])}
+          </li>
+        )
+      } else if (numberedListMatch) {
+        result.push(
+          <li key={`nli-${lineIndex}`} className="ml-4 text-borges-light-muted list-decimal">
+            {highlightEntitiesInLine(numberedListMatch[2])}
+          </li>
+        )
+      } else if (trimmedLine === '') {
+        result.push(<br key={`br-${lineIndex}`} />)
+      } else {
+        result.push(
+          <p key={`p-${lineIndex}`} className="text-borges-light-muted mb-2">
+            {highlightEntitiesInLine(trimmedLine)}
+          </p>
+        )
+      }
+    })
+
+    return result
+  }
+
+  /**
+   * Highlight entities in a single line of text
+   */
+  const highlightEntitiesInLine = (inputText: string): JSX.Element[] => {
+    const entityLookup = createEntityLookup()
+    const result: JSX.Element[] = []
+
+    // Handle bold and italic inline
+    // For now, just do entity highlighting
+
+    // Sort entities by length (longest first) for better matching
+    const sortedPatterns = Array.from(entityLookup.keys()).sort((a, b) => b.length - a.length)
+
+    // Create regex pattern that matches any entity name (case insensitive)
+    const patterns = sortedPatterns.map(pattern =>
+      pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    )
+
+    if (patterns.length === 0) {
+      return [<span key={0}>{renderInlineMarkdown(inputText)}</span>]
+    }
+
+    const regex = new RegExp(`(?:^|\\s)(${patterns.join('|')})(?=\\s|$|[.,;:!?])`, 'gi')
+
+    let lastIndex = 0
+    let match
+    let keyIndex = 0
+
+    while ((match = regex.exec(inputText)) !== null) {
+      const fullMatch = match[0]
+      const entityMatch = match[1]
+      const matchStart = match.index
+      const entityStart = matchStart + fullMatch.indexOf(entityMatch)
+      const entityEnd = entityStart + entityMatch.length
+
+      if (entityStart > lastIndex) {
+        result.push(
+          <span key={keyIndex++}>
+            {renderInlineMarkdown(inputText.slice(lastIndex, entityStart))}
+          </span>
+        )
+      }
+
+      const entity = entityLookup.get(entityMatch.toLowerCase())
+
+      if (entity) {
+        const entityColor = entity.color || getIntelligenceColor(entity.type, entity.score)
+
+        result.push(
+          <span
+            key={keyIndex++}
+            className="cursor-pointer border-b border-dotted transition-all duration-200 hover:bg-opacity-20"
+            style={{
+              color: entityColor,
+              borderBottomColor: entityColor,
+              backgroundColor: `${entityColor}15`,
+              padding: '1px 2px',
+              borderRadius: '2px'
+            }}
+            onMouseEnter={(e) => {
+              if (showTooltip) {
+                setHoveredEntity(entity)
+                const rect = e.currentTarget.getBoundingClientRect()
+                setTooltipPosition({
+                  x: rect.left + rect.width / 2,
+                  y: rect.top - 8
+                })
+              }
+            }}
+            onMouseLeave={() => {
+              if (!pinnedEntity || pinnedEntity.id !== entity.id) {
+                setHoveredEntity(null)
+              }
+            }}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              if (pinnedEntity?.id === entity.id) {
+                setPinnedEntity(null)
+                setHoveredEntity(null)
+              } else {
+                setPinnedEntity(entity)
+                setHoveredEntity(entity)
+                const rect = e.currentTarget.getBoundingClientRect()
+                setTooltipPosition({
+                  x: rect.left + rect.width / 2,
+                  y: rect.top - 8
+                })
+              }
+              onEntityClick?.(entity)
+            }}
+            title={showTooltip ? `${entity.type}: ${entity.id}` : undefined}
+          >
+            {entityMatch}
+          </span>
+        )
+      } else {
+        result.push(<span key={keyIndex++}>{entityMatch}</span>)
+      }
+
+      lastIndex = entityEnd
+    }
+
+    if (lastIndex < inputText.length) {
+      result.push(
+        <span key={keyIndex++}>
+          {renderInlineMarkdown(inputText.slice(lastIndex))}
+        </span>
+      )
+    }
+
+    return result
+  }
+
+  /**
+   * Render inline markdown (bold, italic)
+   */
+  const renderInlineMarkdown = (text: string): JSX.Element | string => {
+    // Handle **bold** and *italic*
+    const parts: JSX.Element[] = []
+    let remaining = text
+    let keyIdx = 0
+
+    // Simple regex for bold
+    const boldRegex = /\*\*(.+?)\*\*/g
+    let lastIdx = 0
+    let match
+
+    while ((match = boldRegex.exec(text)) !== null) {
+      if (match.index > lastIdx) {
+        parts.push(<span key={keyIdx++}>{text.slice(lastIdx, match.index)}</span>)
+      }
+      parts.push(<strong key={keyIdx++} className="font-semibold text-borges-light">{match[1]}</strong>)
+      lastIdx = match.index + match[0].length
+    }
+
+    if (parts.length === 0) {
+      return text
+    }
+
+    if (lastIdx < text.length) {
+      parts.push(<span key={keyIdx++}>{text.slice(lastIdx)}</span>)
+    }
+
+    return <>{parts}</>
+  }
+
+  /**
    * Highlight entities in text with their graph node colors
    */
   const highlightEntities = (inputText: string): JSX.Element[] => {
+    // Use markdown rendering which includes entity highlighting
+    return renderMarkdown(inputText)
+  }
+
+  /**
+   * Original highlight entities logic (kept for reference)
+   */
+  const highlightEntitiesOriginal = (inputText: string): JSX.Element[] => {
     const entityLookup = createEntityLookup()
     const result: JSX.Element[] = []
 
@@ -238,10 +462,10 @@ export default function HighlightedText({
         {highlightEntities(text)}
       </div>
 
-      {/* Entity Tooltip */}
+      {/* Entity Tooltip - Basile Minimalism */}
       {showTooltip && (hoveredEntity || pinnedEntity) && (
         <div
-          className="fixed z-50 bg-gray-900 border border-gray-600 rounded-lg text-xs shadow-lg"
+          className="fixed z-50 bg-borges-secondary border border-borges-border rounded-borges-md text-xs shadow-borges-lg"
           style={{
             left: Math.max(10, Math.min(tooltipPosition.x - 125, window.innerWidth - 260)),
             top: tooltipPosition.y - 15,
@@ -259,44 +483,44 @@ export default function HighlightedText({
           }}
         >
           <div className="p-3 overflow-y-auto max-h-36">
-            <div className="text-white font-medium mb-1 break-words">{(pinnedEntity || hoveredEntity)?.id}</div>
-            <div className="text-gray-300 mb-1">Type: {(pinnedEntity || hoveredEntity)?.type}</div>
-            <div className="text-gray-300 mb-2">Score: {(pinnedEntity || hoveredEntity)?.score?.toFixed(2)}</div>
+            <div className="text-borges-light font-medium mb-1 break-words">{(pinnedEntity || hoveredEntity)?.id}</div>
+            <div className="text-borges-light-muted mb-1">Type: {(pinnedEntity || hoveredEntity)?.type}</div>
+            <div className="text-borges-light-muted mb-2">Score: {(pinnedEntity || hoveredEntity)?.score?.toFixed(2)}</div>
             {(pinnedEntity || hoveredEntity)?.description && (
-              <div className="text-gray-400 mb-2 text-xs leading-relaxed">
+              <div className="text-borges-muted mb-2 text-xs leading-relaxed">
                 {(pinnedEntity || hoveredEntity)?.description}
               </div>
             )}
             <div className="flex items-center">
               <div
-                className="w-3 h-3 rounded-full mr-2 border border-gray-500 flex-shrink-0"
+                className="w-3 h-3 rounded-full mr-2 border border-borges-border flex-shrink-0"
                 style={{ backgroundColor: (pinnedEntity || hoveredEntity)?.color }}
               />
-              <span className="text-gray-400 text-xs">Graph node color</span>
+              <span className="text-borges-muted text-xs">Graph node color</span>
               {pinnedEntity && (
-                <span className="ml-2 text-xs text-yellow-400">📌 Épinglé</span>
+                <span className="ml-2 text-xs text-borges-accent">Pinned</span>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Entity Legend */}
+      {/* Entity Legend - Basile Minimalism */}
       {entities.length > 0 && (
-        <div className="mt-3 pt-2 border-t border-gray-700">
-          <div className="text-xs text-gray-400 mb-2">Entités référencées:</div>
+        <div className="mt-3 pt-2 border-t border-borges-border">
+          <div className="text-xs text-borges-muted mb-2">Referenced entities:</div>
           <div className="flex flex-wrap gap-2">
             {entities.slice(0, 8).map((entity, index) => {
               const entityColor = entity.color || getIntelligenceColor(entity.type, entity.score)
               return (
                 <div
                   key={index}
-                  className="flex items-center text-xs cursor-pointer hover:bg-gray-800 rounded px-2 py-1"
+                  className="flex items-center text-xs cursor-pointer hover:bg-borges-dark-hover rounded-borges-sm px-2 py-1"
                   onClick={() => onEntityClick?.(entity)}
                   title={`${entity.type}: ${entity.id}`}
                 >
                   <div
-                    className="w-2 h-2 rounded-full mr-1.5 border border-gray-600"
+                    className="w-2 h-2 rounded-full mr-1.5 border border-borges-border"
                     style={{ backgroundColor: entityColor }}
                   />
                   <span style={{ color: entityColor }} className="font-medium">
@@ -306,8 +530,8 @@ export default function HighlightedText({
               )
             })}
             {entities.length > 8 && (
-              <div className="text-xs text-gray-500 px-2 py-1">
-                +{entities.length - 8} autres
+              <div className="text-xs text-borges-muted px-2 py-1">
+                +{entities.length - 8} more
               </div>
             )}
           </div>

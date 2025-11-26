@@ -108,8 +108,8 @@ export default function RelationshipTooltip({
 
   return (
     <div
-      className={`fixed rounded-lg text-xs shadow-2xl ${
-        isLocked ? 'border-4 border-yellow-400 bg-black' : 'border-2 border-red-500 bg-black'
+      className={`fixed rounded-borges-md text-xs shadow-borges-lg ${
+        isLocked ? 'border-2 border-borges-accent' : 'border border-borges-border'
       }`}
       style={{
         left: Math.max(10, Math.min(position.x - 175, window.innerWidth - 360)),
@@ -119,89 +119,89 @@ export default function RelationshipTooltip({
         maxHeight: expanded ? '500px' : '280px',
         transition: 'all 0.2s ease-in-out',
         zIndex: 99999,
-        backgroundColor: 'rgba(0, 0, 0, 0.95)',
+        backgroundColor: 'var(--borges-secondary)',
       }}
       onMouseEnter={() => onTooltipHover?.(true)}
       onMouseLeave={() => onTooltipHover?.(false)}
     >
-      {/* Header with relationship info */}
-      <div className="p-3 border-b border-gray-700">
+      {/* Header with relationship info - Basile Minimalism */}
+      <div className="p-3 border-b border-borges-border">
         <div className="flex items-center justify-between mb-2">
-          <div className="text-white font-medium">
-            🔗 Relation: {relationship.relation}
+          <div className="text-borges-light font-medium">
+            Relation: {relationship.relation}
           </div>
           <div className="flex items-center gap-2">
             {isLocked && (
               <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-yellow-400 rounded-full" />
-                <span className="text-yellow-400 text-xs">🔒 Verrouillé</span>
+                <div className="w-2 h-2 bg-borges-accent rounded-full" />
+                <span className="text-borges-accent text-xs">Locked</span>
               </div>
             )}
             {hasGraphMLEnrichment && (
               <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-400 rounded-full" />
-                <span className="text-green-400 text-xs">GraphML</span>
+                <div className="w-2 h-2 bg-borges-light-muted rounded-full" />
+                <span className="text-borges-light-muted text-xs">GraphML</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Source → Target */}
-        <div className="text-gray-300 text-xs">
-          <span className="text-blue-300">{sourceNodeLabel || relationship.source}</span>
-          <span className="mx-2 text-gray-500">→</span>
-          <span className="text-purple-300">{targetNodeLabel || relationship.target}</span>
+        <div className="text-borges-light-muted text-xs">
+          <span className="text-borges-light">{sourceNodeLabel || relationship.source}</span>
+          <span className="mx-2 text-borges-muted">→</span>
+          <span className="text-borges-light">{targetNodeLabel || relationship.target}</span>
         </div>
 
         {/* Confidence and weight */}
         <div className="flex items-center justify-between mt-2 text-xs">
-          <div className="text-gray-400">
-            Confiance: <span className={confidenceScore > 0.7 ? 'text-green-400' : confidenceScore > 0.5 ? 'text-yellow-400' : 'text-red-400'}>
+          <div className="text-borges-muted">
+            Confidence: <span className={confidenceScore > 0.7 ? 'text-borges-accent' : 'text-borges-light-muted'}>
               {(confidenceScore * 100).toFixed(0)}%
             </span>
           </div>
-          <div className="text-gray-400">
-            Poids: <span className="text-white">{graphMLWeight.toFixed(2)}</span>
+          <div className="text-borges-muted">
+            Weight: <span className="text-borges-light">{graphMLWeight.toFixed(2)}</span>
           </div>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main content - Basile Minimalism */}
       <div className="p-3 space-y-3">
         {/* Description */}
         <div>
-          <div className="text-gray-400 text-xs mb-1">Description</div>
-          <div className="text-white text-xs leading-relaxed">
-            {graphMLDescription || baseDescription || 'Relation détectée par GraphRAG'}
+          <div className="text-borges-muted text-xs mb-1">Description</div>
+          <div className="text-borges-light text-xs leading-relaxed">
+            {graphMLDescription || baseDescription || 'Relationship detected by GraphRAG'}
           </div>
         </div>
 
         {/* Source traceability (GraphML chunks) */}
         {sourceChunks && (
           <div>
-            <div className="text-gray-400 text-xs mb-1 flex items-center gap-1 justify-between">
+            <div className="text-borges-muted text-xs mb-1 flex items-center gap-1 justify-between">
               <div className="flex items-center gap-1">
-                📚 Source textuelle
+                Source text
                 {bookId && <span className="text-borges-accent">({bookId})</span>}
               </div>
               {onNavigateToSource && (
                 <button
                   onClick={() => onNavigateToSource(sourceChunks, bookId)}
-                  className="text-blue-400 hover:text-blue-300 text-xs px-2 py-1 bg-blue-900/30 rounded border border-blue-500/30 transition-all hover:bg-blue-900/50 flex items-center gap-1"
-                  title="Aller à la source dans le livre"
+                  className="borges-btn-ghost text-xs px-2 py-1 bg-borges-dark rounded-borges-sm border border-borges-border hover:border-borges-accent transition-all"
+                  title="Navigate to source in book"
                 >
-                  🔗 Source
+                  View Source
                 </button>
               )}
             </div>
-            <div className="text-gray-300 text-xs leading-relaxed bg-gray-800 p-2 rounded border-l-2 border-borges-accent">
+            <div className="text-borges-light-muted text-xs leading-relaxed bg-borges-dark p-2 rounded-borges-sm border-l-2 border-borges-accent">
               {expanded ? sourceChunks : sourcePreview}
               {sourceChunks.length > 120 && (
                 <button
                   onClick={() => setExpanded(!expanded)}
-                  className="text-borges-accent hover:text-borges-accent-light ml-2 underline"
+                  className="text-borges-accent hover:text-borges-light ml-2 underline"
                 >
-                  {expanded ? 'Réduire' : 'Lire plus'}
+                  {expanded ? 'Collapse' : 'Read more'}
                 </button>
               )}
             </div>
@@ -209,21 +209,21 @@ export default function RelationshipTooltip({
         )}
 
         {/* Processing pipeline info */}
-        <div className="border-t border-gray-700 pt-2">
-          <div className="text-gray-400 text-xs mb-1">Pipeline de traitement</div>
+        <div className="border-t border-borges-border pt-2">
+          <div className="text-borges-muted text-xs mb-1">Processing pipeline</div>
           <div className="flex flex-wrap gap-2 text-xs">
-            <div className="bg-blue-900 text-blue-200 px-2 py-1 rounded">
+            <div className="bg-borges-dark text-borges-light px-2 py-1 rounded-borges-sm">
               GraphRAG
             </div>
             {hasGraphMLEnrichment && (
-              <div className="bg-green-900 text-green-200 px-2 py-1 rounded">
+              <div className="bg-borges-dark text-borges-light-muted px-2 py-1 rounded-borges-sm">
                 GraphML (#{graphMLOrder})
               </div>
             )}
-            <div className="bg-purple-900 text-purple-200 px-2 py-1 rounded">
+            <div className="bg-borges-dark text-borges-light px-2 py-1 rounded-borges-sm">
               Neo4j
             </div>
-            <div className="bg-gray-700 text-gray-200 px-2 py-1 rounded">
+            <div className="bg-borges-dark text-borges-accent px-2 py-1 rounded-borges-sm">
               3D Viz
             </div>
           </div>
@@ -231,35 +231,35 @@ export default function RelationshipTooltip({
 
         {/* Metadata details (when expanded) */}
         {expanded && hasGraphMLEnrichment && (
-          <div className="border-t border-gray-700 pt-2">
-            <div className="text-gray-400 text-xs mb-2">Métadonnées GraphML</div>
+          <div className="border-t border-borges-border pt-2">
+            <div className="text-borges-muted text-xs mb-2">GraphML Metadata</div>
             <div className="space-y-1 text-xs">
               <div className="flex justify-between">
-                <span className="text-gray-400">Ordre GraphML:</span>
-                <span className="text-white">{graphMLOrder}</span>
+                <span className="text-borges-muted">GraphML Order:</span>
+                <span className="text-borges-light">{graphMLOrder}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Poids GraphML:</span>
-                <span className="text-white">{graphMLWeight.toFixed(3)}</span>
+                <span className="text-borges-muted">GraphML Weight:</span>
+                <span className="text-borges-light">{graphMLWeight.toFixed(3)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Ordre traversal:</span>
-                <span className="text-white">{'N/A'}</span>
+                <span className="text-borges-muted">Traversal Order:</span>
+                <span className="text-borges-light">{'N/A'}</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Action hints */}
-        <div className="border-t border-gray-700 pt-2 text-xs text-gray-500">
+        {/* Action hints - Basile Minimalism: no emoji */}
+        <div className="border-t border-borges-border pt-2 text-xs text-borges-muted">
           {sourceChunks && onNavigateToSource && (
-            <div>🔗 Bouton &quot;Source&quot; pour naviguer vers le texte original</div>
+            <div>Use &quot;View Source&quot; to navigate to original text</div>
           )}
           {sourceChunks && !onNavigateToSource && (
-            <div>💡 Double-clic pour explorer le contexte source</div>
+            <div>Double-click to explore source context</div>
           )}
-          <div>🔒 Clic sur relation pour {isLocked ? 'déverrouiller' : 'verrouiller'} le tooltip</div>
-          <div>🔍 Clic pour sélectionner les nœuds liés</div>
+          <div>Click relationship to {isLocked ? 'unlock' : 'lock'} tooltip</div>
+          <div>Click to select linked nodes</div>
         </div>
       </div>
     </div>

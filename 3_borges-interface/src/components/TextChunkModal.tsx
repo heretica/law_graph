@@ -85,45 +85,44 @@ export default function TextChunkModal({
 
   const modal = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-95 backdrop-blur-sm"
+      className="borges-modal-overlay flex items-center justify-center"
       onClick={handleBackdropClick}
     >
       {/* Modal Container */}
-      <div className="relative w-full h-full max-w-6xl max-h-[95vh] bg-borges-dark border border-borges-accent shadow-2xl overflow-hidden">
+      <div className="relative w-full h-full max-w-6xl max-h-[95vh] bg-borges-dark border border-borges-border shadow-borges-lg overflow-hidden">
 
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700 bg-borges-secondary">
+        {/* Header - Basile Minimalism */}
+        <div className="flex items-center justify-between p-6 border-b border-borges-border bg-borges-secondary">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-borges-accent rounded-full"></div>
-              <h2 className="text-xl font-semibold text-white font-borges">
-                📚 Source Textuelle
+              <h2 className="text-h2 text-borges-light">
+                Source Text
               </h2>
             </div>
 
             {bookId && (
-              <div className="text-sm text-gray-300">
+              <div className="text-sm text-borges-light-muted">
                 <span className="text-borges-accent">{bookId}</span>
-                {chunkId && <span className="text-gray-500 ml-2">• {chunkId}</span>}
+                {chunkId && <span className="text-borges-muted ml-2">• {chunkId}</span>}
               </div>
             )}
           </div>
 
           {/* Relationship info if available */}
           {relationshipInfo && (
-            <div className="hidden md:flex items-center gap-2 text-sm text-gray-400">
-              <span className="text-blue-300">{relationshipInfo.sourceNode}</span>
-              <span className="text-gray-500">→</span>
-              <span className="text-purple-300">{relationshipInfo.targetNode}</span>
-              <span className="text-gray-600 ml-2">({relationshipInfo.relationType})</span>
+            <div className="hidden md:flex items-center gap-2 text-sm text-borges-light-muted">
+              <span className="text-borges-light">{relationshipInfo.sourceNode}</span>
+              <span className="text-borges-muted">→</span>
+              <span className="text-borges-light">{relationshipInfo.targetNode}</span>
+              <span className="text-borges-muted ml-2">({relationshipInfo.relationType})</span>
             </div>
           )}
 
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all"
-            title="Fermer (Échap)"
+            className="borges-btn-ghost p-2 hover:bg-borges-dark-hover rounded-borges-sm transition-all"
+            title="Close (Esc)"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -135,23 +134,23 @@ export default function TextChunkModal({
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto">
 
-            {/* Pipeline Traceability */}
-            <div className="mb-6 p-4 bg-gray-800 rounded-lg border-l-4 border-borges-accent">
-              <h3 className="text-sm font-medium text-gray-300 mb-2">🔗 Pipeline de Traçabilité</h3>
+            {/* Pipeline Traceability - Basile Minimalism */}
+            <div className="mb-6 p-4 bg-borges-secondary rounded-borges-md border-l-4 border-borges-accent">
+              <h3 className="text-sm font-medium text-borges-light-muted mb-2">Traceability Pipeline</h3>
               <div className="flex flex-wrap gap-2 text-xs">
-                <span className="bg-blue-900 text-blue-200 px-2 py-1 rounded">Texte Source</span>
-                <span className="text-gray-500">→</span>
-                <span className="bg-green-900 text-green-200 px-2 py-1 rounded">GraphRAG</span>
-                <span className="text-gray-500">→</span>
-                <span className="bg-purple-900 text-purple-200 px-2 py-1 rounded">Neo4j</span>
-                <span className="text-gray-500">→</span>
-                <span className="bg-yellow-900 text-yellow-200 px-2 py-1 rounded">Visualisation 3D</span>
+                <span className="bg-borges-dark text-borges-light px-2 py-1 rounded-borges-sm">Source Text</span>
+                <span className="text-borges-muted">→</span>
+                <span className="bg-borges-dark text-borges-light px-2 py-1 rounded-borges-sm">GraphRAG</span>
+                <span className="text-borges-muted">→</span>
+                <span className="bg-borges-dark text-borges-light px-2 py-1 rounded-borges-sm">Neo4j</span>
+                <span className="text-borges-muted">→</span>
+                <span className="bg-borges-dark text-borges-accent px-2 py-1 rounded-borges-sm">3D Visualization</span>
               </div>
             </div>
 
             {/* Main Text Content with Entity Highlighting */}
-            <div className="bg-gray-900 rounded-lg p-6 border border-gray-700">
-              <div className="text-lg leading-relaxed text-gray-100 font-borges">
+            <div className="bg-borges-dark rounded-borges-md p-6 border border-borges-border">
+              <div className="text-lg leading-relaxed text-borges-light">
                 {entities.length > 0 ? (
                   <HighlightedText
                     text={chunkText}
@@ -166,28 +165,28 @@ export default function TextChunkModal({
               </div>
             </div>
 
-            {/* Metadata */}
+            {/* Metadata - Basile Minimalism */}
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="bg-gray-800 p-4 rounded-lg">
-                <h4 className="text-gray-400 mb-1">Longueur</h4>
-                <p className="text-white">{chunkText.length} caractères</p>
+              <div className="bg-borges-secondary p-4 rounded-borges-sm border border-borges-border">
+                <h4 className="text-borges-muted mb-1">Length</h4>
+                <p className="text-borges-light">{chunkText.length} characters</p>
               </div>
 
-              <div className="bg-gray-800 p-4 rounded-lg">
-                <h4 className="text-gray-400 mb-1">Entités Détectées</h4>
-                <p className="text-white">{entities.length} entités</p>
+              <div className="bg-borges-secondary p-4 rounded-borges-sm border border-borges-border">
+                <h4 className="text-borges-muted mb-1">Detected Entities</h4>
+                <p className="text-borges-light">{entities.length} entities</p>
               </div>
 
-              <div className="bg-gray-800 p-4 rounded-lg">
-                <h4 className="text-gray-400 mb-1">Source</h4>
-                <p className="text-white">{bookId || 'Livre inconnu'}</p>
+              <div className="bg-borges-secondary p-4 rounded-borges-sm border border-borges-border">
+                <h4 className="text-borges-muted mb-1">Source</h4>
+                <p className="text-borges-light">{bookId || 'Unknown book'}</p>
               </div>
             </div>
 
-            {/* Instructions */}
-            <div className="mt-6 text-xs text-gray-500 text-center">
-              <p>💡 Cliquez sur les entités surlignées pour explorer leurs connexions dans le graphe 3D</p>
-              <p>🔒 Appuyez sur Échap ou cliquez à l&apos;extérieur pour fermer</p>
+            {/* Instructions - Basile Minimalism: no emoji */}
+            <div className="mt-6 text-xs text-borges-muted text-center">
+              <p>Click highlighted entities to explore their connections in the 3D graph</p>
+              <p>Press Escape or click outside to close</p>
             </div>
           </div>
         </div>

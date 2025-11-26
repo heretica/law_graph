@@ -99,6 +99,7 @@ interface GraphVisualization3DForceProps {
   onNodeClick?: (nodeId: string, nodeLabel: string, bookId?: string) => void
   isProcessing?: boolean
   currentProcessingPhase?: string | null
+  sidePanelOpen?: boolean
 }
 
 export default function GraphVisualization3DForce({
@@ -108,13 +109,15 @@ export default function GraphVisualization3DForce({
   onNodeVisibilityChange,
   onNodeClick,
   isProcessing,
-  currentProcessingPhase
+  currentProcessingPhase,
+  sidePanelOpen = false
 }: GraphVisualization3DForceProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isGraphReady, setIsGraphReady] = useState(false)
   const [hoveredLink, setHoveredLink] = useState<Link | null>(null)
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
   // TextChunkModal state
   const [isChunkModalOpen, setIsChunkModalOpen] = useState(false)
@@ -130,28 +133,83 @@ export default function GraphVisualization3DForce({
   } | null>(null)
 
   // Color mapping for different node types
-  const getNodeColor = (labels: string[]) => {
-    const typeColors: Record<string, string> = {
-      'Personnes': '#ff4757',
-      'Lieux': '#00d2d3',
-      'Événements': '#5352ed',
-      'Concepts': '#7bed9f',
-      'Organisations': '#ffa502',
-      'Livres': '#ffd700',        // Bright gold - shiniest color
-      'BOOK': '#ffd700',          // Bright gold - shiniest color
-      'PERSON': '#ff4757',
-      'GEO': '#00d2d3',
-      'EVENT': '#5352ed',
-      'CONCEPT': '#7bed9f',
-      'ORGANIZATION': '#ffa502'
-    }
+  const typeColors: Record<string, string> = {
+    'Personnes': '#ff4757',
+    'Lieux': '#00d2d3',
+    'Événements': '#5352ed',
+    'Concepts': '#7bed9f',
+    'Organisations': '#ffa502',
+    'Livres': '#ffd700',        // Bright gold - shiniest color
+    'Communautés': '#ff69b4',   // Pink for communities
+    'BOOK': '#ffd700',          // Bright gold - shiniest color
+    'PERSON': '#ff4757',
+    'GEO': '#00d2d3',
+    'LOCATION': '#00d2d3',
+    'EVENT': '#5352ed',
+    'CONCEPT': '#7bed9f',
+    'ORGANIZATION': '#ffa502',
+    'Community': '#ff69b4',
+    'default': '#dfe4ea'
+  }
 
-    for (const label of labels) {
-      if (typeColors[label]) {
-        return typeColors[label]
-      }
+  // Map entity_type from Neo4j to French display labels for legend matching
+  const entityTypeToFrench: Record<string, string> = {
+    'PERSON': 'Personnes',
+    'GEO': 'Lieux',
+    'LOCATION': 'Lieux',
+    'EVENT': 'Événements',
+    'CONCEPT': 'Concepts',
+    'ORGANIZATION': 'Organisations',
+    'Book': 'Livres',
+    'Community': 'Communautés',
+    // Handle malformed entity_type values (with quotes or pipes from Neo4j)
+    '("PERSON': 'Personnes',
+    '|"PERSON': 'Personnes',
+    '("GEO': 'Lieux',
+    '|"GEO': 'Lieux',
+    '("EVENT': 'Événements',
+    '|"EVENT': 'Événements',
+    '|EVENT': 'Événements',
+    '("CONCEPT': 'Concepts',
+    '|"CONCEPT': 'Concepts',
+    '|CONCEPT': 'Concepts',
+  }
+
+  // Get the entity type from node data, prioritizing entity_type property
+  const getEntityType = (node: ReconciliationData['nodes'][0]): string => {
+    // First try entity_type property (most reliable for actual type)
+    if (node.properties?.entity_type) {
+      const rawType = node.properties.entity_type.toString().trim()
+      const mapped = entityTypeToFrench[rawType]
+      if (mapped) return mapped
+      // If not mapped, return as-is (might be directly usable)
+      return rawType
     }
-    return '#dfe4ea' // default color
+    // Check if it's a Book node by labels or ID pattern
+    if (node.labels?.includes('Book') || node.labels?.includes('BOOK') ||
+        String(node.id).startsWith('LIVRE_')) {
+      return 'Livres'
+    }
+    // Check for Community
+    if (node.labels?.includes('Community')) {
+      return 'Communautés'
+    }
+    // Then try the second label (first is usually "Entity")
+    if (node.labels && node.labels.length > 1) {
+      const secondLabel = node.labels[1]
+      const mapped = entityTypeToFrench[secondLabel]
+      if (mapped) return mapped
+      return secondLabel
+    }
+    // Fall back to first label or default
+    const firstLabel = node.labels?.[0] || 'default'
+    return entityTypeToFrench[firstLabel] || firstLabel
+  }
+
+  // Get color for node based on its entity type
+  const getNodeColor = (node: ReconciliationData['nodes'][0]): string => {
+    const entityType = getEntityType(node)
+    return typeColors[entityType] || typeColors.default
   }
 
   // Handle source navigation to open TextChunkModal
@@ -474,11 +532,28 @@ export default function GraphVisualization3DForce({
         const baseSize = Math.max(1, (node.degree || 0) / 5)
         const bookMultiplier = isBookNode ? 3 : 1  // Books are 3x larger
 
+        // Get entity type for proper color matching with legend
+        const entityType = getEntityType(node)
+
+        // Extract the best available name for the node label
+        // Priority: name property > title property > entity_type + short ID > short ID
+        const getNodeName = (node: any, nodeId: string): string => {
+          if (node.properties?.name) return node.properties.name
+          if (node.properties?.title) return node.properties.title
+          // Fallback: use entity_type + last 4 chars of ID if available
+          const entityType = node.properties?.entity_type || node.labels?.[1] || node.labels?.[0]
+          const shortId = String(node.id).slice(-4)
+          if (entityType && entityType !== 'Entity') {
+            return `${entityType}-${shortId}`
+          }
+          return `Node-${shortId}`
+        }
+
         return {
           id: nodeId,
-          name: node.properties?.name || node.properties?.title || String(node.id),
-          group: node.labels?.[0] || 'default',
-          color: getNodeColor(node.labels || []),
+          name: getNodeName(node, nodeId),
+          group: entityType, // Use entity type for group (used in force calculations)
+          color: getNodeColor(node), // Pass full node to get color from entity_type property
           val: baseSize * bookMultiplier // Books are significantly larger
         }
       })
@@ -610,7 +685,7 @@ export default function GraphVisualization3DForce({
                   return '#ff9800' // Orange for processed entities
                 }
 
-                return node.color || getNodeColor([node.group || 'default'])
+                return node.color || typeColors[node.group] || typeColors.default
               })
             }
 
@@ -672,18 +747,21 @@ export default function GraphVisualization3DForce({
         if (highlightedNodeIds.includes(node.id)) {
           return '#ffeb3b' // Yellow for highlighted nodes
         }
-        return node.color || getNodeColor([node.group || 'default'])
+        return node.color || typeColors[node.group] || typeColors.default
       })
 
   }, [searchPath])
 
   return (
-    <div className="relative w-full h-full bg-black">
+    <div
+      className="relative w-full h-full bg-black"
+      onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
+    >
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center text-white">
+        <div className="absolute inset-0 flex items-center justify-center text-borges-light">
           <div className="text-center">
-            <div className="text-2xl mb-2">🌐</div>
-            <div>Initialisation du graphe 3D...</div>
+            <div className="text-2xl mb-2 text-borges-light">Initializing...</div>
+            <div className="text-borges-light-muted">Initialisation du graphe 3D...</div>
           </div>
         </div>
       )}
@@ -696,97 +774,96 @@ export default function GraphVisualization3DForce({
 
       {/* Info overlay */}
       {reconciliationData && !isLoading && (
-        <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white p-3 rounded text-sm">
-          <div>🌌 Graphe 3D Force</div>
-          <div>📊 {reconciliationData.nodes.length} nœuds</div>
-          <div>🔗 {reconciliationData.relationships.length} liens</div>
-          <div className="mt-2 text-xs text-gray-400">
-            Utilisez la souris pour naviguer
+        <div className="absolute top-4 left-4 bg-borges-secondary border border-borges-border p-3 rounded-borges-md text-sm">
+          <div className="text-borges-light font-medium">Dimensions de l&apos;échantillon</div>
+          <div className="text-borges-light-muted">{reconciliationData.nodes.length} noeuds</div>
+          <div className="text-borges-light-muted">{reconciliationData.relationships.length} relations</div>
+          <div className="mt-2 text-xs text-borges-muted">
+            Use mouse to navigate
           </div>
         </div>
       )}
 
-      {/* Legend */}
-      {reconciliationData && !isLoading && (
-        <div className="absolute top-4 right-4 bg-black bg-opacity-75 text-white p-3 rounded text-sm">
-          <div className="font-semibold mb-2">Légende</div>
+      {/* Legend - hide when side panel is open to avoid clutter */}
+      {reconciliationData && !isLoading && !sidePanelOpen && (
+        <div className="absolute top-4 right-4 bg-borges-secondary border border-borges-border p-3 rounded-borges-md text-sm">
+          <div className="font-medium text-borges-light mb-2">Legend</div>
           <div className="space-y-1">
             <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-              <span className="text-xs">Personnes</span>
+              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff4757' }}></div>
+              <span className="text-xs text-borges-light-muted">Personnes</span>
             </div>
             <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-cyan-400 mr-2"></div>
-              <span className="text-xs">Lieux</span>
+              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#00d2d3' }}></div>
+              <span className="text-xs text-borges-light-muted">Lieux</span>
             </div>
             <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-blue-600 mr-2"></div>
-              <span className="text-xs">Événements</span>
+              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#5352ed' }}></div>
+              <span className="text-xs text-borges-light-muted">Événements</span>
             </div>
             <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-green-400 mr-2"></div>
-              <span className="text-xs">Concepts</span>
+              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#7bed9f' }}></div>
+              <span className="text-xs text-borges-light-muted">Concepts</span>
             </div>
             <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-orange-500 mr-2"></div>
-              <span className="text-xs">Organisations</span>
+              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffa502' }}></div>
+              <span className="text-xs text-borges-light-muted">Organisations</span>
             </div>
             <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-yellow-400 mr-2"></div>
-              <span className="text-xs">Livres</span>
+              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffd700' }}></div>
+              <span className="text-xs text-borges-light-muted">Livres</span>
             </div>
             <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-gray-300 mr-2"></div>
-              <span className="text-xs">Communautés</span>
+              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff69b4' }}></div>
+              <span className="text-xs text-borges-light-muted">Communautés</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Link Hover Tooltip */}
+      {/* Link Hover Tooltip - follows cursor */}
       {hoveredLink && (
         <div
-          className="absolute bg-black bg-opacity-90 text-white p-3 rounded text-xs z-10 max-w-80"
+          className="fixed bg-borges-secondary border border-borges-border p-2 rounded-borges-md text-xs z-50 w-48 max-h-40 overflow-y-auto pointer-events-none"
           style={{
-            left: `${window.innerWidth / 2}px`,
-            top: `${window.innerHeight / 2}px`,
-            transform: 'translate(-50%, -50%)'
+            left: `${mousePos.x + 15}px`,
+            top: `${mousePos.y + 15}px`,
           }}
         >
-          <div className="font-semibold text-blue-300 mb-1">🔗 Relation</div>
+          <div className="font-medium text-borges-light mb-1">Relation</div>
 
           <div className="space-y-1">
             <div>
-              <span className="text-gray-300">Type:</span>
-              <span className="text-white ml-1">{hoveredLink.type || hoveredLink.relation}</span>
+              <span className="text-borges-muted">Description:</span>
+              <span className="text-borges-light ml-1">{hoveredLink.type || hoveredLink.relation}</span>
             </div>
 
             <div>
-              <span className="text-gray-300">Entre:</span>
-              <div className="text-white ml-1">
+              <span className="text-borges-muted">Between:</span>
+              <div className="text-borges-light ml-1">
                 {typeof hoveredLink.source === 'object' ? (hoveredLink.source as any)?.name || (hoveredLink.source as any)?.id || 'Unknown' : hoveredLink.source}
-                <span className="text-gray-400"> → </span>
+                <span className="text-borges-light"> → </span>
                 {typeof hoveredLink.target === 'object' ? (hoveredLink.target as any)?.name || (hoveredLink.target as any)?.id || 'Unknown' : hoveredLink.target}
               </div>
             </div>
 
             {hoveredLink.has_graphml_metadata && (
               <>
-                <div className="border-t border-gray-600 pt-1 mt-2">
-                  <div className="text-yellow-300 text-xs font-medium">📊 Métadonnées GraphML</div>
+                <div className="border-t border-borges-border pt-1 mt-2">
+                  <div className="text-borges-light text-xs font-medium">GraphML Metadata</div>
                 </div>
 
                 {hoveredLink.graphml_weight && (
                   <div>
-                    <span className="text-gray-300">Poids:</span>
-                    <span className="text-yellow-300 ml-1 font-mono">{hoveredLink.graphml_weight.toFixed(1)}</span>
+                    <span className="text-borges-muted">Weight:</span>
+                    <span className="text-borges-light ml-1 font-mono">{hoveredLink.graphml_weight.toFixed(1)}</span>
                   </div>
                 )}
 
                 {hoveredLink.graphml_description && (
                   <div>
-                    <span className="text-gray-300">Description:</span>
-                    <div className="text-white ml-1 mt-1 text-xs leading-relaxed">
+                    <span className="text-borges-muted">Description:</span>
+                    <div className="text-borges-light-muted ml-1 mt-1 text-xs leading-relaxed">
                       {hoveredLink.graphml_description.length > 150
                         ? hoveredLink.graphml_description.substring(0, 150) + "..."
                         : hoveredLink.graphml_description
@@ -798,7 +875,7 @@ export default function GraphVisualization3DForce({
                 {hoveredLink.graphml_source_chunks && (
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-300">Source:</span>
+                      <span className="text-borges-muted">Source:</span>
                       <button
                         onClick={() => handleSourceNavigation(
                           hoveredLink.graphml_source_chunks!,
@@ -809,13 +886,13 @@ export default function GraphVisualization3DForce({
                             relationType: hoveredLink.relation || hoveredLink.type || 'RELATED'
                           }
                         )}
-                        className="text-blue-400 hover:text-blue-300 text-xs px-2 py-1 bg-blue-900/30 rounded border border-blue-500/30 transition-all hover:bg-blue-900/50 flex items-center gap-1"
-                        title="Ouvrir le texte source complet"
+                        className="borges-btn-primary text-xs"
+                        title="Open full source text"
                       >
-                        🔗 Lire Source
+                        Read Source
                       </button>
                     </div>
-                    <div className="text-gray-400 ml-1 text-xs mt-1">
+                    <div className="text-borges-muted ml-1 text-xs mt-1">
                       {hoveredLink.graphml_source_chunks.substring(0, 50)}...
                     </div>
                   </div>
@@ -823,16 +900,16 @@ export default function GraphVisualization3DForce({
 
                 {hoveredLink.graphml_order && hoveredLink.graphml_order > 0 && (
                   <div>
-                    <span className="text-gray-300">Ordre:</span>
-                    <span className="text-white ml-1">{hoveredLink.graphml_order}</span>
+                    <span className="text-borges-muted">Order:</span>
+                    <span className="text-borges-light ml-1">{hoveredLink.graphml_order}</span>
                   </div>
                 )}
               </>
             )}
 
             {!hoveredLink.has_graphml_metadata && (
-              <div className="text-gray-500 text-xs mt-2">
-                Aucune métadonnée GraphML enrichie
+              <div className="text-borges-muted text-xs mt-2">
+                No enriched GraphML metadata
               </div>
             )}
           </div>

@@ -105,54 +105,54 @@ export default function ProvenancePanel({
   const { entities = [], relationships = [], chunks = [] } = provenance;
 
   return (
-    <div className="flex flex-col h-full bg-borges-secondary border-l border-gray-700">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-700">
-        <h2 className="text-xl font-semibold text-white mb-2">🔗 Answer Provenance</h2>
-        <p className="text-sm text-gray-400 mb-3">
-          <strong className="text-white">See how the answer was built:</strong> View the entities, relationships, and source text that GraphRAG used to construct this answer.
+    <div className="flex flex-col h-full bg-borges-secondary border-l border-borges-border">
+      {/* Header - Basile Minimalism */}
+      <div className="p-4 border-b border-borges-border">
+        <h2 className="text-h2 text-borges-light mb-2">Answer Provenance</h2>
+        <p className="text-sm text-borges-light-muted mb-3">
+          <strong className="text-borges-light">See how the answer was built:</strong> View the entities, relationships, and source text that GraphRAG used to construct this answer.
         </p>
-        <p className="text-xs text-gray-500 mb-2">
-          Query ID: <span className="text-white font-mono">{queryId}</span>
+        <p className="text-xs text-borges-muted mb-2">
+          Query ID: <span className="text-borges-light font-mono">{queryId}</span>
         </p>
-        <div className="flex gap-4 text-sm text-gray-400">
-          <span>📊 {entities.length} entities</span>
-          <span>🔗 {relationships.length} relationships</span>
-          <span>📄 {chunks.length} source chunks</span>
+        <div className="flex gap-4 text-sm text-borges-light-muted">
+          <span>{entities.length} entities</span>
+          <span>{relationships.length} relationships</span>
+          <span>{chunks.length} source chunks</span>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-700">
+      {/* Tabs - Basile Minimalism: no emoji */}
+      <div className="flex border-b border-borges-border">
         <button
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === 'entities'
-              ? 'bg-borges-dark text-white border-b-2 border-borges-accent'
-              : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              ? 'bg-borges-dark text-borges-light border-b-2 border-borges-light'
+              : 'text-borges-light-muted hover:text-borges-light hover:bg-borges-dark-hover'
           }`}
           onClick={() => setActiveTab('entities')}
         >
-          📊 Entities ({entities.length})
+          Entities ({entities.length})
         </button>
         <button
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === 'relationships'
-              ? 'bg-borges-dark text-white border-b-2 border-borges-accent'
-              : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              ? 'bg-borges-dark text-borges-light border-b-2 border-borges-light'
+              : 'text-borges-light-muted hover:text-borges-light hover:bg-borges-dark-hover'
           }`}
           onClick={() => setActiveTab('relationships')}
         >
-          🔗 Relationships ({relationships.length})
+          Relationships ({relationships.length})
         </button>
         <button
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
             activeTab === 'chunks'
-              ? 'bg-borges-dark text-white border-b-2 border-borges-accent'
-              : 'text-gray-400 hover:text-white hover:bg-gray-800'
+              ? 'bg-borges-dark text-borges-light border-b-2 border-borges-light'
+              : 'text-borges-light-muted hover:text-borges-light hover:bg-borges-dark-hover'
           }`}
           onClick={() => setActiveTab('chunks')}
         >
-          📄 Chunks ({chunks.length})
+          Chunks ({chunks.length})
         </button>
       </div>
 
@@ -168,7 +168,7 @@ export default function ProvenancePanel({
               entities.map((entity: UsedEntity, index: number) => (
                 <div
                   key={entity.entity_id || index}
-                  className="p-3 bg-borges-dark rounded border border-gray-700 hover:border-borges-accent cursor-pointer transition-colors"
+                  className="p-3 bg-borges-dark rounded border border-gray-700 hover:border-borges-light cursor-pointer transition-colors"
                   onClick={() => onEntityClick?.(entity.entity_id, entity.entity_name)}
                 >
                   <div className="flex items-start justify-between">
@@ -180,7 +180,7 @@ export default function ProvenancePanel({
                         <span className="font-medium text-white">{entity.entity_name}</span>
                       </div>
                       <div className="text-xs text-gray-400">
-                        Type: <span className="text-borges-accent">{entity.entity_type}</span>
+                        Type: <span className="text-borges-light">{entity.entity_type}</span>
                         {entity.book_title && (
                           <> • Book: <span className="text-gray-300">{entity.book_title}</span></>
                         )}
@@ -192,7 +192,7 @@ export default function ProvenancePanel({
                       )}
                     </div>
                     <div className="ml-4 text-right">
-                      <div className="text-lg font-bold text-borges-accent">
+                      <div className="text-lg font-bold text-borges-light">
                         {(entity.relevance_score * 100).toFixed(0)}%
                       </div>
                       <div className="text-xs text-gray-400">relevance</div>
@@ -214,7 +214,7 @@ export default function ProvenancePanel({
               relationships.map((rel: TraversedRelationship, index: number) => (
                 <div
                   key={`${rel.source_id}-${rel.target_id}-${index}`}
-                  className="p-3 bg-borges-dark rounded border border-gray-700 hover:border-borges-accent cursor-pointer transition-colors"
+                  className="p-3 bg-borges-dark rounded border border-gray-700 hover:border-borges-light cursor-pointer transition-colors"
                   onClick={() => onRelationshipClick?.(rel)}
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -232,7 +232,7 @@ export default function ProvenancePanel({
                   </div>
                   {rel.weight !== undefined && (
                     <div className="mt-2 text-xs text-gray-400">
-                      Weight: <span className="text-borges-accent">{rel.weight.toFixed(2)}</span>
+                      Weight: <span className="text-borges-light">{rel.weight.toFixed(2)}</span>
                     </div>
                   )}
                 </div>
@@ -251,7 +251,7 @@ export default function ProvenancePanel({
               chunks.map((chunk: SourceChunk, index: number) => (
                 <div
                   key={chunk.chunk_id || index}
-                  className="p-3 bg-borges-dark rounded border border-gray-700 hover:border-borges-accent cursor-pointer transition-colors"
+                  className="p-3 bg-borges-dark rounded border border-gray-700 hover:border-borges-light cursor-pointer transition-colors"
                   onClick={() => onChunkClick?.(chunk.chunk_id)}
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -286,10 +286,10 @@ export default function ProvenancePanel({
         )}
       </div>
 
-      {/* Footer Stats */}
-      <div className="p-3 border-t border-gray-700 bg-borges-secondary">
-        <div className="text-xs text-gray-400 text-center">
-          Constitutional Principle #5: End-to-end interpretability ✓
+      {/* Footer Stats - Basile Minimalism */}
+      <div className="p-3 border-t border-borges-border bg-borges-secondary">
+        <div className="text-xs text-borges-muted text-center">
+          Principle #5: End-to-end interpretability
         </div>
       </div>
     </div>

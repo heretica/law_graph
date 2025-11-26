@@ -322,6 +322,208 @@ Replace symlink approach with formal **nano-graphRAG ingestion pipeline** (plann
 
 ---
 
+## Railway Deployment Issues
+
+### Issue 4: Neo4j Connection Errors During Railway Shutdown (2025-11-24)
+
+**Severity**: MEDIUM (Deployment stability)
+
+#### Symptoms
+
+```
+[2025-11-24 22:57:44 +0000] [1] [INFO] Handling signal: term
+[2025-11-24 22:57:44 +0000] [2] [INFO] Worker exiting (pid: 2)
+ERROR:neo4j:Failed to write data to connection ResolvedIPv4Address(('35.189.250.174', 7687)) (ResolvedIPv4Address(('35.189.250.174', 7687)))
+ERROR:neo4j:Failed to write data to connection IPv4Address(('si-f768707e-f2d9.production-orch-0072.neo4j.io', 7687)) (ResolvedIPv4Address(('35.189.250.174', 7687)))
+[2025-11-24 22:57:45 +0000] [1] [INFO] Shutting down: Master
+```
+
+**Affected Platform**: Railway (production)
+**Affected Service**: reconciliation-api (Gunicorn + Flask)
+**Neo4j Instance**: Aura (f768707e.databases.neo4j.io)
+
+#### Root Cause
+
+**Ungraceful shutdown of Neo4j connections** when Railway restarts/deploys the application:
+
+1. **SIGTERM signal** sent to Gunicorn master process
+2. **Workers exit immediately** without closing active Neo4j sessions
+3. **Neo4j driver attempts to write** during connection teardown
+4. **Network connection already closed** by the time driver tries to flush
+
+This is a **graceful shutdown issue**, not a connection problem. Neo4j Aura is healthy; the issue is the Flask app doesn't properly close database connections before Gunicorn workers terminate.
+
+#### Solution
+
+**1. Implement Graceful Shutdown Handler** in `reconciliation_api.py`:
+
+```python
+import signal
+import sys
+from neo4j import GraphDatabase
+
+# Global Neo4j driver instance
+neo4j_driver = None
+
+def create_neo4j_driver():
+    """Create Neo4j driver with proper configuration"""
+    global neo4j_driver
+    neo4j_driver = GraphDatabase.driver(
+        os.environ['NEO4J_URI'],
+        auth=(os.environ['NEO4J_USER'], os.environ['NEO4J_PASSWORD']),
+        max_connection_lifetime=3600,  # 1 hour
+        max_connection_pool_size=50,
+        connection_acquisition_timeout=60
+    )
+    return neo4j_driver
+
+def shutdown_handler(signum, frame):
+    """Gracefully close Neo4j connections on shutdown"""
+    print("INFO: Received shutdown signal, closing Neo4j connections...")
+    global neo4j_driver
+    if neo4j_driver:
+        try:
+            neo4j_driver.close()
+            print("INFO: Neo4j driver closed successfully")
+        except Exception as e:
+            print(f"ERROR: Failed to close Neo4j driver: {e}")
+    sys.exit(0)
+
+# Register signal handlers
+signal.signal(signal.SIGTERM, shutdown_handler)
+signal.signal(signal.SIGINT, shutdown_handler)
+
+# Initialize driver
+driver = create_neo4j_driver()
+```
+
+**2. Update Gunicorn Configuration** (create `gunicorn.conf.py` if it doesn't exist):
+
+```python
+# gunicorn.conf.py
+import os
+
+# Worker configuration
+workers = int(os.environ.get('GUNICORN_WORKERS', 4))
+worker_class = 'sync'
+worker_connections = 1000
+timeout = 120
+keepalive = 5
+
+# Graceful shutdown
+graceful_timeout = 30  # 30 seconds for workers to finish requests
+max_requests = 1000    # Restart workers after N requests (prevents memory leaks)
+max_requests_jitter = 100
+
+# Logging
+loglevel = 'info'
+accesslog = '-'
+errorlog = '-'
+
+# Lifecycle hooks
+def on_starting(server):
+    """Called just before the master process is initialized"""
+    print("INFO: Gunicorn master starting")
+
+def on_exit(server):
+    """Called just after the master process exits"""
+    print("INFO: Gunicorn master exited")
+
+def worker_exit(server, worker):
+    """Called just after a worker has been exited"""
+    print(f"INFO: Worker {worker.pid} exited")
+```
+
+**3. Use Context Managers for Sessions**:
+
+Ensure all Neo4j queries use context managers to auto-close sessions:
+
+```python
+# GOOD: Auto-closes session
+def get_graph_nodes(limit=300):
+    with driver.session() as session:
+        result = session.run(query, limit=limit)
+        return [record.data() for record in result]
+
+# BAD: Session might not close properly
+def get_graph_nodes_bad(limit=300):
+    session = driver.session()
+    result = session.run(query, limit=limit)
+    data = [record.data() for record in result]
+    session.close()  # Might not execute if error occurs
+    return data
+```
+
+#### Verification
+
+**Check graceful shutdown works**:
+
+```bash
+# Railway logs: Look for cleanup messages
+railway logs --service reconciliation-api | grep -E "(shutdown|Neo4j driver closed)"
+
+# Expected output during deployment:
+INFO: Received shutdown signal, closing Neo4j connections...
+INFO: Neo4j driver closed successfully
+INFO: Gunicorn master exited
+
+# Should NOT see:
+ERROR:neo4j:Failed to write data to connection
+```
+
+**Test locally**:
+
+```bash
+# Start API
+PORT=5002 python reconciliation_api.py &
+API_PID=$!
+
+# Send SIGTERM to simulate Railway shutdown
+kill -TERM $API_PID
+
+# Check logs for graceful shutdown
+tail -20 /tmp/api_test.log | grep -E "(shutdown|Neo4j)"
+```
+
+#### Prevention
+
+**Best practices for Railway + Neo4j deployments**:
+
+1. ✅ **DO**: Always use context managers (`with driver.session()`) for Neo4j queries
+2. ✅ **DO**: Register signal handlers (SIGTERM, SIGINT) to close connections
+3. ✅ **DO**: Set `graceful_timeout` in Gunicorn config (30s recommended)
+4. ✅ **DO**: Use connection pooling settings to prevent connection leaks
+5. ❌ **DON'T**: Leave sessions open across multiple requests
+6. ❌ **DON'T**: Ignore shutdown signals from Railway/Gunicorn
+
+**Railway-specific considerations**:
+
+- Railway sends **SIGTERM** 10 seconds before forced **SIGKILL**
+- Set `graceful_timeout` < 10 seconds to ensure cleanup completes
+- Use `max_requests` to periodically restart workers (prevents memory leaks)
+
+#### Impact Assessment
+
+**Current Impact**: LOW
+- Errors occur only during deployments/restarts
+- No user-facing impact (shutdown in progress)
+- No data loss (read-only operations during shutdown)
+- Next deployment will start fresh connections
+
+**If Left Unfixed**: MEDIUM
+- Could lead to connection pool exhaustion over time
+- Railway may throttle deployments if errors persist
+- Neo4j Aura may rate-limit connections
+
+#### References
+
+- **Neo4j Driver Docs**: [Session Management](https://neo4j.com/docs/python-manual/current/session-api/)
+- **Gunicorn Docs**: [Graceful Shutdown](https://docs.gunicorn.org/en/stable/settings.html#graceful-timeout)
+- **Railway Docs**: [Deployment Lifecycle](https://docs.railway.app/reference/deployments)
+- **Python Signal Handling**: [signal module](https://docs.python.org/3/library/signal.html)
+
+---
+
 ## Quick Reference
 
 ### Common Error Messages
@@ -332,6 +534,7 @@ Replace symlink approach with formal **nano-graphRAG ingestion pipeline** (plann
 | "@import rules must precede all rules" | #2 | Move @import to top of CSS |
 | "params: Promise<{ ... }>" type error | #2 | Add `await params` |
 | Book missing from dropdown (local) | #3 | Use absolute symlink path |
+| "Failed to write data to connection" (Railway) | #4 | Add graceful shutdown handler |
 
 ### Debugging Commands
 
@@ -353,6 +556,11 @@ cd 3_borges-interface && npm run build
 
 # Verify symlinks
 ls -la reconciliation-api/book_data/
+
+# Railway-specific commands
+railway logs --service reconciliation-api | tail -50
+railway status
+railway logs --service reconciliation-api | grep -E "(shutdown|Neo4j)"
 ```
 
 ### File Locations Reference
