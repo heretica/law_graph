@@ -315,27 +315,28 @@ export class ReconciliationService {
       };
     };
 
-    // Fetch relationships for each chunk with sequential requests to avoid overload
-    const chunkResults = [];
-    let loadedRelationships = 0;
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
+    // Fetch relationships for all chunks in PARALLEL for faster loading
+    console.log(`🚀 Fetching ${chunks.length} chunks in parallel...`);
+
+    let completedChunks = 0;
+    const chunkPromises = chunks.map(async (chunk, index) => {
       const params = new URLSearchParams();
       params.append('node_ids', chunk.join(','));
       params.append('limit', limit.toString());
 
       const url = `${this.apiUrl}/graph/relationships?${params}`;
       const result = await fetchWithRetry(url, 3);
-      chunkResults.push(result);
 
-      // Update progress callback with cumulative loaded relationships
-      if (result.success && result.relationships) {
-        loadedRelationships += result.relationships.length;
-      }
+      // Update progress as each chunk completes
+      completedChunks++;
       if (onProgress) {
-        onProgress(i + 1, chunks.length);
+        onProgress(completedChunks, chunks.length);
       }
-    }
+
+      return result;
+    });
+
+    const chunkResults = await Promise.all(chunkPromises);
 
     // Combine results from all chunks
     const allRelationships: Neo4jRelationship[] = [];

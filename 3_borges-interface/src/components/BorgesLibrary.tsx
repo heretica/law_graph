@@ -363,9 +363,35 @@ function BorgesLibrary() {
   }
 
 
+  const GRAPH_CACHE_KEY = 'borges-graph-cache'
+  const GRAPH_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+
   const loadReconciliationGraph = async () => {
     setIsLoadingGraph(true)
     setLoadingProgress({ step: 'nodes', current: 0, total: 300 })
+
+    // Check localStorage cache first for faster returning user experience
+    try {
+      const cached = localStorage.getItem(GRAPH_CACHE_KEY)
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached)
+        if (Date.now() - timestamp < GRAPH_CACHE_TTL) {
+          console.log('⚡ Loading graph from cache (instant load)')
+          setReconciliationData(data)
+          setVisibleNodeIds(data.nodes.map((node: any) => node.id))
+          setIsLoadingGraph(false)
+          setShowLoadingOverlay(false)
+          setLoadingProgress(null)
+          return
+        } else {
+          console.log('🔄 Cache expired, fetching fresh data')
+          localStorage.removeItem(GRAPH_CACHE_KEY)
+        }
+      }
+    } catch (cacheError) {
+      console.warn('Cache read failed:', cacheError)
+    }
+
     try {
       // Load top nodes with better filtering for design principles
       console.log(`📚 Loading connected graph (respecting design principles)...`)
@@ -454,13 +480,26 @@ function BorgesLibrary() {
 
         setLoadingProgress({ step: 'building', current: finalNodes.length, total: finalNodes.length })
 
-        setReconciliationData({
+        const graphData = {
           nodes: finalNodes,
           relationships
-        })
+        }
+
+        setReconciliationData(graphData)
 
         // Set initial visible nodes
         setVisibleNodeIds(finalNodes.map(node => node.id))
+
+        // Save to cache for faster subsequent loads
+        try {
+          localStorage.setItem(GRAPH_CACHE_KEY, JSON.stringify({
+            data: graphData,
+            timestamp: Date.now()
+          }))
+          console.log('💾 Graph cached for 30 minutes')
+        } catch (cacheError) {
+          console.warn('Cache save failed:', cacheError)
+        }
       }
     } catch (error) {
       console.error('Error loading connected knowledge base:', error)
