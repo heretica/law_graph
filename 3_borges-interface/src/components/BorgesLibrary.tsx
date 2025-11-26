@@ -295,6 +295,10 @@ function BorgesLibrary() {
   // Handler for tutorial completion
   const handleTutorialComplete = () => {
     setShowTutorial(false)
+    // If graph is still loading, show the hexagon loading animation
+    if (isLoadingGraph) {
+      setShowLoadingOverlay(true)
+    }
   }
 
   // Clear previous query results when book selection changes
