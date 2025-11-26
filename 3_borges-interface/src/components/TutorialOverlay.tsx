@@ -44,7 +44,7 @@ const tutorialSteps: TutorialStep[] = [
   },
   {
     title: 'Mode descendant',
-    description: 'Part des entités de haut niveau pour descendre vers les textes. Idéal pour des questions thématiques ou conceptuelles.',
+    description: 'Part des entités de haut niveau pour descendre vers les textes.',
     highlight: 'descendant'
   },
   {
