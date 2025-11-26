@@ -807,51 +807,61 @@ export default function GraphVisualization3DForce({
         style={{ minHeight: '600px' }}
       />
 
-      {/* Info overlay */}
+      {/* Info overlay - Hidden on mobile */}
       {reconciliationData && !isLoading && (
-        <div className="absolute top-4 left-4 bg-borges-secondary border border-borges-border p-3 rounded-borges-md text-sm">
-          <div className="text-borges-light font-medium">Dimensions de l&apos;échantillon</div>
+        <div className="absolute top-2 left-2 md:top-4 md:left-4 bg-borges-secondary border border-borges-border p-2 md:p-3 rounded-borges-md text-xs md:text-sm hidden md:block">
+          <div className="text-borges-light font-medium">Dimensions</div>
           <div className="text-borges-light-muted">{reconciliationData.nodes.length} noeuds</div>
           <div className="text-borges-light-muted">{reconciliationData.relationships.length} relations</div>
-          <div className="mt-2 text-xs text-borges-muted">
-            Use mouse to navigate
-          </div>
         </div>
       )}
 
-      {/* Legend - hide when side panel is open to avoid clutter */}
+      {/* Legend - Compact on mobile, hidden when side panel is open */}
       {reconciliationData && !isLoading && !sidePanelOpen && (
-        <div className="absolute top-4 right-4 bg-borges-secondary border border-borges-border p-3 rounded-borges-md text-sm">
-          <div className="font-medium text-borges-light mb-2">Legend</div>
-          <div className="space-y-1">
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff4757' }}></div>
-              <span className="text-xs text-borges-light-muted">Personnes</span>
+        <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-borges-secondary border border-borges-border p-2 md:p-3 rounded-borges-md text-xs">
+          {/* Desktop: Full legend */}
+          <div className="hidden md:block">
+            <div className="font-medium text-borges-light mb-2">Legend</div>
+            <div className="space-y-1">
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff4757' }}></div>
+                <span className="text-borges-light-muted">Personnes</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#00d2d3' }}></div>
+                <span className="text-borges-light-muted">Lieux</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#5352ed' }}></div>
+                <span className="text-borges-light-muted">Événements</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#7bed9f' }}></div>
+                <span className="text-borges-light-muted">Concepts</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffa502' }}></div>
+                <span className="text-borges-light-muted">Organisations</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffd700' }}></div>
+                <span className="text-borges-light-muted">Livres</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff69b4' }}></div>
+                <span className="text-borges-light-muted">Communautés</span>
+              </div>
             </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#00d2d3' }}></div>
-              <span className="text-xs text-borges-light-muted">Lieux</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#5352ed' }}></div>
-              <span className="text-xs text-borges-light-muted">Événements</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#7bed9f' }}></div>
-              <span className="text-xs text-borges-light-muted">Concepts</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffa502' }}></div>
-              <span className="text-xs text-borges-light-muted">Organisations</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffd700' }}></div>
-              <span className="text-xs text-borges-light-muted">Livres</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff69b4' }}></div>
-              <span className="text-xs text-borges-light-muted">Communautés</span>
-            </div>
+          </div>
+          {/* Mobile: Compact color dots only */}
+          <div className="md:hidden flex flex-wrap gap-1">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ff4757' }} title="Personnes"></div>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#00d2d3' }} title="Lieux"></div>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#5352ed' }} title="Événements"></div>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#7bed9f' }} title="Concepts"></div>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ffa502' }} title="Organisations"></div>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ffd700' }} title="Livres"></div>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ff69b4' }} title="Communautés"></div>
           </div>
         </div>
       )}
