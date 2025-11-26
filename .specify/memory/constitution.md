@@ -16,8 +16,8 @@ Clarifications Added:
 - None
 
 Templates Requiring Updates:
-- spec.md template: Add responsive design section to UI specifications
-- tasks.md: Include mobile testing tasks for UI changes
+- spec.md template: Add responsive design section to UI specifications ✅ done
+- tasks.md: Include mobile testing tasks for UI changes ✅ done
 
 Follow-up TODOs:
 - Audit current interface for mobile compatibility
@@ -242,6 +242,39 @@ intellectual mission: users come to explore knowledge, not to admire interface d
 
 ---
 
+### VIII. Mobile-first responsiveness
+
+**The interface MUST be fully functional and usable on mobile devices.**
+
+Given that a significant portion of users will access the Borges Library from smartphones and
+tablets, the interface MUST provide a seamless experience across all device sizes:
+
+- **Touch-optimized interactions**: All graph interactions (tap to select, pinch to zoom, drag to pan)
+  MUST work naturally with touch gestures
+- **Responsive layout**: UI components MUST adapt fluidly to screen sizes from 320px to desktop
+- **Mobile-first design**: Design decisions MUST prioritize mobile usability, then enhance for larger screens
+- **Performance on mobile**: The system MUST remain performant on mobile devices with limited resources
+- **Readable typography**: Text MUST be legible without zooming on mobile screens
+
+**Rationale**: Literary exploration is not confined to desktop computers. Users may wish to explore
+the Borges Library during commutes, in cafes, or while reading physical books. A mobile-responsive
+interface ensures the library is accessible wherever curiosity strikes. The graph visualization,
+being the core exploration mechanism, MUST be fully functional with touch interactions.
+
+**Implementation requirements**:
+- CSS MUST use responsive breakpoints: mobile (< 768px), tablet (768-1024px), desktop (> 1024px)
+- Touch targets MUST be at least 44x44 pixels for comfortable tapping
+- Graph visualization MUST support touch gestures: tap (select), pinch (zoom), drag (pan), double-tap (focus)
+- Navigation menus MUST collapse to mobile-friendly formats (hamburger menu, bottom navigation)
+- Modals and panels MUST be scrollable and dismissible on small screens
+- Font sizes MUST use relative units (rem/em) with a minimum body text of 16px on mobile
+- Images and SVGs MUST scale appropriately without overflow or cropping
+- Testing MUST include real device testing on iOS and Android, not just browser emulation
+- Performance budgets MUST target < 3s First Contentful Paint on 3G connections
+- The 3D graph MUST gracefully degrade or adapt for devices with limited GPU capabilities
+
+---
+
 ## Data Integrity & Quality
 
 ### Graph Consistency
@@ -340,4 +373,4 @@ This constitution is maintained in version control at `.specify/memory/constitut
 For development workflow guidance, consult the runtime documentation in `README.md`
 and project-specific instructions in `CLAUDE.md`.
 
-**Version**: 1.4.1 | **Ratified**: 2025-11-18 | **Last Amended**: 2025-11-25
+**Version**: 1.5.0 | **Ratified**: 2025-11-18 | **Last Amended**: 2025-11-26

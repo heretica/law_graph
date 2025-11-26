@@ -100,6 +100,34 @@
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
+### Responsive Design *(include if feature involves UI)*
+
+<!--
+  Per Constitution Principle VIII - Mobile-First Responsiveness:
+  The interface MUST be fully functional and usable on mobile devices.
+  Define responsive behavior for all UI components in this feature.
+-->
+
+**Breakpoints**:
+- Mobile (< 768px): [How this feature adapts on mobile]
+- Tablet (768-1024px): [How this feature adapts on tablet]
+- Desktop (> 1024px): [Default desktop behavior]
+
+**Touch Interactions**:
+- [Describe touch gestures: tap, pinch, drag, double-tap behaviors]
+- Touch targets MUST be at least 44x44 pixels
+
+**Mobile-Specific Considerations**:
+- [ ] Navigation adapts to mobile format (hamburger menu, bottom nav)
+- [ ] Modals/panels are scrollable and dismissible on small screens
+- [ ] Font sizes use relative units (rem/em) with minimum 16px body text
+- [ ] Images/SVGs scale appropriately without overflow
+- [ ] Performance target: < 3s First Contentful Paint on 3G
+
+**Graph Visualization (if applicable)**:
+- Touch gestures: tap (select), pinch (zoom), drag (pan), double-tap (focus)
+- Graceful degradation for devices with limited GPU capabilities
+
 ## Success Criteria *(mandatory)*
 
 <!--

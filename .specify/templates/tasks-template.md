@@ -146,6 +146,31 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
+## Phase N-1: Mobile Responsiveness Testing (if UI changes)
+
+**Purpose**: Ensure all UI changes comply with Constitution Principle VIII - Mobile-First Responsiveness
+
+<!--
+  Per Constitution Principle VIII: The interface MUST be fully functional and usable on mobile devices.
+  Include these tasks for ANY feature that involves UI changes.
+-->
+
+- [ ] TXXX [P] Test on mobile viewport (< 768px) - verify layout adapts correctly
+- [ ] TXXX [P] Test on tablet viewport (768-1024px) - verify intermediate breakpoint
+- [ ] TXXX [P] Verify touch targets are at least 44x44 pixels
+- [ ] TXXX [P] Test touch gestures on graph visualization (tap, pinch, drag, double-tap)
+- [ ] TXXX Test navigation menu collapse on mobile (hamburger/bottom nav)
+- [ ] TXXX Verify modals/panels are scrollable and dismissible on small screens
+- [ ] TXXX Verify font sizes (minimum 16px body text on mobile)
+- [ ] TXXX Test on real iOS device (not just browser emulation)
+- [ ] TXXX Test on real Android device (not just browser emulation)
+- [ ] TXXX Measure First Contentful Paint on 3G connection (target < 3s)
+- [ ] TXXX Test graph visualization on devices with limited GPU capabilities
+
+**Checkpoint**: All UI changes must pass mobile responsiveness before moving to Polish phase
+
+---
+
 ## Phase N: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories
