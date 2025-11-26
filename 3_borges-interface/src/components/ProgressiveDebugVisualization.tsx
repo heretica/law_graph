@@ -111,12 +111,12 @@ export default function ProgressiveDebugVisualization({
 
         {/* Current Processing Phase Highlight */}
         {currentProcessingPhase && (
-          <div className="mb-6 p-4 bg-borges-secondary rounded-borges-md border border-borges-accent">
+          <div className="mb-6 p-4 bg-borges-secondary rounded-borges-md border border-blue-500/50">
             <div className="flex items-center space-x-3">
-              <div className="animate-spin text-borges-accent">*</div>
+              <div className="animate-spinner-glow text-xl">✦</div>
               <div>
                 <div className="font-medium text-lg text-borges-light">{currentProcessingPhase}</div>
-                <div className="text-borges-accent">Processing{dots}</div>
+                <div className="animate-blue-white-glow font-medium">Processing{dots}</div>
               </div>
             </div>
           </div>
