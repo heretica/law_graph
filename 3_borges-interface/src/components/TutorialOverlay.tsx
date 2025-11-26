@@ -18,7 +18,7 @@ interface TutorialOverlayProps {
 
 const tutorialSteps: TutorialStep[] = [
   {
-    title: 'Bienvenue dans Le Graphe de Borges',
+    title: 'Bienvenue dans le graphe de Borges',
     description: 'Une cartographie littéraire vivante qui révèle les connexions cachées entre vos livres.',
     highlight: 'welcome'
   },
