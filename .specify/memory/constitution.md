@@ -1,34 +1,34 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: 1.4.0 → 1.4.1 (Patch - Clarified Basile Minimalism scope)
+Version Change: 1.4.1 → 1.5.0 (Minor - Added mobile responsiveness principle)
 
 Modified Principles:
-- Principle VII - Basile Minimalism: Added SCOPE LIMITATION clarifying visual-only changes
+- None
 
 Added Principles:
-- None
+- Principle VIII - Mobile-First Responsiveness: Interface MUST be fully usable on mobile devices
 
 Removed Principles:
 - None removed
 
 Clarifications Added:
-- Principle VII now explicitly states: VISUAL STYLING ONLY (fonts, colors, buttons, panels)
-- Functionality MUST remain 100% unchanged
-- Graph animations (physics, zoom, pan, expansion) MUST be fully preserved
-- Updated "No gratuitous animation" to clarify UI chrome only, graph animations exempt
-- Updated implementation requirements to preserve all graph motion
-
-Templates Requiring Updates:
-- None (clarification only)
-
-Follow-up TODOs:
 - None
 
+Templates Requiring Updates:
+- spec.md template: Add responsive design section to UI specifications
+- tasks.md: Include mobile testing tasks for UI changes
+
+Follow-up TODOs:
+- Audit current interface for mobile compatibility
+- Add responsive breakpoints to design tokens
+- Test graph interaction on touch devices
+
 Change Rationale:
-- PATCH version (1.4.1) because clarification only, no semantic change to principle intent
-- Prevents misinterpretation that could lead to removing essential graph animations
-- Ensures functionality remains unchanged during visual redesign
+- MINOR version (1.5.0) because new principle added
+- Many users will access the Borges Library on mobile devices
+- Graph exploration should work seamlessly on touch interfaces
+- Ensures accessibility across all device types
 -->
 
 # The Borges Library constitution

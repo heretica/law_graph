@@ -168,6 +168,7 @@ function BorgesLibrary() {
   const [isLoadingGraph, setIsLoadingGraph] = useState(true) // Start as true to show loading
   const [showTutorial, setShowTutorial] = useState(false)
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false) // For returning users
+  const [loadingProgress, setLoadingProgress] = useState<{ step: string; current: number; total: number } | null>(null)
   const [visibleNodeIds, setVisibleNodeIds] = useState<string[]>([])
   const [searchPath, setSearchPath] = useState<any>(null)
   const [debugInfo, setDebugInfo] = useState<any>(null)
@@ -364,6 +365,7 @@ function BorgesLibrary() {
 
   const loadReconciliationGraph = async () => {
     setIsLoadingGraph(true)
+    setLoadingProgress({ step: 'nodes', current: 0, total: 300 })
     try {
       // Load top nodes with better filtering for design principles
       console.log(`📚 Loading connected graph (respecting design principles)...`)
@@ -374,20 +376,24 @@ function BorgesLibrary() {
       console.log(`⚡ Rebuild: ${new Date().toISOString()}`)
 
       // Start with a more focused set of high-centrality nodes
+      setLoadingProgress({ step: 'nodes', current: 0, total: 300 })
       const nodesData = await reconciliationService.getNodes({ limit: 300 })
       if (nodesData.success && nodesData.nodes.length > 0) {
         const nodeIds = nodesData.nodes.map(node => node.id)
         console.log(`📊 Loaded ${nodeIds.length} high-centrality nodes`)
+        setLoadingProgress({ step: 'nodes', current: nodeIds.length, total: 300 })
 
         // Get relationships with priority on book connections
         let relationships: any[] = []
         let relationshipsFiltered = false
         let relationshipsLimit = 0
+        setLoadingProgress({ step: 'relations', current: 0, total: 8000 })
         try {
           const relationshipsData = await reconciliationService.getRelationships(nodeIds, 8000)
           relationships = relationshipsData.success ? relationshipsData.relationships : []
           relationshipsFiltered = relationshipsData.filtered || false
           relationshipsLimit = relationshipsData.limit_applied || 0
+          setLoadingProgress({ step: 'relations', current: relationships.length, total: 8000 })
         } catch (relError) {
           console.error('⚠️ Failed to load relationships, continuing with nodes only:', relError)
         }
@@ -440,6 +446,8 @@ function BorgesLibrary() {
         // Books are guaranteed visible even without relationships
         const finalNodes = connectedNodes.length > 0 ? connectedNodes : nodesData.nodes
 
+        setLoadingProgress({ step: 'building', current: finalNodes.length, total: finalNodes.length })
+
         setReconciliationData({
           nodes: finalNodes,
           relationships
@@ -453,6 +461,7 @@ function BorgesLibrary() {
     } finally {
       setIsLoadingGraph(false)
       setShowLoadingOverlay(false) // Hide loading overlay once data is loaded
+      setLoadingProgress(null)
     }
   }
 
@@ -1146,6 +1155,20 @@ function BorgesLibrary() {
                     <line className="book-line-overlay" x1="82" y1="75" x2="118" y2="75" stroke="#a0a0a0" strokeWidth="0.5" style={{ animationDelay: '0.5s' }} />
                     <line className="book-line-overlay" x1="84" y1="85" x2="116" y2="85" stroke="#a0a0a0" strokeWidth="0.5" style={{ animationDelay: '1s' }} />
                   </svg>
+                  {/* Loading progress indicator */}
+                  {loadingProgress && (
+                    <div className="mb-4 text-borges-light-muted text-sm">
+                      {loadingProgress.step === 'nodes' && (
+                        <span>Chargement des galeries... {loadingProgress.current}/{loadingProgress.total}</span>
+                      )}
+                      {loadingProgress.step === 'relations' && (
+                        <span>Tissage des connexions... {loadingProgress.current > 0 ? loadingProgress.current : '...'}</span>
+                      )}
+                      {loadingProgress.step === 'building' && (
+                        <span>Construction du graphe... {loadingProgress.current} nœuds</span>
+                      )}
+                    </div>
+                  )}
                   <div className="text-borges-light-muted text-xs italic max-w-lg text-center px-4">
                     « L&apos;univers (que d&apos;autres appellent la Bibliothèque) se compose d&apos;un nombre indéfini, et peut-être infini, de galeries hexagonales... »
                   </div>
