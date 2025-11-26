@@ -149,17 +149,41 @@ All paths relative to `3_borges-interface/`:
 
 ---
 
-## Phase 8: Polish & Cross-Cutting Concerns
+## Phase 8: Mobile Responsiveness (Constitution Principle VIII)
+
+**Purpose**: Ensure interface is fully functional on mobile devices per Constitution v1.5.0
+
+**⚠️ CRITICAL**: Per Principle VIII, the interface MUST be fully usable on mobile devices
+
+- [X] T039 Add responsive breakpoints to Tailwind config in `3_borges-interface/tailwind.config.js`
+- [X] T040 [US-MOBILE] Add mobile navigation (hamburger menu) in `3_borges-interface/src/components/BorgesLibrary.tsx`
+- [X] T041 [P] [US-MOBILE] Make header responsive in `3_borges-interface/src/components/BorgesLibrary.tsx`
+- [X] T042 [P] [US-MOBILE] Make search bar responsive in `3_borges-interface/src/components/BorgesLibrary.tsx`
+- [X] T043 [US-MOBILE] Make answer panel responsive in `3_borges-interface/src/components/BorgesLibrary.tsx`
+- [X] T044 [P] [US-MOBILE] Make EntityDetailModal responsive in `3_borges-interface/src/components/EntityDetailModal.tsx`
+- [X] T045 [P] [US-MOBILE] Make TextChunkModal responsive in `3_borges-interface/src/components/TextChunkModal.tsx`
+- [X] T046 [US-MOBILE] Ensure touch targets are ≥44x44px across all interactive elements
+- [X] T047 [US-MOBILE] Add touch gesture support for graph (tap, pinch, drag) - 3d-force-graph natively supports touch
+- [X] T048 Add responsive typography (min 16px body text) in `3_borges-interface/src/app/globals.css`
+
+**Checkpoint**: Mobile responsiveness complete - interface usable on phones and tablets
+
+---
+
+## Phase 9: Polish & Cross-Cutting Concerns
 
 **Purpose**: Final verification and consistency checks
 
-- [ ] T039 [P] Run full visual audit - verify ≤5 colors used
-- [ ] T040 [P] Run full visual audit - verify ≤2 font families used
-- [ ] T041 [P] Run full visual audit - verify ≤4 navigation items
-- [ ] T042 Verify all functionality unchanged (graph navigation, search, book selection)
-- [ ] T043 Run WCAG AA contrast check on all text
-- [ ] T044 Run quickstart.md validation checklist
-- [ ] T045 Performance check - verify no page load regression
+- [X] T049 [P] Run full visual audit - verify ≤5 colors used
+- [X] T050 [P] Run full visual audit - verify ≤2 font families used
+- [X] T051 [P] Run full visual audit - verify ≤4 navigation items
+- [X] T052 Verify all functionality unchanged (graph navigation, search, book selection)
+- [X] T053 Run WCAG AA contrast check on all text
+- [X] T054 Run quickstart.md validation checklist
+- [X] T055 Performance check - verify no page load regression
+- [X] T056 [P] Test on mobile viewport (< 768px)
+- [X] T057 [P] Test on tablet viewport (768-1024px)
+- [ ] T058 Test touch interactions on real device (requires physical device)
 
 ---
 
