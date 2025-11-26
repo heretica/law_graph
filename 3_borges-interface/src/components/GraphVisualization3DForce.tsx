@@ -14,6 +14,7 @@ interface Node {
 }
 
 interface Link {
+  id?: string
   source: string | number
   target: string | number
   type?: string
@@ -114,9 +115,12 @@ export default function GraphVisualization3DForce({
 }: GraphVisualization3DForceProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<any>(null)
+  const mousePosRef = useRef({ x: 0, y: 0 })  // Ref to avoid stale closure in click handler
   const [isLoading, setIsLoading] = useState(true)
   const [isGraphReady, setIsGraphReady] = useState(false)
   const [hoveredLink, setHoveredLink] = useState<Link | null>(null)
+  const [pinnedLink, setPinnedLink] = useState<Link | null>(null)
+  const [pinnedLinkPos, setPinnedLinkPos] = useState({ x: 0, y: 0 })
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
   // TextChunkModal state
@@ -271,6 +275,33 @@ export default function GraphVisualization3DForce({
         graph.onLinkHover((link: any) => {
           console.log('🎯 Link hover detected!', link)
           setHoveredLink(link || null)
+        })
+
+        // Configure link click handler for pinning tooltip
+        graph.onLinkClick((link: any) => {
+          console.log('📌 Link clicked!', link, 'at position:', mousePosRef.current)
+          if (link) {
+            // Helper to get source/target id regardless of whether it's an object or string
+            const getNodeId = (node: any) => typeof node === 'object' ? node?.id : node
+
+            // Toggle pin: if same link clicked, unpin; otherwise pin new link
+            setPinnedLink(prev => {
+              if (prev) {
+                // Compare by source+target since links may not have id property
+                const prevSource = getNodeId(prev.source)
+                const prevTarget = getNodeId(prev.target)
+                const linkSource = getNodeId(link.source)
+                const linkTarget = getNodeId(link.target)
+                if (prevSource === linkSource && prevTarget === linkTarget) {
+                  return null  // Unpin if same link
+                }
+              }
+              return link  // Pin new link
+            })
+            // Use mousePosRef to avoid stale closure - it always has current position
+            const pos = mousePosRef.current
+            setPinnedLinkPos({ x: pos.x || 200, y: pos.y || 200 })
+          }
         })
 
         // Configure node click handler for chunk traceability
@@ -755,7 +786,11 @@ export default function GraphVisualization3DForce({
   return (
     <div
       className="relative w-full h-full bg-black"
-      onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
+      onMouseMove={(e) => {
+        const pos = { x: e.clientX, y: e.clientY }
+        mousePosRef.current = pos  // Update ref for click handler (avoids stale closure)
+        setMousePos(pos)  // Update state for hover tooltip
+      }}
     >
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center text-borges-light">
@@ -821,97 +856,143 @@ export default function GraphVisualization3DForce({
         </div>
       )}
 
-      {/* Link Hover Tooltip - follows cursor */}
-      {hoveredLink && (
+      {/* Link Hover Tooltip - follows cursor (only show if not pinned) */}
+      {hoveredLink && !pinnedLink && (
         <div
-          className="fixed bg-borges-secondary border border-borges-border p-2 rounded-borges-md text-xs z-50 w-48 max-h-40 overflow-y-auto pointer-events-none"
+          className="fixed bg-borges-secondary border border-borges-border p-2 rounded-borges-md text-xs z-50 w-48 pointer-events-none"
           style={{
             left: `${mousePos.x + 15}px`,
             top: `${mousePos.y + 15}px`,
           }}
         >
           <div className="font-medium text-borges-light mb-1">Relation</div>
-
           <div className="space-y-1">
             <div>
-              <span className="text-borges-muted">Description:</span>
+              <span className="text-borges-muted">Type:</span>
               <span className="text-borges-light ml-1">{hoveredLink.type || hoveredLink.relation}</span>
             </div>
+            <div className="text-borges-light-muted text-xs">
+              {typeof hoveredLink.source === 'object' ? (hoveredLink.source as any)?.name || 'Unknown' : hoveredLink.source}
+              <span className="mx-1">→</span>
+              {typeof hoveredLink.target === 'object' ? (hoveredLink.target as any)?.name || 'Unknown' : hoveredLink.target}
+            </div>
+          </div>
+          <div className="border-t border-borges-border mt-2 pt-2 text-borges-muted text-xs">
+            Click to pin
+          </div>
+        </div>
+      )}
 
+      {/* Pinned Link Tooltip - fixed position, interactive */}
+      {pinnedLink && (
+        <div
+          className="fixed bg-borges-secondary border-2 border-borges-accent p-3 rounded-borges-md text-xs z-50 w-72 max-h-96 overflow-y-auto shadow-borges-lg"
+          style={{
+            left: `${Math.min(pinnedLinkPos.x + 15, window.innerWidth - 300)}px`,
+            top: `${Math.min(pinnedLinkPos.y + 15, window.innerHeight - 400)}px`,
+          }}
+        >
+          {/* Header with close button */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-borges-accent rounded-full" />
+              <span className="font-medium text-borges-light">Pinned Relation</span>
+            </div>
+            <button
+              onClick={() => setPinnedLink(null)}
+              className="text-borges-muted hover:text-borges-light p-1"
+              title="Unpin"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {/* Relation type */}
+            <div className="p-2 bg-borges-dark rounded-borges-sm">
+              <span className="text-borges-muted">Type:</span>
+              <span className="text-borges-light ml-2 font-medium">{pinnedLink.type || pinnedLink.relation}</span>
+            </div>
+
+            {/* Source → Target */}
             <div>
               <span className="text-borges-muted">Between:</span>
-              <div className="text-borges-light ml-1">
-                {typeof hoveredLink.source === 'object' ? (hoveredLink.source as any)?.name || (hoveredLink.source as any)?.id || 'Unknown' : hoveredLink.source}
-                <span className="text-borges-light"> → </span>
-                {typeof hoveredLink.target === 'object' ? (hoveredLink.target as any)?.name || (hoveredLink.target as any)?.id || 'Unknown' : hoveredLink.target}
+              <div className="text-borges-light mt-1">
+                {typeof pinnedLink.source === 'object' ? (pinnedLink.source as any)?.name || (pinnedLink.source as any)?.id || 'Unknown' : pinnedLink.source}
+                <span className="text-borges-muted mx-2">→</span>
+                {typeof pinnedLink.target === 'object' ? (pinnedLink.target as any)?.name || (pinnedLink.target as any)?.id || 'Unknown' : pinnedLink.target}
               </div>
             </div>
 
-            {hoveredLink.has_graphml_metadata && (
+            {pinnedLink.has_graphml_metadata && (
               <>
-                <div className="border-t border-borges-border pt-1 mt-2">
-                  <div className="text-borges-light text-xs font-medium">GraphML Metadata</div>
+                <div className="border-t border-borges-border pt-2 mt-2">
+                  <div className="text-borges-accent text-xs font-medium mb-2">GraphML Metadata</div>
                 </div>
 
-                {hoveredLink.graphml_weight && (
+                {pinnedLink.graphml_weight && (
                   <div>
                     <span className="text-borges-muted">Weight:</span>
-                    <span className="text-borges-light ml-1 font-mono">{hoveredLink.graphml_weight.toFixed(1)}</span>
+                    <span className="text-borges-light ml-2 font-mono">{pinnedLink.graphml_weight.toFixed(2)}</span>
                   </div>
                 )}
 
-                {hoveredLink.graphml_description && (
+                {pinnedLink.graphml_description && (
                   <div>
                     <span className="text-borges-muted">Description:</span>
-                    <div className="text-borges-light-muted ml-1 mt-1 text-xs leading-relaxed">
-                      {hoveredLink.graphml_description.length > 150
-                        ? hoveredLink.graphml_description.substring(0, 150) + "..."
-                        : hoveredLink.graphml_description
-                      }
+                    <div className="text-borges-light-muted mt-1 text-xs leading-relaxed p-2 bg-borges-dark rounded-borges-sm">
+                      {pinnedLink.graphml_description}
                     </div>
                   </div>
                 )}
 
-                {hoveredLink.graphml_source_chunks && (
+                {pinnedLink.graphml_source_chunks && (
                   <div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-borges-muted">Source:</span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-borges-muted">Source Text:</span>
                       <button
                         onClick={() => handleSourceNavigation(
-                          hoveredLink.graphml_source_chunks!,
-                          'unknown', // We don't have bookId here
+                          pinnedLink.graphml_source_chunks!,
+                          'unknown',
                           {
-                            sourceNode: typeof hoveredLink.source === 'object' ? (hoveredLink.source as any)?.name || (hoveredLink.source as any)?.id || 'Unknown' : hoveredLink.source,
-                            targetNode: typeof hoveredLink.target === 'object' ? (hoveredLink.target as any)?.name || (hoveredLink.target as any)?.id || 'Unknown' : hoveredLink.target,
-                            relationType: hoveredLink.relation || hoveredLink.type || 'RELATED'
+                            sourceNode: typeof pinnedLink.source === 'object' ? (pinnedLink.source as any)?.name || (pinnedLink.source as any)?.id || 'Unknown' : pinnedLink.source,
+                            targetNode: typeof pinnedLink.target === 'object' ? (pinnedLink.target as any)?.name || (pinnedLink.target as any)?.id || 'Unknown' : pinnedLink.target,
+                            relationType: pinnedLink.relation || pinnedLink.type || 'RELATED'
                           }
                         )}
-                        className="borges-btn-primary text-xs"
+                        className="borges-btn-primary text-xs px-2 py-1"
                         title="Open full source text"
                       >
                         Read Source
                       </button>
                     </div>
-                    <div className="text-borges-muted ml-1 text-xs mt-1">
-                      {hoveredLink.graphml_source_chunks.substring(0, 50)}...
+                    <div className="text-borges-light-muted text-xs p-2 bg-borges-dark rounded-borges-sm border-l-2 border-borges-accent max-h-32 overflow-y-auto">
+                      {pinnedLink.graphml_source_chunks}
                     </div>
                   </div>
                 )}
 
-                {hoveredLink.graphml_order && hoveredLink.graphml_order > 0 && (
+                {pinnedLink.graphml_order && pinnedLink.graphml_order > 0 && (
                   <div>
                     <span className="text-borges-muted">Order:</span>
-                    <span className="text-borges-light ml-1">{hoveredLink.graphml_order}</span>
+                    <span className="text-borges-light ml-2">{pinnedLink.graphml_order}</span>
                   </div>
                 )}
               </>
             )}
 
-            {!hoveredLink.has_graphml_metadata && (
-              <div className="text-borges-muted text-xs mt-2">
-                No enriched GraphML metadata
+            {!pinnedLink.has_graphml_metadata && (
+              <div className="text-borges-muted text-xs p-2 bg-borges-dark rounded-borges-sm">
+                No enriched GraphML metadata available
               </div>
             )}
+          </div>
+
+          {/* Footer hint */}
+          <div className="border-t border-borges-border mt-3 pt-2 text-borges-muted text-xs">
+            Click another relation or X to close
           </div>
         </div>
       )}
