@@ -1034,10 +1034,11 @@ function BorgesLibrary() {
             <polygon points="16,12.5 18.5,14 18.5,18 16,19.5 13.5,18 13.5,14" fill="#E8D5B7"/>
           </svg>
           <div className="flex-1 min-w-0">
-            <h1 className="text-display-mobile md:text-display text-borges-light tracking-wide font-semibold truncate">
-              Le graphe de Borges
+            <h1 className="text-base sm:text-lg md:text-display-mobile lg:text-display text-borges-light tracking-wide font-semibold">
+              <span className="sm:hidden">Borges</span>
+              <span className="hidden sm:inline">Le graphe de Borges</span>
             </h1>
-            <p className="text-borges-light-muted mt-1 text-xs md:text-sm italic max-w-2xl hidden sm:block">
+            <p className="text-borges-light-muted mt-1 text-xs md:text-sm italic max-w-2xl hidden md:block">
               « Tous les livres, quelque divers qu&apos;ils soient, comportent des éléments égaux : l&apos;espace, le point, la virgule, les vingt-deux lettres de l&apos;alphabet. »
             </p>
           </div>
