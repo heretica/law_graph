@@ -70,8 +70,7 @@ class LawGraphRAGService {
       properties: {
         name: entity.name,
         description: entity.description || '',
-        source_document: entity.source_document || '',
-        citation: entity.citation || '',
+        source_commune: entity.source_commune || '',
         entity_type: entity.type,
       },
       degree: 1, // Will be calculated from relationships

@@ -99,12 +99,9 @@ import TutorialOverlay from './TutorialOverlay'
 import TextChunkModal from './TextChunkModal'
 import ProvenancePanel from './ProvenancePanel'
 import EntityDetailModal from './EntityDetailModal'
-import { reconciliationService } from '@/lib/services/reconciliation'
 import { lawGraphRAGService } from '@/lib/services/law-graphrag'
 import { colorService, type EntityColorInfo } from '@/lib/utils/colorService'
 import type { TraversedRelationship } from '@/types/provenance'
-import type { RAGSource } from '@/types/law-graphrag'
-import RAGSourceSelector from './RAGSourceSelector'
 
 
 interface ReconciliationGraphData {
@@ -124,11 +121,6 @@ interface ReconciliationGraphData {
   }>;
 }
 
-interface Book {
-  id: string
-  name: string
-  has_data: boolean
-}
 
 /**
  * Composant principal de la bibliothèque de Borges
@@ -194,14 +186,10 @@ function BorgesLibrary() {
     entityName: string
     aggregatedChunks: string
     relatedRelationships: number
-    bookId?: string
+    communeId?: string
   } | null>(null)
-  const [books, setBooks] = useState<Book[]>([])
-  const [selectedBook, setSelectedBook] = useState<string>('a_rebours_huysmans')
-  const [multiBook, setMultiBook] = useState<boolean>(false)
-  const [mode, setMode] = useState<'local' | 'global'>('local')
-  // RAG Source selection for 003-rag-observability-comparison feature
-  const [ragSource, setRagSource] = useState<RAGSource>('borges')
+  // Single-purpose: Grand Débat National GraphRAG only (Constitution v3.0.0 Principle VI)
+  const [mode, setMode] = useState<'local' | 'global'>('global')
   const [processingStartTime, setProcessingStartTime] = useState<number | null>(null)
   const [elapsedTime, setElapsedTime] = useState<number>(0)
   const [processingStats, setProcessingStats] = useState<{
@@ -221,32 +209,25 @@ function BorgesLibrary() {
   // Store query result nodes for entity lookup
   const [queryResultNodes, setQueryResultNodes] = useState<any[]>([])
 
-  // Ref to prevent double execution of loadReconciliationGraph (React Strict Mode)
-  const graphLoadingRef = useRef(false)
-  const lastLoadedBookRef = useRef<string | null>(null)
-
-  // Borges quotes from "Fictions" for loading screen
+  // Grand Débat National civic data exploration - Constitution v3.0.0
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0)
-  const borgesQuotes = [
-    "« L'univers (que d'autres appellent la Bibliothèque) se compose d'un nombre indéfini, et peut-être infini, de galeries hexagonales... »",
-    "« La Bibliothèque existe ab aeterno. De cette vérité dont le corollaire immédiat est l'éternité future du monde, aucun esprit raisonnable ne peut douter. »",
-    "« Il suffit qu'un livre soit concevable pour qu'il existe. »",
-    "« Comme tous les hommes de la Bibliothèque, j'ai voyagé dans ma jeunesse ; j'ai pérégrié à la recherche d'un livre, peut-être du catalogue des catalogues. »",
-    "« L'univers, avec son élégante provision de rayonnages, de tomes énigmatiques, d'infatigables escaliers pour le voyageur et de latrines pour le bibliothécaire assis, ne peut être que l'œuvre d'un dieu. »",
-    "« La certitude que tout est écrit nous annule ou fait de nous des fantômes. »",
-    "« Les impies affirment que le nonsens est la règle dans la Bibliothèque et que les passages raisonnables, ou seulement de la plus humble cohérence, constituent une exception quasi miraculeuse. »",
-    "« Je sais de régions où les jeunes gens se prosternent devant les livres et baisent avec barbarie les pages, mais ne savent pas déchiffrer une seule lettre. »"
+  const civicQuotes = [
+    "« La parole citoyenne, écoutée et analysée, devient le fondement d'une démocratie vivante. »",
+    "« Chaque commune porte en elle les préoccupations singulières de ses habitants. »",
+    "« Le Grand Débat National : quand 50 communes de Charente-Maritime prennent la parole. »",
+    "« Des Cahiers de Doléances aux graphes de connaissances : la voix des citoyens se structure. »",
+    "« Explorer les contributions citoyennes, c'est comprendre les attentes d'un territoire. »"
   ]
 
   // Rotate quotes every 8 seconds during loading
   useEffect(() => {
     if (showLoadingOverlay || isLoadingGraph) {
       const interval = setInterval(() => {
-        setCurrentQuoteIndex((prev) => (prev + 1) % borgesQuotes.length)
+        setCurrentQuoteIndex((prev) => (prev + 1) % civicQuotes.length)
       }, 8000)
       return () => clearInterval(interval)
     }
-  }, [showLoadingOverlay, isLoadingGraph, borgesQuotes.length])
+  }, [showLoadingOverlay, isLoadingGraph, civicQuotes.length])
 
   // Function to extract chunks related to a specific entity
   const extractEntityChunks = (entityId: string) => {
@@ -315,9 +296,11 @@ function BorgesLibrary() {
   }
 
   useEffect(() => {
-    loadBooks()
-    loadReconciliationGraph()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    // Single-purpose interface: Grand Débat National data loaded on query
+    // No initial data load needed - data arrives via MCP queries
+    setIsLoadingGraph(false)
+    setShowLoadingOverlay(false)
+  }, [])
 
   // Check localStorage for tutorial skip on mount
   useEffect(() => {
@@ -339,21 +322,6 @@ function BorgesLibrary() {
     }
   }
 
-  // Clear previous query results when book selection changes
-  useEffect(() => {
-    console.log(`📖 Book selection changed to: ${selectedBook}`)
-    // Clear previous query state to ensure fresh queries
-    setQueryAnswer('')
-    setShowAnswer(false)
-    setCurrentQuery('')
-    setSearchPath(null)
-    setDebugInfo(null)
-    setReconciliationData({ nodes: [], relationships: [] })
-    setCurrentProcessingPhase(null)
-
-    // Reload reconciliation graph for new book context
-    loadReconciliationGraph()
-  }, [selectedBook])
 
   // Timer effect for processing duration
   useEffect(() => {
@@ -387,180 +355,6 @@ function BorgesLibrary() {
     }
   }
 
-  const loadBooks = async () => {
-    try {
-      const booksData = await reconciliationService.getBooks()
-      if (booksData.books) {
-        setBooks(booksData.books)
-        console.log(`📚 Loaded ${booksData.books.length} books`)
-      }
-    } catch (error) {
-      console.error('Error loading books:', error)
-    }
-  }
-
-
-  const GRAPH_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
-  const getGraphCacheKey = () => `borges-graph-cache-${selectedBook || 'all'}`
-
-  const loadReconciliationGraph = async () => {
-    // Guard against double execution (React Strict Mode) and redundant calls for same book
-    if (graphLoadingRef.current) {
-      console.log('⏭️ Graph loading already in progress, skipping duplicate call')
-      return
-    }
-    if (lastLoadedBookRef.current === selectedBook && reconciliationData?.nodes?.length) {
-      console.log('⏭️ Graph already loaded for this book, skipping')
-      return
-    }
-
-    graphLoadingRef.current = true
-    setIsLoadingGraph(true)
-    setLoadingProgress({ step: 'nodes', current: 0, total: 300 })
-
-    // Check localStorage cache first for faster returning user experience
-    try {
-      const cached = localStorage.getItem(getGraphCacheKey())
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached)
-        if (Date.now() - timestamp < GRAPH_CACHE_TTL) {
-          console.log('⚡ Loading graph from cache (instant load)')
-          setReconciliationData(data)
-          setVisibleNodeIds(data.nodes.map((node: any) => node.id))
-          setIsLoadingGraph(false)
-          setShowLoadingOverlay(false)
-          setLoadingProgress(null)
-          graphLoadingRef.current = false
-          lastLoadedBookRef.current = selectedBook
-          return
-        } else {
-          console.log('🔄 Cache expired, fetching fresh data')
-          localStorage.removeItem(getGraphCacheKey())
-        }
-      }
-    } catch (cacheError) {
-      console.warn('Cache read failed:', cacheError)
-    }
-
-    try {
-      // Load top nodes with better filtering for design principles
-      console.log(`📚 Loading connected graph (respecting design principles)...`)
-      console.log(`🎯 Principe #1: Only connected nodes (no orphans)`)
-      console.log(`📖 Principe #2: Books as core entities (larger display)`)
-      console.log(`🔍 Principe #3: Inter-book zones prioritized`)
-      console.log(`📏 Principe #4: Proper spacing between nodes`)
-      console.log(`⚡ Rebuild: ${new Date().toISOString()}`)
-
-      // Start with a more focused set of high-centrality nodes
-      setLoadingProgress({ step: 'nodes', current: 0, total: 300 })
-      const nodesData = await reconciliationService.getNodes({ limit: 300 })
-      if (nodesData.success && nodesData.nodes.length > 0) {
-        const nodeIds = nodesData.nodes.map(node => node.id)
-        console.log(`📊 Loaded ${nodeIds.length} high-centrality nodes`)
-        setLoadingProgress({ step: 'nodes', current: nodeIds.length, total: 300 })
-
-        // Get relationships with priority on book connections
-        let relationships: any[] = []
-        let relationshipsFiltered = false
-        let relationshipsLimit = 0
-        const totalChunks = Math.ceil(nodeIds.length / 50) // 50 nodes per chunk
-        setLoadingProgress({ step: 'relations', current: 0, total: totalChunks })
-        try {
-          const relationshipsData = await reconciliationService.getRelationships(
-            nodeIds,
-            8000,
-            (loadedChunks, totalChunks) => {
-              setLoadingProgress({ step: 'relations', current: loadedChunks, total: totalChunks })
-            }
-          )
-          relationships = relationshipsData.success ? relationshipsData.relationships : []
-          relationshipsFiltered = relationshipsData.filtered || false
-          relationshipsLimit = relationshipsData.limit_applied || 0
-        } catch (relError) {
-          console.error('⚠️ Failed to load relationships, continuing with nodes only:', relError)
-        }
-
-        // Helper function to identify book nodes (Principle #2: Books as core entities)
-        const isBookNode = (node: any): boolean => {
-          // Check if node has BOOK label (primary check)
-          if (node.labels && node.labels.includes('BOOK')) {
-            return true
-          }
-          // Fallback: Check if ID starts with book identifiers
-          const nodeId = String(node.properties?.id || node.id || '')
-          return nodeId.startsWith('LIVRE_') || nodeId.startsWith('book_')
-        }
-
-        // Apply Connected Subgraph First filter (Principe #1: No orphans)
-        // BUT: Always include book nodes (Principe #2: Books as core entities)
-        const connectedNodeIds = new Set<string>()
-        relationships.forEach(rel => {
-          connectedNodeIds.add(rel.source)
-          connectedNodeIds.add(rel.target)
-        })
-
-        // Filter nodes: keep connected nodes OR book nodes (books are always visible per Principle #2)
-        const connectedNodes = nodesData.nodes.filter(node =>
-          connectedNodeIds.has(node.id) || isBookNode(node)
-        )
-
-        console.log(`🔍 Debug Connected Subgraph First:`)
-        console.log(`  • Total nodes before filter: ${nodesData.nodes.length}`)
-        console.log(`  • Total relationships: ${relationships.length}`)
-        console.log(`  • Unique nodes in relationships: ${connectedNodeIds.size}`)
-        console.log(`  • Connected nodes after filter: ${connectedNodes.length}`)
-
-        // Identify book nodes using the helper function (Principe #2)
-        const bookNodes = connectedNodes.filter(isBookNode)
-
-        console.log(`📈 Connected knowledge base loaded (design-optimized):`)
-        console.log(`  • Connected Nodes: ${connectedNodes.length} (zero orphans ✓)`)
-        console.log(`  • Book Entities: ${bookNodes.length} (core nodes highlighted ✓)`)
-        console.log(`  • Total Relationships: ${relationships.length}`)
-        console.log(`  • Density: ${(relationships.length / connectedNodes.length).toFixed(2)} relationships per node`)
-        console.log(`  🎯 Design principles compliance: 100%`)
-
-        if (relationshipsFiltered) {
-          console.warn(`⚠️ Relationship count was limited to ${relationshipsLimit}`)
-        }
-
-        // Connected subgraph filtering now respects Principle #2 (books always included)
-        // Books are guaranteed visible even without relationships
-        const finalNodes = connectedNodes.length > 0 ? connectedNodes : nodesData.nodes
-
-        setLoadingProgress({ step: 'building', current: finalNodes.length, total: finalNodes.length })
-
-        const graphData = {
-          nodes: finalNodes,
-          relationships
-        }
-
-        setReconciliationData(graphData)
-
-        // Set initial visible nodes
-        setVisibleNodeIds(finalNodes.map(node => node.id))
-
-        // Save to cache for faster subsequent loads
-        try {
-          localStorage.setItem(getGraphCacheKey(), JSON.stringify({
-            data: graphData,
-            timestamp: Date.now()
-          }))
-          console.log('💾 Graph cached for 30 minutes')
-        } catch (cacheError) {
-          console.warn('Cache save failed:', cacheError)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading connected knowledge base:', error)
-    } finally {
-      setIsLoadingGraph(false)
-      setShowLoadingOverlay(false) // Hide loading overlay once data is loaded
-      setLoadingProgress(null)
-      graphLoadingRef.current = false // Reset guard for future loads
-      lastLoadedBookRef.current = selectedBook // Mark book as loaded
-    }
-  }
 
 
   const handleHighlightPath = (searchPathData: any) => {
@@ -590,11 +384,9 @@ function BorgesLibrary() {
   }
 
   const handleSimpleQuery = useCallback(async (query: string) => {
-    console.log('🔍 Processing query:', query)
-    console.log('⚖️ Current RAG source:', ragSource)
-    console.log('📖 Current selectedBook:', selectedBook)
+    console.log('🔍 Processing civic query:', query)
+    console.log('🏛️ Single-purpose: Grand Débat National GraphRAG')
     console.log('🔧 Current mode:', mode)
-    console.log('📚 Multi-book mode:', multiBook)
 
     // Clear previous query results to ensure fresh responses for each query
     setQueryAnswer('')
@@ -605,468 +397,139 @@ function BorgesLibrary() {
 
     setIsProcessing(true)
     setProcessingStartTime(Date.now())
-    setCurrentProcessingPhase(ragSource === 'law-graphrag' ? '⚖️ Querying Law GraphRAG...' : '🔍 Running GraphRAG...')
+    setCurrentProcessingPhase('🏛️ Querying Grand Débat National...')
     setCurrentQuery(query)
     setProcessingStats({ nodes: 0, communities: 0 })
 
     try {
-      // Law GraphRAG query - legal knowledge graph
-      if (ragSource === 'law-graphrag') {
-        console.log('⚖️ Querying Law GraphRAG API')
-        setCurrentProcessingPhase('⚖️ Analyzing legal documents...')
+      // Single-purpose: Grand Débat National GraphRAG only (Constitution v3.0.0)
+      console.log('🏛️ Querying Grand Débat National MCP API')
+      setCurrentProcessingPhase('🏛️ Analyzing citizen contributions...')
 
-        const result = await lawGraphRAGService.query({ query })
+      const result = await lawGraphRAGService.query({ query, mode })
 
-        if (result.success !== false) {
-          setCurrentProcessingPhase('✓ Legal analysis complete')
-          setQueryAnswer(result.answer || 'No answer available from Law GraphRAG')
+      if (result.success !== false) {
+        setCurrentProcessingPhase('✓ Civic analysis complete')
+        setQueryAnswer(result.answer || 'Aucune réponse disponible pour cette requête.')
 
-          // Generate query ID for provenance tracking
-          const tempQueryId = `law-query-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-          setCurrentQueryId(tempQueryId)
-          setShowProvenancePanel(true)
-          console.log('📊 Provenance tracking enabled for Law GraphRAG query:', tempQueryId)
+        // Generate query ID for provenance tracking
+        const tempQueryId = `civic-query-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        setCurrentQueryId(tempQueryId)
+        setShowProvenancePanel(true)
+        console.log('📊 Provenance tracking enabled for civic query:', tempQueryId)
 
-          // Transform Law GraphRAG response to graph data format
-          const graphData = lawGraphRAGService.transformToGraphData(result)
+        // Transform response to graph data format
+        const graphData = lawGraphRAGService.transformToGraphData(result)
 
-          if (graphData) {
-            console.log('⚖️ Law GraphRAG graph data:', graphData.nodes.length, 'nodes,', graphData.relationships.length, 'relationships')
+        if (graphData) {
+          console.log('🏛️ Civic graph data:', graphData.nodes.length, 'nodes,', graphData.relationships.length, 'relationships')
 
-            setProcessingStats({
-              nodes: graphData.nodes.length,
-              communities: 0,
-              neo4jRelationships: graphData.relationships.length
-            })
+          setProcessingStats({
+            nodes: graphData.nodes.length,
+            communities: 0,
+            neo4jRelationships: graphData.relationships.length
+          })
 
-            // Ensure nodes have required properties for ReconciliationGraphData
-            const normalizedNodes = graphData.nodes.map(node => ({
-              ...node,
-              properties: node.properties as Record<string, any>,
-              degree: node.degree ?? 1,
-              centrality_score: node.centrality_score ?? 0.5
-            }))
+          // Ensure nodes have required properties for ReconciliationGraphData
+          const normalizedNodes = graphData.nodes.map(node => ({
+            ...node,
+            properties: node.properties as Record<string, any>,
+            degree: node.degree ?? 1,
+            centrality_score: node.centrality_score ?? 0.5
+          }))
 
-            // Store query result nodes for entity lookup
-            setQueryResultNodes(normalizedNodes)
+          // Store query result nodes for entity lookup
+          setQueryResultNodes(normalizedNodes)
 
-            setReconciliationData({
-              nodes: normalizedNodes,
-              relationships: graphData.relationships
-            })
+          setReconciliationData({
+            nodes: normalizedNodes,
+            relationships: graphData.relationships
+          })
 
-            // Extract entities for coloring (End-to-end interpretability)
-            const entitiesToColor = graphData.nodes.map((node: any, idx: number) => ({
-              id: node.properties?.name || node.id,
-              type: node.labels?.[0] || 'LEGAL_ENTITY',
-              description: node.properties?.description,
-              score: node.centrality_score || 0.5,
-              order: idx
-            }))
+          // Extract entities for coloring (End-to-end interpretability - Constitution Principle I)
+          const entitiesToColor = graphData.nodes.map((node: any, idx: number) => ({
+            id: node.properties?.name || node.id,
+            type: node.labels?.[0] || 'CIVIC_ENTITY',
+            description: node.properties?.description,
+            score: node.centrality_score || 0.5,
+            order: idx
+          }))
 
-            if (entitiesToColor.length > 0) {
-              const enrichedEntities = colorService.enrichEntitiesWithColors(entitiesToColor)
-              console.log(`🌈 Law GraphRAG enriched entities: ${enrichedEntities.length}`)
-              setColoredEntities(enrichedEntities)
-            } else {
-              setColoredEntities([])
-            }
-
-            // Create debug info for visualization
-            const lawDebugInfo = {
-              processing_phases: {
-                entity_selection: {
-                  entities: graphData.nodes.map((node: any, index: number) => ({
-                    id: node.properties?.name || node.id,
-                    name: node.properties?.name || node.id,
-                    type: node.labels?.[0] || 'LEGAL_ENTITY',
-                    description: node.properties?.description || '',
-                    rank: index + 1,
-                    score: node.centrality_score || 0.5,
-                    selected: true
-                  })),
-                  duration_ms: 500
-                },
-                community_analysis: { communities: [], duration_ms: 100 },
-                relationship_mapping: {
-                  relationships: graphData.relationships.map((rel: any) => ({
-                    source: rel.source,
-                    target: rel.target,
-                    description: rel.properties?.description || '',
-                    weight: rel.properties?.weight || 1.0
-                  })),
-                  duration_ms: 300
-                },
-                text_synthesis: { duration_ms: 200 }
-              },
-              context_stats: {
-                total_time_ms: result.processing_time ? result.processing_time * 1000 : 1000,
-                mode: 'law-graphrag',
-                prompt_length: query.length
-              },
-              animation_timeline: [
-                { phase: 'explosion', duration: 500, description: 'Analyzing legal entities' },
-                { phase: 'filtering', duration: 300, description: 'Mapping legal relationships' },
-                { phase: 'synthesis', duration: 300, description: 'Building legal context' },
-                { phase: 'crystallization', duration: 200, description: 'Generating legal answer' }
-              ]
-            }
-            setDebugInfo(lawDebugInfo)
-          } else {
-            console.log('⚠️ No graph data from Law GraphRAG response')
-            setColoredEntities([])
-          }
-
-          setShowAnswer(true)
-          setSearchPath(null)
-        } else {
-          throw new Error(result.error || 'Law GraphRAG query failed')
-        }
-      }
-      // Multi-book Borges query
-      else if (multiBook) {
-        // Multi-book query - search across all books
-        console.log(`📚 Querying ALL BOOKS with mode: ${mode}`)
-        const result = await reconciliationService.multiBookQuery({
-          query,
-          mode,
-          debug_mode: false // Don't need debug mode for multi-book
-        })
-
-        if (result.success) {
-          setCurrentProcessingPhase(`✓ Queried ${result.books_with_results || 0} books`)
-
-          console.log('📚 Multi-book query result:', result)
-          console.log('📖 Book results:', result.book_results)
-
-          // Show answer from all books
-          let combinedAnswer = 'No relevant results found across the books.'
-
-          if (result.book_results && Array.isArray(result.book_results)) {
-            console.log(`📋 Processing ${result.book_results.length} book results`)
-
-            const validResults = result.book_results
-              .filter((r: any) => {
-                const isValid = r && r.answer && !r.error && r.answer !== "Sorry, I'm not able to provide an answer to that question."
-                console.log(`  ${r.book_id}: valid=${isValid}, answer length=${r.answer?.length || 0}`)
-                return isValid
-              })
-              .map((r: any) => {
-                const bookName = r.book_id ? r.book_id.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'Unknown Book'
-                return `📖 **${bookName}**:\n${r.answer}`
-              })
-
-            console.log(`✅ ${validResults.length} valid results after filtering`)
-
-            if (validResults.length > 0) {
-              combinedAnswer = validResults.join('\n\n---\n\n')
-            } else {
-              console.warn('⚠️ No valid results - all answers were filtered out')
-            }
-          } else {
-            console.warn('⚠️ book_results is not an array or is missing')
-          }
-
-          console.log(`📝 Final combined answer length: ${combinedAnswer.length}`)
-          setQueryAnswer(combinedAnswer)
-          setShowAnswer(true)
-
-          // Generate query ID for provenance tracking (temporary until backend provides it)
-          const tempQueryId = `multi-query-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-          setCurrentQueryId(tempQueryId)
-          setShowProvenancePanel(true)
-          console.log('📊 Provenance tracking enabled for multi-book query:', tempQueryId)
-
-          // Display aggregated nodes from multi-book query if available
-          if (result.selected_nodes && result.selected_relationships) {
-            console.log('🎯 Multi-book selected nodes:', result.selected_nodes.length)
-            console.log('🔗 Multi-book selected relationships:', result.selected_relationships.length)
-
-            // Count enriched relationship types
-            const neo4jRels = result.selected_relationships.filter((r: any) => r.properties?.neo4j_source).length
-            const crossBookRels = result.selected_relationships.filter((r: any) => r.properties?.cross_book).length
-            const communityRels = result.selected_relationships.filter((r: any) => r.type === 'BELONGS_TO' || r.type === 'MEMBER_OF').length
-
-            setProcessingStats({
-              nodes: result.selected_nodes.length,
-              communities: 0, // Multi-book doesn't use community analysis
-              neo4jRelationships: neo4jRels,
-              crossBookLinks: crossBookRels,
-              entityCommunityLinks: communityRels
-            })
-
-            // Store query result nodes for entity lookup
-            setQueryResultNodes(result.selected_nodes || [])
-
-            setReconciliationData({
-              nodes: result.selected_nodes || [],
-              relationships: result.selected_relationships || []
-            })
-
-            // Create debug info for visualization consistency
-            const aggregatedDebugInfo = {
-              processing_phases: {
-                entity_selection: {
-                  entities: result.selected_nodes.map((node: any, index: number) => ({
-                    id: node.labels?.[0] || node.id,
-                    name: node.labels?.[0] || node.id,
-                    type: node.type,
-                    description: node.properties?.description || '',
-                    rank: index + 1,
-                    score: node.centrality_score || 1,
-                    selected: true
-                  })),
-                  duration_ms: 1000
-                },
-                community_analysis: { communities: [], duration_ms: 500 },
-                relationship_mapping: {
-                  relationships: result.selected_relationships.map((rel: any) => ({
-                    source: rel.source,
-                    target: rel.target,
-                    description: rel.properties?.description || '',
-                    weight: rel.properties?.weight || 1.0
-                  })),
-                  duration_ms: 800
-                },
-                text_synthesis: { duration_ms: 200 }
-              },
-              context_stats: {
-                total_time_ms: result.total_processing_time * 1000,
-                mode: 'multi-book',
-                prompt_length: query.length
-              },
-              animation_timeline: [
-                { phase: 'explosion', duration: 1000, description: 'Analyzing entities across books' },
-                { phase: 'filtering', duration: 500, description: 'Selecting relevant communities' },
-                { phase: 'synthesis', duration: 800, description: 'Mapping cross-book relationships' },
-                { phase: 'crystallization', duration: 200, description: 'Generating multi-book answer' }
-              ]
-            };
-            setDebugInfo(aggregatedDebugInfo);
-
-            // Extract entities for coloring across all books (Principle #4 - End-to-end interpretability)
-            let allEntitiesToColor: Array<{
-              id: string
-              type: string
-              description?: string
-              rank?: number
-              order?: number
-              score: number
-            }> = []
-
-            console.log('🎨 MULTI-BOOK ENTITIES DEBUG:')
-            console.log('🔍 All book results:', result.book_results)
-
-            if (result.book_results && Array.isArray(result.book_results)) {
-              result.book_results.forEach((bookResult: any, bookIndex: number) => {
-                console.log(`📖 Processing book ${bookIndex}:`, bookResult.book_id)
-
-                // Extract entities from each book's debug info if available
-                if (bookResult.debug_info?.processing_phases?.entity_selection?.entities) {
-                  console.log(`✅ Found entities in book ${bookResult.book_id}:`, bookResult.debug_info.processing_phases.entity_selection.entities.length)
-
-                  const bookEntities = bookResult.debug_info.processing_phases.entity_selection.entities.map((entity: any, idx: number) => ({
-                    id: entity.id || entity.name,
-                    type: entity.type || 'CONCEPT',
-                    description: entity.description,
-                    rank: entity.rank,
-                    order: allEntitiesToColor.length + idx, // Global order across all books
-                    score: entity.score || 0.5
-                  }))
-
-                  allEntitiesToColor.push(...bookEntities)
-                }
-                // Fallback to selected_nodes from each book
-                else if (bookResult.selected_nodes) {
-                  console.log(`⚠️ Using selected_nodes fallback for book ${bookResult.book_id}`)
-
-                  const bookEntities = bookResult.selected_nodes.map((node: any, idx: number) => ({
-                    id: node.properties?.name || node.id || node.labels?.[0],
-                    type: node.labels?.[0] || node.type || 'CONCEPT',
-                    description: node.properties?.description,
-                    score: (node.degree || node.centrality_score || 1) / 100,
-                    order: allEntitiesToColor.length + idx
-                  }))
-
-                  allEntitiesToColor.push(...bookEntities)
-                }
-              })
-            }
-
-            console.log(`🎯 Total entities to color across all books: ${allEntitiesToColor.length}`)
-            console.log('🎯 Sample entities:', allEntitiesToColor.slice(0, 5))
-
-            // Process entities with color service
-            if (allEntitiesToColor.length > 0) {
-              const enrichedEntities = colorService.enrichEntitiesWithColors(allEntitiesToColor)
-              console.log(`🌈 Multi-book enriched entities: ${enrichedEntities.length}`)
-              setColoredEntities(enrichedEntities)
-            } else {
-              console.log('⚠️ No entities found for multi-book coloring')
-              setColoredEntities([])
-            }
-          } else {
-            // Clear search path if no nodes available
-            setSearchPath(null)
-            setColoredEntities([])
-          }
-        }
-      } else {
-        // Single-book query - use reconciled endpoint
-        console.log(`📖 Querying book: ${selectedBook}, mode: ${mode}`)
-        console.log('🚀 About to call reconciliationService.reconciledQuery with:', {
-          query,
-          mode,
-          debug_mode: true,
-          book_id: selectedBook
-        })
-        const result = await reconciliationService.reconciledQuery({
-          query,
-          mode,
-          debug_mode: true,  // Enable debug mode for animation data
-          book_id: selectedBook
-        })
-        console.log('✅ API call completed, result:', result.success ? 'success' : 'failed')
-
-        if (result.success) {
-          setCurrentProcessingPhase(`✓ Retrieved answer from ${selectedBook}`)
-          setQueryAnswer(result.answer || 'No answer available')
-
-          // Generate query ID for provenance tracking (temporary until backend provides it)
-          const tempQueryId = `query-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-          setCurrentQueryId(tempQueryId)
-          setShowProvenancePanel(true)
-          console.log('📊 Provenance tracking enabled for query:', tempQueryId)
-
-          // Extract entities for coloring (Principle #4 - End-to-end interpretability)
-          let entitiesToColor: Array<{
-            id: string
-            type: string
-            description?: string
-            rank?: number
-            order?: number
-            score: number
-          }> = []
-
-          console.log('🎨 REAL-TIME DEBUG - Entities to color:')
-          console.log('🔍 Debug entities:', result.debug_info?.processing_phases?.entity_selection?.entities)
-          console.log('🔍 Selected nodes:', result.selected_nodes)
-          console.log('🔍 Regular nodes:', result.nodes)
-
-          // Priority 1: Use debug entities if available (most complete info)
-          if (result.debug_info?.processing_phases?.entity_selection?.entities) {
-            console.log('✅ Using debug entities (Priority 1)')
-            entitiesToColor = result.debug_info.processing_phases.entity_selection.entities.map((entity: any, idx: number) => ({
-              id: entity.id || entity.name,
-              type: entity.type || 'CONCEPT',
-              description: entity.description,
-              rank: entity.rank,
-              order: idx,
-              score: entity.score || 0.5
-            }))
-          }
-          // Priority 2: Use selected_nodes from API response (good fallback)
-          else if (result.selected_nodes && result.selected_nodes.length > 0) {
-            console.log('✅ Using selected_nodes (Priority 2)')
-            entitiesToColor = result.selected_nodes.map((node: any, idx: number) => ({
-              id: node.properties?.name || node.id,
-              type: node.labels?.[0] || 'CONCEPT',
-              description: node.properties?.description,
-              score: (node.degree || 1) / 100,
-              order: idx
-            }))
-          }
-          // Priority 3: Use nodes from response
-          else if (result.nodes && result.nodes.length > 0) {
-            console.log('✅ Using regular nodes (Priority 3)')
-            entitiesToColor = result.nodes.map((node: any, idx: number) => ({
-              id: node.properties?.name || node.id,
-              type: node.labels?.[0] || 'CONCEPT',
-              description: node.properties?.description,
-              score: (node.degree || 1) / 100,
-              order: idx
-            }))
-          }
-
-          console.log(`🎯 Entities to color: ${entitiesToColor.length}`, entitiesToColor.slice(0, 3))
-
-          // Process entities with color service
           if (entitiesToColor.length > 0) {
             const enrichedEntities = colorService.enrichEntitiesWithColors(entitiesToColor)
-            console.log(`🌈 Enriched entities: ${enrichedEntities.length}`, enrichedEntities.slice(0, 3))
+            console.log(`🌈 Civic entities enriched: ${enrichedEntities.length}`)
             setColoredEntities(enrichedEntities)
           } else {
-            console.log('⚠️ No entities found for coloring')
             setColoredEntities([])
           }
 
-          setShowAnswer(true)
-
-          // Set debug info for animation and clear scene first
-          if (result.debug_info) {
-            console.log('🎬 Debug info received for animation:', result.debug_info)
-            setDebugInfo(result.debug_info)
-
-            // Clear the scene first by setting empty reconciliation data temporarily
-            setReconciliationData({ nodes: [], relationships: [] })
-
-            // Set the selected nodes for incremental loading
-            if (result.selected_nodes && result.selected_relationships) {
-              // Count enriched relationship types for stats
-              const neo4jRels = result.selected_relationships.filter((r: any) => r.properties?.neo4j_source).length
-              const crossBookRels = result.selected_relationships.filter((r: any) => r.properties?.cross_book).length
-              const communityRels = result.selected_relationships.filter((r: any) => r.type === 'BELONGS_TO' || r.type === 'MEMBER_OF').length
-
-              setProcessingStats({
-                nodes: result.selected_nodes.length,
-                communities: result.debug_info.processing_phases?.community_analysis?.communities?.length || 0,
-                neo4jRelationships: neo4jRels,
-                crossBookLinks: crossBookRels,
-                entityCommunityLinks: communityRels
-              })
-
-              setTimeout(() => {
-                console.log('🎯 Starting incremental loading with selected GraphRAG nodes')
-                console.log('🔍 Selected nodes length:', result.selected_nodes?.length || 0)
-                console.log('🔍 First selected node:', result.selected_nodes?.[0])
-                console.log('🔍 Selected relationships length:', result.selected_relationships?.length || 0)
-
-                // Store query result nodes for entity lookup
-                setQueryResultNodes(result.selected_nodes || [])
-
-                setReconciliationData({
-                  nodes: result.selected_nodes || [],
-                  relationships: result.selected_relationships || []
-                })
-              }, 500) // Small delay to show the clearing effect
-            }
+          // Create debug info for visualization
+          const civicDebugInfo = {
+            processing_phases: {
+              entity_selection: {
+                entities: graphData.nodes.map((node: any, index: number) => ({
+                  id: node.properties?.name || node.id,
+                  name: node.properties?.name || node.id,
+                  type: node.labels?.[0] || 'CIVIC_ENTITY',
+                  description: node.properties?.description || '',
+                  rank: index + 1,
+                  score: node.centrality_score || 0.5,
+                  selected: true
+                })),
+                duration_ms: 500
+              },
+              community_analysis: { communities: [], duration_ms: 100 },
+              relationship_mapping: {
+                relationships: graphData.relationships.map((rel: any) => ({
+                  source: rel.source,
+                  target: rel.target,
+                  description: rel.properties?.description || '',
+                  weight: rel.properties?.weight || 1.0
+                })),
+                duration_ms: 300
+              },
+              text_synthesis: { duration_ms: 200 }
+            },
+            context_stats: {
+              total_time_ms: result.processing_time ? result.processing_time * 1000 : 1000,
+              mode: 'grand-debat-national',
+              prompt_length: query.length
+            },
+            animation_timeline: [
+              { phase: 'explosion', duration: 500, description: 'Analyzing civic entities' },
+              { phase: 'filtering', duration: 300, description: 'Mapping commune relationships' },
+              { phase: 'synthesis', duration: 300, description: 'Building civic context' },
+              { phase: 'crystallization', duration: 200, description: 'Generating civic answer' }
+            ]
           }
-
-          // Clear any existing highlights for single book queries
-          setSearchPath(null)
+          setDebugInfo(civicDebugInfo)
+        } else {
+          console.log('⚠️ No graph data from civic response')
+          setColoredEntities([])
         }
+
+        setShowAnswer(true)
+        setSearchPath(null)
+      } else {
+        throw new Error(result.error || 'Civic GraphRAG query failed')
       }
     } catch (error) {
-      console.error('Error processing query:', error)
+      console.error('Error processing civic query:', error)
 
-      // Provide user-friendly error messages based on RAG source (T016)
-      let errorMessage = 'An error occurred while processing your query.'
+      // Provide user-friendly error messages
+      let errorMessage = 'Une erreur est survenue lors du traitement de votre requête.'
 
-      if (ragSource === 'law-graphrag') {
-        const errorDetail = error instanceof Error ? error.message : 'Unknown error'
-        if (errorDetail.includes('fetch') || errorDetail.includes('network') || errorDetail.includes('ECONNREFUSED')) {
-          errorMessage = '⚖️ Unable to connect to the Law GraphRAG service. Please check your connection and try again.'
-        } else if (errorDetail.includes('timeout') || errorDetail.includes('ETIMEDOUT')) {
-          errorMessage = '⚖️ The Law GraphRAG query timed out. Please try a simpler question or try again later.'
-        } else if (errorDetail.includes('500') || errorDetail.includes('Internal Server')) {
-          errorMessage = '⚖️ The Law GraphRAG service encountered an error. Please try again later.'
-        } else {
-          errorMessage = `⚖️ Law GraphRAG Error: ${errorDetail}`
-        }
-        console.error('Law GraphRAG error details:', errorDetail)
+      const errorDetail = error instanceof Error ? error.message : 'Unknown error'
+      if (errorDetail.includes('fetch') || errorDetail.includes('network') || errorDetail.includes('ECONNREFUSED')) {
+        errorMessage = '🏛️ Impossible de se connecter au service Grand Débat National. Vérifiez votre connexion.'
+      } else if (errorDetail.includes('timeout') || errorDetail.includes('ETIMEDOUT')) {
+        errorMessage = '🏛️ La requête a expiré. Essayez une question plus simple ou réessayez plus tard.'
+      } else if (errorDetail.includes('500') || errorDetail.includes('Internal Server')) {
+        errorMessage = '🏛️ Le service a rencontré une erreur. Veuillez réessayer plus tard.'
       } else {
-        errorMessage = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        errorMessage = `🏛️ Erreur: ${errorDetail}`
       }
+      console.error('Civic GraphRAG error details:', errorDetail)
 
       setQueryAnswer(errorMessage)
       setShowAnswer(true)
@@ -1076,11 +539,11 @@ function BorgesLibrary() {
       setProcessingStartTime(null)
       setCurrentProcessingPhase(null)
     }
-  }, [ragSource, selectedBook, mode, multiBook])
+  }, [mode])
 
   return (
     <div className="min-h-screen bg-borges-dark text-borges-light">
-      {/* Mobile Navigation Menu */}
+      {/* Mobile Navigation Menu - Grand Débat National */}
       <div className={`mobile-nav-menu ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-xl text-borges-light font-semibold">Navigation</h2>
@@ -1095,57 +558,14 @@ function BorgesLibrary() {
           </button>
         </div>
 
-        {/* Mobile RAG Source Selector */}
+        {/* Single-purpose: Grand Débat National only - no source selection */}
         <div className="mobile-nav-item">
           <label className="text-borges-light-muted text-sm mb-2 block">Source de données</label>
-          <RAGSourceSelector
-            value={ragSource}
-            onChange={(source) => {
-              setRagSource(source)
-            }}
-            disabled={isProcessing}
-            className="w-full justify-center"
-          />
-        </div>
-
-        {/* Mobile Book Selector - Only visible when Borges source is selected */}
-        {ragSource === 'borges' && (
-          <div className="mobile-nav-item">
-            <label className="text-borges-light-muted text-sm mb-2 block">Livre sélectionné</label>
-            <select
-              value={selectedBook}
-              onChange={(e) => {
-                setSelectedBook(e.target.value)
-                setIsMobileMenuOpen(false)
-              }}
-              disabled={multiBook || isProcessing}
-              className="borges-input w-full"
-            >
-              {books.map((book) => (
-                <option key={book.id} value={book.id}>
-                  {book.name}
-                </option>
-              ))}
-            </select>
+          <div className="text-borges-light text-sm bg-borges-secondary p-3 rounded-borges-sm">
+            🏛️ Grand Débat National 2019
+            <div className="text-xs text-borges-light-muted mt-1">50 communes · Charente-Maritime</div>
           </div>
-        )}
-
-        {/* Mobile Multi-book Toggle - Only visible when Borges source is selected */}
-        {ragSource === 'borges' && (
-          <button
-            onClick={() => {
-              setMultiBook(!multiBook)
-              setIsMobileMenuOpen(false)
-            }}
-            disabled={isProcessing}
-            className={`mobile-nav-item w-full text-left flex items-center justify-between ${
-              multiBook ? 'text-borges-accent' : ''
-            }`}
-          >
-            <span>📚 Tout le catalogue</span>
-            {multiBook && <span className="text-borges-accent">✓</span>}
-          </button>
-        )}
+        </div>
 
         {/* Mobile Mode Toggle */}
         <div className="mobile-nav-item">
@@ -1157,7 +577,7 @@ function BorgesLibrary() {
                 mode === 'local' ? 'bg-borges-light text-borges-dark' : 'bg-borges-secondary text-borges-light'
               }`}
             >
-              Ascendant
+              Local
             </button>
             <button
               onClick={() => setMode('global')}
@@ -1165,7 +585,7 @@ function BorgesLibrary() {
                 mode === 'global' ? 'bg-borges-light text-borges-dark' : 'bg-borges-secondary text-borges-light'
               }`}
             >
-              Descendant
+              Global
             </button>
           </div>
         </div>
@@ -1194,10 +614,10 @@ function BorgesLibrary() {
           </svg>
           <div className="flex-1 min-w-0">
             <h1 className="text-sm sm:text-lg md:text-display-mobile lg:text-display text-borges-light tracking-wide font-semibold">
-              Le graphe de Borges
+              Grand Débat National
             </h1>
             <p className="text-borges-light-muted mt-1 text-xs md:text-sm italic max-w-2xl hidden md:block">
-              « Tous les livres, quelque divers qu&apos;ils soient, comportent des éléments égaux : l&apos;espace, le point, la virgule, les vingt-deux lettres de l&apos;alphabet. »
+              Explorer les contributions citoyennes des Cahiers de Doléances 2019 · 50 communes de Charente-Maritime
             </p>
           </div>
         </div>
@@ -1211,55 +631,18 @@ function BorgesLibrary() {
             <div className="max-w-6xl mx-auto space-y-2 md:space-y-3">
               {/* Main Search Row - Responsive */}
               <div className="responsive-search">
-                {/* Desktop-only: RAG Source, Book Selector & Multi-Book Toggle */}
+                {/* Desktop-only: Data source indicator (single-purpose) */}
                 <div className="hidden md:flex gap-2 items-center">
-                  {/* RAG Source Selector - Toggle between Borges (literary) and Law GraphRAG (legal) */}
-                  <RAGSourceSelector
-                    value={ragSource}
-                    onChange={setRagSource}
-                    disabled={isProcessing}
-                  />
-
-                  {/* Divider */}
-                  <div className="h-6 w-px bg-borges-border mx-1" />
-
-                  {/* Book Selector - Only visible when Borges source is selected */}
-                  {ragSource === 'borges' && (
-                    <select
-                      value={selectedBook}
-                      onChange={(e) => setSelectedBook(e.target.value)}
-                      disabled={multiBook || isProcessing}
-                      className="borges-input max-w-[200px] disabled:opacity-50"
-                    >
-                      {books.map((book) => (
-                        <option key={book.id} value={book.id}>
-                          {book.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                  {/* Multi-Book Toggle - Only visible when Borges source is selected */}
-                  {ragSource === 'borges' && (
-                    <button
-                      onClick={() => setMultiBook(!multiBook)}
-                      disabled={isProcessing}
-                      className={`borges-btn-secondary text-sm disabled:opacity-50 flex items-center ${
-                        multiBook ? 'border-borges-light text-borges-light' : ''
-                      }`}
-                      title="Interroger tout le catalogue"
-                    >
-                      <span className="mr-1 grayscale">📚</span>
-                      Tout le catalogue
-                    </button>
-                  )}
+                  <div className="text-borges-light text-sm bg-borges-dark px-3 py-2 rounded-borges-sm border border-borges-border">
+                    🏛️ Grand Débat National
+                  </div>
                 </div>
 
                 {/* Search Input - Full width on mobile */}
                 <div className="flex gap-2 flex-1">
                   <input
                     type="text"
-                    placeholder="Posez une question..."
+                    placeholder="Quelles sont les préoccupations des citoyens sur les impôts ?"
                     disabled={isProcessing}
                     id="search-input"
                     className="borges-input flex-1 disabled:opacity-50 text-base"
@@ -1305,14 +688,9 @@ function BorgesLibrary() {
                         ? 'bg-borges-light text-borges-dark'
                         : 'text-borges-light-muted hover:text-borges-light'
                     }`}
-                    title="Du texte vers le livre"
+                    title="Recherche locale par commune"
                   >
-                    <svg className="w-4 h-4 mr-1" viewBox="0 0 16 16" fill="none" stroke="currentColor">
-                      <path d="M1 13h5M1 11h4M1 9h3" strokeWidth="1.5" strokeLinecap="round"/>
-                      <path d="M8 6l2-2" strokeWidth="1.5" strokeLinecap="round"/>
-                      <path d="M11 2v8l3 1.5V3.5L11 2z" strokeWidth="1.5" strokeLinejoin="round"/>
-                    </svg>
-                    Ascendant
+                    Local
                   </button>
                   <button
                     onClick={() => setMode('global')}
@@ -1322,26 +700,17 @@ function BorgesLibrary() {
                         ? 'bg-borges-light text-borges-dark'
                         : 'text-borges-light-muted hover:text-borges-light'
                     }`}
-                    title="Des livres vers le texte"
+                    title="Recherche globale toutes communes"
                   >
-                    <svg className="w-4 h-4 mr-1" viewBox="0 0 16 16" fill="none" stroke="currentColor">
-                      <path d="M1 2v6l2.5 1.25V3.25L1 2z" strokeWidth="1.5" strokeLinejoin="round"/>
-                      <path d="M4.5 2v6l2.5 1.25V3.25L4.5 2z" strokeWidth="1.5" strokeLinejoin="round"/>
-                      <path d="M6 11l2 2" strokeWidth="1.5" strokeLinecap="round"/>
-                      <path d="M10 14h5M10 12h4M10 10h3" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                    Descendant
+                    Global
                   </button>
                 </div>
               </div>
 
               {/* Mobile-only: Current settings indicator */}
               <div className="flex md:hidden items-center justify-between text-xs text-borges-light-muted">
-                <span>{ragSource === 'borges' ? '📚' : '⚖️'} {ragSource === 'borges'
-                  ? (books.find(b => b.id === selectedBook)?.name || selectedBook)
-                  : 'Law GraphRAG'}</span>
-                {ragSource === 'borges' && <span>{mode === 'local' ? '↑ Ascendant' : '↓ Descendant'}</span>}
-                {ragSource === 'borges' && multiBook && <span className="text-borges-accent">📚 Tout</span>}
+                <span>🏛️ Grand Débat National</span>
+                <span>{mode === 'local' ? 'Local' : 'Global'}</span>
               </div>
             </div>
           </div>
@@ -1541,38 +910,37 @@ function BorgesLibrary() {
                   </svg>
 
                   {/* Project concept introduction */}
-                  <h2 className="text-xl font-semibold text-borges-light mb-3 tracking-wide">Le graphe de Borges</h2>
+                  <h2 className="text-xl font-semibold text-borges-light mb-3 tracking-wide">Grand Débat National</h2>
                   <p className="text-borges-light-muted text-sm mb-6 leading-relaxed">
-                    Révéler les connexions invisibles entre des univers littéraires qui ne se parlent jamais.
-                    Inspiré de la <span className="text-borges-light">Bibliothèque de Babel</span> imaginée par Jorge Luis Borges,
-                    ce graphe explore les résonances cachées entre les œuvres — thèmes partagés, échos narratifs,
-                    et correspondances insoupçonnées.
+                    Explorer les contributions citoyennes des Cahiers de Doléances 2019.
+                    Ce graphe de connaissances révèle les thèmes, préoccupations et propositions
+                    exprimés par les citoyens de <span className="text-borges-light">50 communes de Charente-Maritime</span>.
                   </p>
 
                   {/* Loading progress indicator */}
                   {loadingProgress && (
                     <div className="mb-4 text-borges-light text-sm font-medium">
                       {loadingProgress.step === 'nodes' && (
-                        <span>Exploration des galeries hexagonales... {loadingProgress.current}/{loadingProgress.total}</span>
+                        <span>Exploration des contributions... {loadingProgress.current}/{loadingProgress.total}</span>
                       )}
                       {loadingProgress.step === 'relations' && (
-                        <span>Tissage des connexions infinies... {loadingProgress.current}/{loadingProgress.total}</span>
+                        <span>Tissage des connexions civiques... {loadingProgress.current}/{loadingProgress.total}</span>
                       )}
                       {loadingProgress.step === 'building' && (
-                        <span>Cristallisation de la Bibliothèque... {loadingProgress.current} nœuds</span>
+                        <span>Construction du graphe citoyen... {loadingProgress.current} entités</span>
                       )}
                     </div>
                   )}
 
-                  {/* Rotating Borges quote with fade animation */}
+                  {/* Rotating civic quote with fade animation */}
                   <div className="mt-6 border-t border-borges-border pt-6">
                     <div
                       key={currentQuoteIndex}
                       className="text-borges-light-muted text-xs italic max-w-lg mx-auto transition-opacity duration-1000 animate-fade-in"
                     >
-                      {borgesQuotes[currentQuoteIndex]}
+                      {civicQuotes[currentQuoteIndex]}
                     </div>
-                    <div className="text-borges-muted text-xs mt-2">— Jorge Luis Borges, <span className="italic">La Bibliothèque de Babel</span></div>
+                    <div className="text-borges-muted text-xs mt-2">— Grand Débat National 2019</div>
                   </div>
                 </div>
               </div>
@@ -1631,7 +999,7 @@ function BorgesLibrary() {
             <div className="w-12 h-1.5 bg-borges-border rounded-full"></div>
           </div>
           <div className="flex justify-between items-start mb-2 md:mb-3 px-1">
-            <h3 className="text-sm md:text-h3 text-borges-light font-medium">La réponse du GraphRAG</h3>
+            <h3 className="text-sm md:text-h3 text-borges-light font-medium">Réponse citoyenne</h3>
             <button
               onClick={() => setShowAnswer(false)}
               className="borges-btn-ghost text-lg touch-target flex items-center justify-center"
@@ -1699,7 +1067,7 @@ function BorgesLibrary() {
             setEntityChunkData(null)
           }}
           chunkText={entityChunkData.aggregatedChunks}
-          bookId={entityChunkData.bookId}
+          bookId={entityChunkData.communeId}
           entities={coloredEntities.filter(e => e.id === entityChunkData.entityName)}
           relationshipInfo={{
             sourceNode: entityChunkData.entityName,

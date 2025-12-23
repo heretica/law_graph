@@ -1,89 +1,83 @@
-# Tasks: Legal Graph Interface for RAG Observability
+# Tasks: Grand Débat National Civic Knowledge Graph Interface
 
 **Feature**: 003-rag-observability-comparison
 **Input**: Design documents from `/specs/003-rag-observability-comparison/`
-**Scope**: Interface only (User Story 0) - RAG comparison developed elsewhere
+**Scope**: Single-purpose interface for Grand Débat National GraphRAG (Constitution v3.0.0)
 
-**Organization**: Tasks focused on extending 3_borges-interface to support Law GraphRAG API.
+**Organization**: Tasks focused on extending 3_borges-interface for single-purpose civic data exploration.
 
 ## Format: `[ID] [P?] [Story?] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
-- **[US0]**: All tasks belong to User Story 0 (Interface)
+- **[US0]**: User Story 0 (Core Interface)
 - Include exact file paths in descriptions
 
 ## Path Conventions
 
-Based on plan.md, this is a **frontend extension**:
+Based on Constitution v3.0.0, this is a **single-purpose civic interface**:
 
 ```
 3_borges-interface/
 ├── src/
 │   ├── app/api/
-│   │   └── law-graphrag/route.ts     # NEW: API proxy
+│   │   └── law-graphrag/route.ts     # MCP proxy (DONE)
 │   ├── components/
-│   │   ├── BorgesLibrary.tsx         # MODIFY: Add source state
-│   │   ├── QueryInterface.tsx        # MODIFY: Add source toggle
-│   │   └── RAGSourceSelector.tsx     # NEW: Selector component
+│   │   ├── BorgesLibrary.tsx         # SIMPLIFY: Remove source toggle
+│   │   ├── QueryInterface.tsx        # SIMPLIFY: Single source only
+│   │   └── RAGSourceSelector.tsx     # DELETE: No source selection
 │   ├── lib/services/
-│   │   └── law-graphrag.ts           # NEW: API client
+│   │   └── law-graphrag.ts           # DONE: MCP client
 │   └── types/
-│       └── law-graphrag.ts           # NEW: Type definitions
-└── .env.local                        # Add LAW_GRAPHRAG_API_URL
+│       └── law-graphrag.ts           # DONE: Type definitions
+└── .env.local                        # DONE: LAW_GRAPHRAG_API_URL
 ```
 
 ---
 
-## Phase 1: Setup
+## Phase 1: Setup (COMPLETED)
 
 **Purpose**: Environment configuration and type definitions
 
-- [X] T001 Add LAW_GRAPHRAG_API_URL to 3_borges-interface/.env.local with value https://law-graphrag-reconciliation-api.up.railway.app
-- [X] T002 [P] Create type definitions in 3_borges-interface/src/types/law-graphrag.ts with LawGraphRAGQuery, LawGraphRAGResponse, and RAGSource type
-- [X] T003 [P] Add LAW_GRAPHRAG_API_URL to 3_borges-interface/.env.example for documentation
+- [X] T001 Add LAW_GRAPHRAG_API_URL to 3_borges-interface/.env.local
+- [X] T002 [P] Create type definitions in 3_borges-interface/src/types/law-graphrag.ts
+- [X] T003 [P] Add LAW_GRAPHRAG_API_URL to 3_borges-interface/.env.example
 
 ---
 
-## Phase 2: API Layer
+## Phase 2: API Layer (COMPLETED)
 
-**Purpose**: Backend proxy and service client for Law GraphRAG API
+**Purpose**: MCP proxy route for Grand Débat National GraphRAG
 
-- [X] T004 [P] [US0] Create Law GraphRAG API proxy route in 3_borges-interface/src/app/api/law-graphrag/route.ts following existing reconciliation/query/route.ts pattern
-- [X] T005 [P] [US0] Create Law GraphRAG service client in 3_borges-interface/src/lib/services/law-graphrag.ts with query() method returning typed response
+- [X] T004 [P] Create MCP proxy route in 3_borges-interface/src/app/api/law-graphrag/route.ts
+- [X] T005 [P] Create MCP service client in 3_borges-interface/src/lib/services/law-graphrag.ts
 
 ---
 
-## Phase 3: User Story 0 - Explore Legal Graph Data via Interface (Priority: P0)
+## Phase 3: Simplification for Single-Purpose (Constitution v3.0.0) - COMPLETED
 
-**Goal**: Enable users to query legal documents via the Law GraphRAG API and explore results in the 3D graph
+**Purpose**: Remove dual-mode functionality and simplify to single MCP source
 
-**Independent Test**: Load the interface, select "Law GraphRAG" as source, query "Article 1382 Code Civil", verify graph displays legal entities and relationships
+### 3.1 Remove Dual-Mode Components
 
-### 3.1 UI Components
+- [X] T006 [US0] DELETE 3_borges-interface/src/components/RAGSourceSelector.tsx - no source selection needed (Constitution Principle VI)
+- [X] T007 [US0] Remove RAGSourceSelector import and usage from 3_borges-interface/src/components/BorgesLibrary.tsx
+- [X] T008 [US0] Remove ragSource state and setRagSource from BorgesLibrary.tsx - always use Grand Débat MCP
 
-- [X] T006 [US0] Create RAGSourceSelector component in 3_borges-interface/src/components/RAGSourceSelector.tsx with toggle between "Borges" and "Law GraphRAG" sources
-- [X] T007 [US0] Style RAGSourceSelector with Tailwind CSS matching existing minimalist design (Constitution Principle VII)
-- [X] T008 [US0] Add mobile-responsive styling to RAGSourceSelector per Constitution Principle VIII
+### 3.2 Simplify Query Logic
 
-### 3.2 State Integration
+- [X] T009 [US0] Update handleSimpleQuery in BorgesLibrary.tsx to ONLY call Law GraphRAG MCP (remove Borges conditional)
+- [X] T010 [US0] Remove ragSource prop from QueryInterface.tsx if present
+- [X] T011 [US0] Update QueryInterface.tsx to always use lawGraphRAGService (no source branching)
 
-- [X] T009 [US0] Add ragSource state (type RAGSource) to BorgesLibrary.tsx with default "borges"
-- [X] T010 [US0] Add setRagSource prop threading from BorgesLibrary.tsx to QueryInterface.tsx
-- [X] T011 [US0] Render RAGSourceSelector in BorgesLibrary.tsx header area near existing controls
+### 3.3 Update Types
 
-### 3.3 Query Integration
+- [X] T012 [P] [US0] Remove RAGSource type from types/law-graphrag.ts (only one source exists)
+- [X] T013 [P] [US0] Update type exports in 3_borges-interface/src/types/index.ts if needed
 
-- [X] T012 [US0] Modify handleSubmit() in QueryInterface.tsx to route queries based on ragSource state
-- [X] T013 [US0] Import and call lawGraphRAGService.query() when ragSource === "law-graphrag" in QueryInterface.tsx
-- [X] T014 [US0] Transform Law GraphRAG response to match existing QueryResult interface in QueryInterface.tsx
-- [X] T015 [US0] Ensure graph visualization displays Law GraphRAG entities and relationships using existing GraphVisualization3DForce component
+### 3.4 Update UI Text
 
-### 3.4 Error Handling
-
-- [X] T016 [US0] Add error handling for Law GraphRAG API failures in QueryInterface.tsx with user-friendly message
-- [X] T017 [US0] Add loading state indicator when Law GraphRAG query is in progress
-
-**Checkpoint**: User Story 0 complete - users can toggle between Borges and Law GraphRAG backends
+- [X] T014 [US0] Update interface title/branding to reflect "Grand Débat National" civic data focus
+- [X] T015 [US0] Update placeholder text in search input to suggest civic queries
 
 ---
 
@@ -91,10 +85,11 @@ Based on plan.md, this is a **frontend extension**:
 
 **Purpose**: Final improvements and validation
 
-- [ ] T018 Verify graph rendering performance (30fps target) with Law GraphRAG data
-- [ ] T019 Test mobile responsiveness of RAGSourceSelector on iOS/Android
-- [ ] T020 Verify no orphan nodes displayed per Constitution Principle III
-- [ ] T021 Update 3_borges-interface/README.md with Law GraphRAG configuration instructions
+- [ ] T016 Verify graph rendering performance (30fps target) with Grand Débat data
+- [ ] T017 Test mobile responsiveness on iOS/Android
+- [ ] T018 Verify no orphan nodes displayed per Constitution Principle III
+- [ ] T019 Update 3_borges-interface/README.md with Grand Débat configuration
+- [ ] T020 Run TypeScript build to verify no type errors
 
 ---
 
@@ -103,69 +98,58 @@ Based on plan.md, this is a **frontend extension**:
 ### Phase Dependencies
 
 ```
-Phase 1 (Setup)
+Phase 1 (Setup) - DONE
     ↓
-Phase 2 (API Layer)
+Phase 2 (API Layer) - DONE
     ↓
-Phase 3 (User Story 0)
+Phase 3 (Simplification) - IN PROGRESS
     ↓
 Phase 4 (Polish)
 ```
 
 ### Parallel Opportunities
 
-**Phase 1**:
-```
-T002, T003 can run in parallel (after T001)
-```
-
-**Phase 2**:
-```
-T004, T005 can run in parallel
-```
-
 **Phase 3**:
 ```
-T006, T007, T008 (UI) can run in parallel
-Then T009 → T010 → T011 (state)
-Then T012 → T013 → T014 → T015 (query integration)
-Then T016, T017 (error handling) can run in parallel
+T006, T007, T008 must run sequentially (file dependencies)
+T012, T013 can run in parallel with T006-T008
+T014, T015 can run after T006-T011 complete
 ```
 
 ---
 
 ## Implementation Strategy
 
-### Single User Story Delivery
+### Single-Source Architecture (Constitution v3.0.0)
 
-This plan focuses **only on User Story 0** (Interface). All tasks deliver:
-1. RAG source selection capability
-2. Law GraphRAG API integration
-3. Existing graph visualization reuse
+This interface connects ONLY to the Grand Débat National MCP server:
+- **URL**: `https://graphragmcp-production.up.railway.app/mcp`
+- **Protocol**: MCP (Model Context Protocol) over HTTP
+- **Tools**: `grand_debat_query`, `grand_debat_query_all`, `grand_debat_list_communes`
 
 ### Task Count Summary
 
-| Phase | Task Count |
-|-------|------------|
-| Phase 1 (Setup) | 3 |
-| Phase 2 (API Layer) | 2 |
-| Phase 3 (User Story 0) | 12 |
-| Phase 4 (Polish) | 4 |
-| **Total** | **21** |
+| Phase | Task Count | Status |
+|-------|------------|--------|
+| Phase 1 (Setup) | 3 | DONE |
+| Phase 2 (API Layer) | 2 | DONE |
+| Phase 3 (Simplification) | 10 | PENDING |
+| Phase 4 (Polish) | 5 | PENDING |
+| **Total** | **20** | |
 
 ### MVP Definition
 
-Complete Phases 1-3 for functional MVP:
-- User can toggle RAG source
-- Queries route to Law GraphRAG API
+Complete Phases 1-3 for functional single-purpose MVP:
+- User can query Grand Débat National civic data
+- NO source selection (single MCP server)
 - Results display in existing 3D graph
 
 ### Verification Checklist
 
 After implementation, verify:
-- [ ] Law GraphRAG source selectable in UI
-- [ ] Queries to Law GraphRAG return graph data
-- [ ] 3D visualization renders legal entities
+- [ ] NO RAGSourceSelector component exists
+- [ ] Interface connects ONLY to graphragmcp-production
+- [ ] 3D visualization renders civic entities
 - [ ] Mobile-responsive design maintained
 - [ ] No orphan nodes displayed
 - [ ] Error states handled gracefully
@@ -174,8 +158,7 @@ After implementation, verify:
 
 ## Notes
 
-- All tasks belong to User Story 0 (Interface) - marked [US0]
-- RAG comparison/evaluation (US1-US4) developed in law-graphRAG-reconciliation-api repo
-- Reuses existing 3_borges-interface architecture and components
-- Tests not explicitly included (not requested) - add if needed
-- Commit after each task or logical group
+- Constitution v3.0.0 mandates single-purpose interface (Principle VI)
+- All Borges/literary references must be removed
+- The MCP server handles Grand Débat National 2019 "Cahiers de Doléances" data
+- 50 communes in Charente-Maritime, ~8,000+ entities

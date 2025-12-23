@@ -1,181 +1,166 @@
-# Feature Specification: RAG Observability and Comparison for Legal Knowledge Systems
+# Feature Specification: Grand Débat National Civic Knowledge Graph Interface
 
 **Feature Branch**: `003-rag-observability-comparison`
 **Created**: 2025-12-23
 **Updated**: 2025-12-23
 **Status**: Draft
-**Constitution Version**: 2.0.0
-**Input**: User description: "LLM observability solution to compare Dust RAG agent vs Law GraphRAG API, evaluating precision and latency using OPIK heuristic metrics for legal question-answering"
+**Constitution Version**: 3.0.0
+**Input**: Single-purpose interface for exploring citizen contributions from the French Grand Débat National 2019 "Cahiers de Doléances" dataset via GraphRAG MCP server.
 
 ## Constitution Check
 
-*This feature implements **Constitution Principle IX: RAG Observability and Comparison** and supports **Principle I: End-to-End Interpretability** and **Principle II: Legal Provenance Chain**.*
+*This feature implements the **Grand Débat National GraphRAG Constitution v3.0.0** - a single-purpose civic knowledge graph interface.*
 
 | Principle | Compliance | Notes |
 |-----------|------------|-------|
-| I. End-to-End Interpretability | Supports | Observability enables tracing from query → retrieval → generation |
-| II. Legal Provenance Chain | Supports | Metrics validate citation accuracy in RAG responses |
-| III. No Orphan Nodes | Applies | Interface graph visualization must filter orphan nodes |
-| IV. Legal Document-Centric | Supports | Evaluation dataset contains legal document queries |
-| V. Cross-Document Analysis | N/A | Feature focuses on RAG comparison, not graph traversal |
-| VI. Extensible Legal Corpus | N/A | Feature does not modify document ingestion |
-| VII. Functional Legal Interface | Applies | Interface must follow minimalist design principles |
-| VIII. Mobile-First | Applies | Interface must be responsive on mobile devices |
-| IX. RAG Observability | **Primary** | This feature directly implements Principle IX |
+| I. End-to-End Interpretability | **Primary** | Users trace from text chunks → entities → RAG answers |
+| II. Civic Provenance Chain | **Primary** | All data traceable to source commune and citizen text |
+| III. No Orphan Nodes | Applies | Graph visualization filters orphan nodes |
+| IV. Commune-Centric Architecture | **Primary** | Communes are organizational units for all queries |
+| V. Cross-Commune Civic Analysis | Supports | Multi-commune query aggregation enabled |
+| VI. Single-Source Civic Data | **Enforced** | NO source selection - single MCP server only |
+| VII. Functional Civic Interface | Applies | Minimalist design focused on content |
+| VIII. Mobile-First Responsiveness | Applies | Touch-optimized, responsive layout |
+| IX. RAG Observability | Supports | Query tracing and provenance visibility |
 
 ---
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 0 - Explore Legal Graph Data via Interface (Priority: P0)
+### User Story 0 - Explore Grand Débat Citizen Contributions (Priority: P0)
 
-A legal researcher wants to explore the raw legal knowledge graph data through an interactive interface, similar to the Borges Library graph interface, allowing them to query legal documents, view entities and relationships, and understand the underlying data before running RAG comparisons.
+A researcher, journalist, or citizen wants to explore the Grand Débat National 2019 "Cahiers de Doléances" from 50 communes in Charente-Maritime through an interactive knowledge graph interface, allowing them to query citizen contributions, view extracted entities and relationships, and understand civic concerns expressed by citizens.
 
-**Why this priority**: This is the foundational interface that enables all other features. Without the ability to query and explore the raw legal data, users cannot verify RAG results against source documents or understand the knowledge graph structure. This directly implements Constitution Principle I (End-to-End Interpretability).
+**Why this priority**: This is the foundational interface for civic data exploration. Users need to query and explore citizen contributions to understand the themes, concerns, and proposals from the Grand Débat National. This directly implements Constitution Principles I (End-to-End Interpretability) and II (Civic Provenance Chain).
 
-**Independent Test**: Can be fully tested by loading the interface, querying for a legal document, and navigating through the graph to view entities and relationships.
+**Data Source**: Single MCP server at `https://graphragmcp-production.up.railway.app/mcp`
+
+**Independent Test**: Load the interface, query "What do citizens say about taxes?", verify the graph displays civic entities with commune attribution and source quotes.
 
 **Acceptance Scenarios**:
 
-1. **Given** the interface is loaded, **When** the user enters a legal query (e.g., "Article 1382 Code Civil"), **Then** the system displays relevant legal entities and their relationships in the 3D graph
-2. **Given** the legal graph is displayed, **When** the user clicks on a legal document node, **Then** they see the document details including source text, articles, and related entities
-3. **Given** the user is exploring the graph, **When** they navigate to connected entities, **Then** they can trace the provenance chain from RAG answers back to source legal documents (per Constitution Principle I)
-4. **Given** the interface supports both Dust and Law GraphRAG backends, **When** the user queries through the interface, **Then** they can choose which RAG system to use for answering
+1. **Given** the interface is loaded, **When** the user enters a civic query (e.g., "What are the main concerns about public services?"), **Then** the system displays relevant civic entities and their relationships in the 3D graph
+2. **Given** the civic graph is displayed, **When** the user clicks on an entity node, **Then** they see entity details including source quotes and commune attribution
+3. **Given** the user is exploring the graph, **When** they navigate to connected entities, **Then** they can trace the provenance chain from RAG answers back to original citizen contributions (per Constitution Principle I)
+4. **Given** a query returns results, **When** the user views source quotes, **Then** each quote shows which commune contributed it (per Constitution Principle II)
+5. **Given** the graph visualization renders, **When** nodes are displayed, **Then** no orphan nodes (nodes without relationships) appear (per Constitution Principle III)
 
 ---
 
-### User Story 1 - Run Comparative Legal RAG Evaluation (Priority: P1)
+### User Story 1 - Query Specific Commune Contributions (Priority: P1)
 
-A legal technology researcher wants to objectively compare two RAG approaches (Dust agent and Law GraphRAG) on the same legal questions to determine which system provides more accurate and faster responses for legal knowledge retrieval.
+A user wants to explore citizen contributions from a specific commune to understand local concerns and compare them with regional patterns.
 
-**Why this priority**: This is the core value proposition - without the ability to run comparison experiments, the entire observability solution has no purpose. Per Constitution Principle IX, "different RAG configurations MUST be comparable side-by-side."
+**Why this priority**: Commune-level exploration is central to the Constitution Principle IV (Commune-Centric Architecture). Users need to filter by commune to understand local vs regional perspectives.
 
-**Independent Test**: Can be fully tested by running an experiment against the "civic-law-eval" dataset and viewing results in the OPIK dashboard. Delivers immediate value by showing which RAG system performs better on legal queries.
+**Independent Test**: Select a commune from the list, query about local concerns, verify results are scoped to that commune.
 
 **Acceptance Scenarios**:
 
-1. **Given** the "civic-law-eval" dataset exists in OPIK project "law_graphRAG", **When** the user triggers a comparison experiment, **Then** both Dust and Law GraphRAG are queried with each legal question from the dataset
-2. **Given** an experiment is running, **When** both systems respond to a legal question, **Then** response time (latency) is recorded for each system per Principle IX requirement
-3. **Given** responses are collected, **When** the experiment completes, **Then** heuristic metrics (Contains, Equals, RegexMatch for legal citations) are computed against expected answers
-4. **Given** a RAG response contains legal citations, **When** metrics are computed, **Then** citation accuracy is verified against the source legal documents (supporting Principle II)
+1. **Given** the commune list is displayed, **When** the user selects "Rochefort", **Then** subsequent queries are scoped to that commune's citizen contributions
+2. **Given** a commune is selected, **When** the user queries "What are local priorities?", **Then** results only include entities and quotes from that commune
+3. **Given** commune-scoped results are displayed, **When** the user views the graph, **Then** entities show the commune attribution clearly
 
 ---
 
-### User Story 2 - View Legal RAG Experiment Results in Dashboard (Priority: P2)
+### User Story 2 - Cross-Commune Thematic Analysis (Priority: P1)
 
-After running experiments, the user wants to analyze results visually in the OPIK dashboard to understand performance differences between the two legal RAG systems.
+A researcher wants to query across all 50 communes to identify regional patterns and common themes in citizen contributions.
 
-**Why this priority**: Visualization is essential for interpreting results, but requires experiments to run first (P1). Per Constitution Principle IX, "dashboard MUST visualize: query latency distribution, retrieval accuracy, answer quality metrics."
+**Why this priority**: Constitution Principle V (Cross-Commune Civic Analysis) emphasizes that the unique value lies in comparing citizen voices across communes.
 
-**Independent Test**: Can be tested by viewing the OPIK dashboard after an experiment completes, verifying that metrics, latency data, and comparison charts are displayed.
+**Independent Test**: Run a query without commune filter, verify results aggregate from multiple communes with per-commune attribution.
 
 **Acceptance Scenarios**:
 
-1. **Given** an experiment has completed, **When** the user opens the OPIK dashboard, **Then** they see experiment results organized by system (Dust vs Law GraphRAG)
-2. **Given** experiment results are displayed, **When** the user inspects a specific legal question, **Then** they see both responses side-by-side with their respective metrics
-3. **Given** multiple experiments exist, **When** the user compares experiments, **Then** they can track performance trends over time (supporting Principle IX: "Historical data MUST be retained for trend analysis")
-4. **Given** a legal question about statute interpretation, **When** the user views results, **Then** they can verify which system provided correct legal citations
+1. **Given** no commune filter is selected, **When** the user queries "What do citizens say about transportation?", **Then** results aggregate contributions from multiple communes
+2. **Given** cross-commune results are displayed, **When** the user views the response, **Then** they see which communes contributed to the answer
+3. **Given** aggregated results include source quotes, **When** the user inspects quotes, **Then** each quote shows its source commune
 
 ---
 
-### User Story 3 - Configure Legal Evaluation Metrics (Priority: P3)
+### User Story 3 - Explore Thematic Communities (Priority: P2)
 
-A user wants to customize which heuristic metrics are used for evaluation to focus on aspects most relevant to legal question-answering, including citation accuracy and legal terminology precision.
+A user wants to explore the thematic community structure identified by the GraphRAG system to understand how civic concerns cluster together.
 
-**Why this priority**: Metric customization enhances flexibility but the default metrics (Contains) already provide baseline evaluation.
+**Why this priority**: Community reports provide high-level synthesis of civic themes, supporting the interpretability goals of Constitution Principle I.
 
-**Independent Test**: Can be tested by modifying metric configuration and verifying that subsequent experiments use the new metrics.
-
-**Acceptance Scenarios**:
-
-1. **Given** the system supports multiple heuristic metrics, **When** the user configures a custom metric set, **Then** experiments use only the configured metrics
-2. **Given** "Contains" is the default metric, **When** the user adds "RegexMatch" for legal citation detection (e.g., "Article [0-9]+"), **Then** both metrics appear in experiment results
-3. **Given** legal responses require citation verification, **When** the user enables citation accuracy metrics, **Then** the system validates that cited articles exist in the legal corpus
-
----
-
-### User Story 4 - Enable LLM-as-Judge for Semantic Precision (Priority: P2.5)
-
-A legal researcher wants to go beyond keyword matching and have an external language model evaluate whether the RAG response actually answers the legal question correctly, considering legal reasoning quality.
-
-**Why this priority**: Heuristic metrics catch surface-level matches, but legal precision requires semantic understanding. An LLM judge can evaluate if the legal reasoning is sound even when phrasing differs from the expected answer.
-
-**Independent Test**: Can be tested by enabling the LLM-as-judge metric and verifying that it provides a precision score (0-1) with reasoning for each response.
+**Independent Test**: Request community reports, verify they show thematic clusters with member entities.
 
 **Acceptance Scenarios**:
 
-1. **Given** LLM-as-judge is enabled in the experiment configuration, **When** a RAG response is evaluated, **Then** the judge model scores the answer's precision on a 0-1 scale with written reasoning
-2. **Given** a response is semantically correct but uses different wording than expected, **When** the LLM judge evaluates it, **Then** it should score highly for precision despite heuristic metrics failing
-3. **Given** a response contains factually incorrect legal information, **When** the LLM judge evaluates it, **Then** it should score low and explain the legal inaccuracy in its reasoning
-4. **Given** the LLM judge API is unavailable, **When** an experiment runs, **Then** the system logs the failure and continues with heuristic metrics only
+1. **Given** the user requests community analysis, **When** the system retrieves community reports, **Then** thematic clusters are displayed with descriptions
+2. **Given** a community is selected, **When** the user explores it, **Then** they see member entities and their relationships
+3. **Given** community data is displayed, **When** entities are shown, **Then** each entity links back to source quotes and communes
 
 ---
 
 ### Edge Cases
 
-- What happens when Dust API is unavailable or rate-limited? → System records the failure, continues with Law GraphRAG, marks Dust responses as "unavailable"
-- What happens when Law GraphRAG API times out? → System records timeout with latency value, marks response as "timeout" (per Principle IX: observability trace still generated)
-- What happens when a legal question in the dataset has no expected answer? → System logs a warning and skips metric computation for that question
-- What happens when OPIK API quota is exceeded? → System queues results locally and retries when quota resets
-- What happens when a RAG response cites a non-existent legal article? → System flags citation as "unverified" in metrics (supporting Principle II compliance)
-- What happens when the LLM judge API fails mid-experiment? → System logs the error, marks LLM precision score as "unavailable" for affected questions, and continues with heuristic metrics
-- What happens when the LLM judge returns an ambiguous score? → System accepts scores between 0-1, logs the reasoning, and flags edge cases (scores near 0.5) for human review
+- What happens when the MCP server is unavailable? → System displays a clear error message with connection status
+- What happens when a query returns no results? → System suggests alternative queries or broader search terms
+- What happens when a commune has very few contributions? → System displays available data with a note about limited coverage
+- What happens when graph visualization has too many nodes? → System applies progressive loading and allows filtering
+- What happens when source quotes are unavailable for an entity? → Entity is still displayed but marked with "no source available"
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-**Interface Requirements (User Story 0)**:
-- **FR-000a**: System MUST provide a web-based interface for exploring the legal knowledge graph, reusing the existing 3_borges-interface architecture
-- **FR-000b**: Interface MUST support querying legal documents and displaying results in a 3D graph visualization
-- **FR-000c**: Interface MUST allow users to click on nodes to view legal document details and source text
-- **FR-000d**: Interface MUST enable navigation through the graph to trace provenance chains
-- **FR-000e**: Interface MUST support selecting between Dust and Law GraphRAG backends for queries
+**Interface Requirements (Core)**:
+- **FR-001**: System MUST provide a web-based interface for exploring the Grand Débat National civic knowledge graph
+- **FR-002**: Interface MUST connect EXCLUSIVELY to the single MCP server at `https://graphragmcp-production.up.railway.app/mcp`
+- **FR-003**: Interface MUST NOT provide any source selection or toggle functionality (Constitution Principle VI)
+- **FR-004**: Interface MUST display query results in a 3D graph visualization
+- **FR-005**: Interface MUST allow users to click on entity nodes to view details and source quotes
 
-**Experiment Requirements (User Stories 1-4)**:
-- **FR-001**: System MUST connect to the OPIK project "law_graphRAG" using the provided API key
-- **FR-002**: System MUST load evaluation questions from the "civic-law-eval" dataset in OPIK
-- **FR-003**: System MUST call the Dust agent (ID: beTfWHdTC6) via Dust Conversations API for each legal evaluation question
-- **FR-004**: System MUST call the Law GraphRAG API endpoint `/query` at `https://law-graphrag-reconciliation-api.up.railway.app` for each legal evaluation question
-- **FR-005**: System MUST measure response latency (time from request to response) for both systems per Constitution Principle IX
-- **FR-006**: System MUST compute heuristic metrics (at minimum: Contains, RegexMatch for legal citations) comparing responses to expected answers
-- **FR-006b**: System MUST support an LLM-as-judge metric using an external language model to evaluate answer precision semantically, scoring how well the response addresses the legal question beyond keyword matching
-- **FR-007**: System MUST log all experiment results to OPIK with system identifier (Dust vs Law GraphRAG)
-- **FR-008**: System MUST handle API failures gracefully without crashing the entire experiment
-- **FR-009**: System MUST support parallel execution of Dust and Law GraphRAG queries for the same question to ensure fair latency comparison
-- **FR-010**: System MUST provide a mechanism to trigger experiments programmatically
-- **FR-011**: System MUST generate observability traces for every query including retrieval and generation timing (per Constitution Principle IX)
-- **FR-012**: System MUST retain historical experiment data for trend analysis (per Constitution Principle IX)
+**Commune-Centric Requirements (Constitution Principle IV)**:
+- **FR-010**: System MUST support listing all 50 communes with statistics via `grand_debat_list_communes` tool
+- **FR-011**: System MUST support single-commune queries via `grand_debat_query` tool
+- **FR-012**: System MUST support cross-commune queries via `grand_debat_query_all` tool
+- **FR-013**: All query results MUST include commune attribution for entities and quotes
+
+**Provenance Requirements (Constitution Principle II)**:
+- **FR-020**: Every entity displayed MUST show its source commune
+- **FR-021**: Every source quote MUST include commune attribution
+- **FR-022**: RAG answers MUST include provenance data linking to source material
+
+**Graph Visualization Requirements (Constitution Principle III)**:
+- **FR-030**: Graph visualization MUST filter out orphan nodes (nodes with zero relationships)
+- **FR-031**: Graph visualization MUST maintain at least 30fps for up to 500 nodes
+- **FR-032**: Nodes MUST be visually spaced to show relationships clearly
+
+**Responsiveness Requirements (Constitution Principle VIII)**:
+- **FR-040**: Interface MUST be fully functional on mobile devices (320px to desktop)
+- **FR-041**: Touch interactions MUST be supported: tap (select), pinch (zoom), drag (pan)
+- **FR-042**: Touch targets MUST be at least 44x44 pixels
 
 ### Key Entities
 
-- **Experiment**: A complete evaluation run comparing both legal RAG systems across the entire dataset. Contains metadata (timestamp, configuration) and aggregated metrics.
-- **LegalEvaluationQuestion**: A question from the "civic-law-eval" dataset, containing the query text about legal matters (statutes, jurisprudence, doctrine) and expected answer(s).
-- **SystemResponse**: The response from either Dust or Law GraphRAG, including the answer text, latency, legal citations mentioned, and any error information.
-- **MetricResult**: The computed heuristic metric for a response, including metric name, score, and reasoning.
-- **LLMJudgeResult**: The semantic precision evaluation from the LLM judge, including a 0-1 precision score, written reasoning explaining the score, and any flagged issues with the response.
-- **ObservabilityTrace**: Per-query trace capturing retrieval stage timing, generation stage timing, documents retrieved, and confidence scores (per Constitution Principle IX).
+- **Commune**: A municipality in Charente-Maritime that contributed citizen texts. Contains id, name, entity count, contribution count.
+- **CivicEntity**: An extracted concept from citizen contributions (theme, actor, proposal, concern). Contains name, type, description, source commune, source quotes.
+- **Relationship**: A connection between two civic entities showing how concepts relate.
+- **SourceQuote**: Original text from a citizen contribution with commune attribution.
+- **Community**: A thematic cluster of related entities identified by the GraphRAG system.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Users can run a complete comparison experiment in under 10 minutes for a 50-question legal dataset
-- **SC-002**: System achieves 95% or higher success rate in obtaining responses from both legal RAG systems
-- **SC-003**: Latency measurements are accurate to within 50 milliseconds
-- **SC-004**: All experiment results are visible in OPIK dashboard within 1 minute of experiment completion
-- **SC-005**: Users can determine which RAG system has better precision for legal questions based on heuristic scores
-- **SC-006**: Users can trace any legal question through the complete RAG pipeline (query → retrieval → generation) per Constitution Principle I
-- **SC-007**: Historical experiment data is retained and queryable for at least 90 days per Constitution Principle IX
-- **SC-008**: When LLM-as-judge is enabled, 90% or more of responses receive a precision score with reasoning within the experiment timeframe
+- **SC-001**: Users can query and receive civic data results within 3 seconds
+- **SC-002**: All displayed entities include commune attribution (100% provenance)
+- **SC-003**: Graph visualization renders at 30fps with up to 500 nodes
+- **SC-004**: No orphan nodes appear in the visualization (0% orphan rate)
+- **SC-005**: Interface is fully functional on mobile devices (320px minimum width)
+- **SC-006**: Users can trace any answer back to source citizen quotes
+- **SC-007**: MCP connection health is visible to users
+- **SC-008**: Cross-commune queries return results from at least 3 communes when data exists
 
 ## Assumptions
 
-- The Dust workspace ID can be derived from the API key or is a known constant for this project
-- The "civic-law-eval" dataset is already populated in OPIK with legal questions and expected answers covering statutes, jurisprudence, and doctrine
-- The Law GraphRAG API at `https://law-graphrag-reconciliation-api.up.railway.app/query` is accessible and operational
-- OPIK SDK (opik Python package) is available for experiment logging
-- Network latency to external APIs is consistent enough for fair comparison (both APIs called in parallel)
-- Legal questions in the evaluation dataset follow the legal document hierarchy (laws, articles, jurisprudence, doctrine) per Constitution Principle IV
-- An external LLM API is available for the judge metric (configured via environment variable)
-- The LLM judge evaluation adds approximately 2-5 seconds per response to the experiment time
+- The MCP server at `https://graphragmcp-production.up.railway.app/mcp` is operational and accessible
+- The Grand Débat National dataset covers 50 communes in Charente-Maritime with ~8,000+ entities
+- The MCP protocol follows the 2024-11-05 specification with JSON-RPC over HTTP
+- Session management is handled by the MCP server via `mcp-session-id` header
+- The dataset is the "Cahiers de Doléances" from Grand Débat National 2019
+- Available MCP tools: `grand_debat_list_communes`, `grand_debat_query`, `grand_debat_query_all`, `grand_debat_search_entities`, `grand_debat_get_communities`, `grand_debat_get_contributions`

@@ -1,42 +1,36 @@
 /**
- * TypeScript types for Law GraphRAG integration
+ * TypeScript types for Grand Débat National GraphRAG integration
  * Feature: 003-rag-observability-comparison
+ * Constitution: v3.0.0 (Single-purpose civic interface)
  *
- * Enables querying legal knowledge graph via the Law GraphRAG API
- * at https://law-graphrag-reconciliation-api.up.railway.app
+ * Connects to MCP server at https://graphragmcp-production.up.railway.app
+ * Dataset: Cahiers de Doléances 2019 - 50 communes in Charente-Maritime
  */
 
 /**
- * Available RAG sources for the interface
- * - 'borges': Original Borges Library (literary GraphRAG)
- * - 'law-graphrag': Law GraphRAG (legal knowledge graph)
- */
-export type RAGSource = 'borges' | 'law-graphrag';
-
-/**
- * Query request to the Law GraphRAG API
+ * Query request to the Grand Débat National MCP API
  */
 export interface LawGraphRAGQuery {
   query: string;
   mode?: 'local' | 'global';
-  /** Optional: Filter by specific legal document ID */
-  document_id?: string;
+  /** Optional: Filter by specific commune ID */
+  commune_id?: string;
 }
 
 /**
- * Legal entity extracted from the knowledge graph
+ * Civic entity extracted from the knowledge graph
+ * Represents themes, actors, proposals, and concepts from citizen contributions
  */
 export interface LegalEntity {
   id: string;
   name: string;
-  type: 'law' | 'article' | 'jurisprudence' | 'doctrine' | 'concept' | 'entity';
+  type: 'theme' | 'actor' | 'proposal' | 'concept' | 'entity';
   description?: string;
-  source_document?: string;
-  citation?: string;
+  source_commune?: string;
 }
 
 /**
- * Relationship between legal entities
+ * Relationship between civic entities
  */
 export interface LegalRelationship {
   id: string;
@@ -48,15 +42,17 @@ export interface LegalRelationship {
 }
 
 /**
- * Source chunk from a legal document
+ * Source chunk from a citizen contribution
+ * Constitution Principle II: Civic Provenance Chain
  */
 export interface LegalSourceChunk {
   chunk_id: string;
   content: string;
+  /** Commune that contributed this text */
   document_id: string;
   document_title: string;
-  article_number?: string;
-  section?: string;
+  /** Commune name for display */
+  commune?: string;
 }
 
 /**
@@ -81,7 +77,8 @@ export interface LawGraphRAGGraphData {
 }
 
 /**
- * Response from the Law GraphRAG API /query endpoint
+ * Response from the Grand Débat National MCP API
+ * Constitution Principle I: End-to-End Interpretability
  */
 export interface LawGraphRAGResponse {
   success: boolean;
@@ -108,7 +105,7 @@ export interface LawGraphRAGResponse {
 }
 
 /**
- * Error response from the Law GraphRAG API
+ * Error response from the Grand Débat National API
  */
 export interface LawGraphRAGError {
   error: string;
@@ -118,5 +115,8 @@ export interface LawGraphRAGError {
 
 /**
  * Constitutional Principle I: End-to-end interpretability
- * LawGraphRAGResponse enables navigation from answer → entities → chunks → legal documents
+ * LawGraphRAGResponse enables navigation from answer → entities → chunks → citizen contributions
+ *
+ * Constitutional Principle II: Civic Provenance Chain
+ * Every entity is traceable to its source commune and original citizen text
  */
