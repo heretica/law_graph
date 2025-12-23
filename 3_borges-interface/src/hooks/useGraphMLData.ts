@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GraphMLDocument, ValidationResult } from '@/types/graphml';
 import { parseGraphML, validateGraphML, filterOrphanNodes } from '@/lib/utils/graphml-parser';
 
@@ -40,6 +40,17 @@ export function useGraphMLData(options: UseGraphMLDataOptions = {}): UseGraphMLD
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Use refs for callbacks to avoid dependency issues causing infinite reloads
+  const onLoadRef = useRef(onLoad);
+  const onErrorRef = useRef(onError);
+  const hasLoadedRef = useRef(false);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onLoadRef.current = onLoad;
+    onErrorRef.current = onError;
+  }, [onLoad, onError]);
 
   const loadGraphML = useCallback(async () => {
     setIsLoading(true);
@@ -84,19 +95,23 @@ export function useGraphMLData(options: UseGraphMLDataOptions = {}): UseGraphMLD
       console.log(`⏱️ GraphML loaded in ${loadTime.toFixed(0)}ms`);
 
       setDocument(parsedDoc);
-      onLoad?.(parsedDoc);
+      onLoadRef.current?.(parsedDoc);
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       console.error('❌ Failed to load GraphML:', error);
       setError(error);
-      onError?.(error);
+      onErrorRef.current?.(error);
     } finally {
       setIsLoading(false);
     }
-  }, [url, filterOrphans, onLoad, onError]);
+  }, [url, filterOrphans]);
 
+  // Only load once on mount (or when url/filterOrphans change)
   useEffect(() => {
-    loadGraphML();
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      loadGraphML();
+    }
   }, [loadGraphML]);
 
   return {
