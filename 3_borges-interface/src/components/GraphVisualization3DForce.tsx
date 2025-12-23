@@ -515,9 +515,9 @@ export default function GraphVisualization3DForce({
         }
       }
 
-      // Continue until all nodes are added, then process links
+      // Continue until all nodes are added, then process all links (no hardcoded limit)
       const shouldContinue = currentNodeIndex < nodes.length ||
-                           (currentNodeIndex >= nodes.length && processedLinkIndex < Math.min(validLinks.length, 200))
+                           (currentNodeIndex >= nodes.length && processedLinkIndex < validLinks.length)
 
       if (shouldContinue) {
         setTimeout(addBatch, 250) // Add next batch after 250ms
@@ -631,12 +631,16 @@ export default function GraphVisualization3DForce({
           degree: node.degree // Preserve degree for sorting
         }
       })
-      // Limit to top 1000 nodes by degree (connected importance)
+      // Sort by degree (importance by connections)
       .sort((a, b) => (b.degree || 0) - (a.degree || 0))
-      .slice(0, 1000)
+
+    // For GraphRAG query results (debugInfo present), show ALL nodes
+    // For initial GraphML loads (no debugInfo), limit to 1000 for performance
+    const displayNodes = debugInfo ? nodes : nodes.slice(0, 1000)
+    console.log(`📊 Node limit applied: ${displayNodes.length}/${nodes.length} nodes displayed (debugInfo: ${!!debugInfo})`)
 
     // Create a Set of final valid node IDs for link filtering
-    const finalValidNodeIds = new Set(nodes.map(n => n.id))
+    const finalValidNodeIds = new Set(displayNodes.map(n => n.id))
 
     console.log(`🔍 Final connected nodes (zero orphans):`, Array.from(finalValidNodeIds).slice(0, 5), `(showing first 5 of ${finalValidNodeIds.size})`)
 
@@ -649,16 +653,17 @@ export default function GraphVisualization3DForce({
       return isValid
     })
 
-    console.log(`🔗 Connected Subgraph guaranteed: ${links.length}/${allValidLinks.length} links connect ${nodes.length} nodes (all nodes have ≥1 relation)`)
+    console.log(`🔗 Connected Subgraph guaranteed: ${links.length}/${allValidLinks.length} links connect ${displayNodes.length} nodes (all nodes have ≥1 relation)`)
 
     console.log(`🔍 Final processing results:`)
-    console.log(`  • Final nodes to render: ${nodes.length}`)
+    console.log(`  • Nodes available: ${nodes.length}`)
+    console.log(`  • Final nodes to render: ${displayNodes.length}`)
     console.log(`  • Final links to render: ${links.length}`)
-    console.log(`  • Sample nodes:`, nodes.slice(0, 3).map(n => ({ id: n.id, name: n.name, color: n.color })))
+    console.log(`  • Sample nodes:`, displayNodes.slice(0, 3).map(n => ({ id: n.id, name: n.name, color: n.color })))
     console.log(`  • Sample links:`, links.slice(0, 3).map(l => ({ source: l.source, target: l.target, type: l.type })))
 
     // Only proceed if we have valid data to display
-    if (nodes.length === 0 && links.length === 0) {
+    if (displayNodes.length === 0 && links.length === 0) {
       console.warn('⚠️ No valid nodes or links found, keeping existing graph')
       return
     }
@@ -667,7 +672,7 @@ export default function GraphVisualization3DForce({
     if (debugInfo) {
       console.log('🎬 Starting progressive GraphRAG loading...')
       // Only clear the graph if we have data to replace it with
-      if (nodes.length > 0) {
+      if (displayNodes.length > 0) {
         try {
           console.log('🧹 Clearing graph data for progressive loading...')
           graphRef.current.graphData({ nodes: [], links: [] })
@@ -677,10 +682,10 @@ export default function GraphVisualization3DForce({
 
         // Add nodes progressively
         console.log('📈 Starting progressive node/link addition...')
-        addNodesProgressively(nodes, links, () => {
+        addNodesProgressively(displayNodes, links, () => {
           console.log('✅ Progressive loading completed')
           if (onNodeVisibilityChange) {
-            onNodeVisibilityChange(nodes.map(n => n.id))
+            onNodeVisibilityChange(displayNodes.map(n => n.id))
           }
         })
       }
@@ -690,7 +695,7 @@ export default function GraphVisualization3DForce({
       // Show complete graph immediately
       try {
         console.log('🎯 Setting graph data immediately...')
-        graphRef.current.graphData({ nodes, links })
+        graphRef.current.graphData({ nodes: displayNodes, links })
         console.log('✅ Graph data set successfully!')
       } catch (error) {
         console.error('❌ Error loading complete graph:', error)
@@ -698,7 +703,7 @@ export default function GraphVisualization3DForce({
       }
 
       if (onNodeVisibilityChange) {
-        onNodeVisibilityChange(nodes.map(n => n.id))
+        onNodeVisibilityChange(displayNodes.map(n => n.id))
       }
     }
 
