@@ -841,38 +841,41 @@ export default function GraphVisualization3DForce({
 
       {/* Legend - Expandable on mobile, hidden when side panel is open */}
       {reconciliationData && !isLoading && !sidePanelOpen && (
-        <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-borges-secondary border border-borges-border p-2 md:p-3 rounded-borges-md text-xs">
+        <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-borges-secondary border border-borges-border p-2 md:p-3 rounded-borges-md text-xs max-w-sm">
           {/* Desktop: Full legend */}
           <div className="hidden md:block">
-            <div className="font-medium text-borges-light mb-2">Legend</div>
-            <div className="space-y-1">
-              <div className="flex items-center">
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff4757' }}></div>
-                <span className="text-borges-light-muted">Personnes</span>
+            <div className="font-medium text-borges-light mb-2">Légende</div>
+            {/* Entity Types */}
+            <div className="mb-3">
+              <div className="text-borges-light-muted text-xs font-medium mb-1">Entités</div>
+              <div className="space-y-1">
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffd700' }}></div>
+                  <span className="text-borges-light-muted">Communes</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#7bed9f' }}></div>
+                  <span className="text-borges-light-muted">Concepts</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff4757' }}></div>
+                  <span className="text-borges-light-muted">Personnes</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff69b4' }}></div>
+                  <span className="text-borges-light-muted">Communautés</span>
+                </div>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#00d2d3' }}></div>
-                <span className="text-borges-light-muted">Lieux</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#5352ed' }}></div>
-                <span className="text-borges-light-muted">Événements</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#7bed9f' }}></div>
-                <span className="text-borges-light-muted">Concepts</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffa502' }}></div>
-                <span className="text-borges-light-muted">Organisations</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffd700' }}></div>
-                <span className="text-borges-light-muted">Livres</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff69b4' }}></div>
-                <span className="text-borges-light-muted">Communautés</span>
+            </div>
+            {/* Relationship Types */}
+            <div className="border-t border-borges-border pt-2">
+              <div className="text-borges-light-muted text-xs font-medium mb-1">Relations</div>
+              <div className="space-y-1 text-borges-light-muted text-xs">
+                <div>→ CONCERNS</div>
+                <div>→ RELATED_TO</div>
+                <div>→ MENTIONS</div>
+                <div>→ SIMILAR_TO</div>
+                <div>→ CONTAINS</div>
               </div>
             </div>
           </div>
@@ -883,39 +886,42 @@ export default function GraphVisualization3DForce({
           >
             {isLegendExpanded ? (
               /* Expanded: Full legend with labels */
-              <div>
+              <div className="space-y-2">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-medium text-borges-light">Légende</span>
                   <span className="text-borges-muted text-xs">▲</span>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff4757' }}></div>
-                    <span className="text-borges-light-muted">Personnes</span>
+                {/* Entity Types */}
+                <div>
+                  <div className="text-borges-light-muted text-xs font-medium mb-1">Entités</div>
+                  <div className="space-y-1">
+                    <div className="flex items-center">
+                      <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: '#ffd700' }}></div>
+                      <span className="text-borges-light-muted">Communes</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: '#7bed9f' }}></div>
+                      <span className="text-borges-light-muted">Concepts</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: '#ff4757' }}></div>
+                      <span className="text-borges-light-muted">Personnes</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: '#ff69b4' }}></div>
+                      <span className="text-borges-light-muted">Communautés</span>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#00d2d3' }}></div>
-                    <span className="text-borges-light-muted">Lieux</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#5352ed' }}></div>
-                    <span className="text-borges-light-muted">Événements</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#7bed9f' }}></div>
-                    <span className="text-borges-light-muted">Concepts</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffa502' }}></div>
-                    <span className="text-borges-light-muted">Organisations</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffd700' }}></div>
-                    <span className="text-borges-light-muted">Livres</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff69b4' }}></div>
-                    <span className="text-borges-light-muted">Communautés</span>
+                </div>
+                {/* Relationship Types */}
+                <div className="border-t border-borges-border pt-2">
+                  <div className="text-borges-light-muted text-xs font-medium mb-1">Relations</div>
+                  <div className="space-y-0.5 text-borges-light-muted text-xs">
+                    <div>→ CONCERNS</div>
+                    <div>→ RELATED_TO</div>
+                    <div>→ MENTIONS</div>
+                    <div>→ SIMILAR_TO</div>
+                    <div>→ CONTAINS</div>
                   </div>
                 </div>
               </div>
@@ -923,13 +929,10 @@ export default function GraphVisualization3DForce({
               /* Collapsed: Color dots with expand indicator */
               <div className="flex items-center gap-1">
                 <div className="flex flex-wrap gap-1">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ff4757' }}></div>
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#00d2d3' }}></div>
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#5352ed' }}></div>
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#7bed9f' }}></div>
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ffa502' }}></div>
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ffd700' }}></div>
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#ff69b4' }}></div>
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#ffd700' }}></div>
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#7bed9f' }}></div>
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#ff4757' }}></div>
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#ff69b4' }}></div>
                 </div>
                 <span className="text-borges-muted text-xs ml-1">▼</span>
               </div>

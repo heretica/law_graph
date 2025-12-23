@@ -1186,37 +1186,17 @@ function BorgesLibrary() {
             </button>
           </div>
 
-          {/* GraphRAG Context Analysis - Hidden on mobile for space */}
-          {searchPath && (
-            <div className="hidden md:block mb-3 p-3 bg-borges-dark rounded-borges-sm border border-borges-border">
-              <div className="text-xs font-medium text-borges-light mb-2">Knowledge Base Analysis</div>
-              <div className="text-xs space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-borges-light-muted">Communities:</span>
-                  <span className="text-borges-light">{searchPath.communities?.length || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-borges-light-muted">Entities:</span>
-                  <span className="text-borges-light">{searchPath.entities?.length || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-borges-light-muted">Relationships:</span>
-                  <span className="text-borges-light">{searchPath.relations?.length || 0}</span>
-                </div>
-              </div>
-              {searchPath.entities && searchPath.entities.length > 0 && (
-                <div className="mt-2">
-                  <div className="text-xs text-borges-light-muted mb-1">Key Entities Used:</div>
-                  <div className="text-xs text-borges-light max-h-16 overflow-y-auto">
-                    {searchPath.entities.slice(0, 5).map((entity: any, i: number) => (
-                      <div key={i} className="truncate">• {entity.id || entity.name || entity}</div>
-                    ))}
-                    {searchPath.entities.length > 5 && (
-                      <div className="text-borges-muted">... and {searchPath.entities.length - 5} more</div>
-                    )}
+          {/* Show matched entities from the subgraph query */}
+          {queryResultNodes.length > 0 && (
+            <div className="mb-3 p-3 bg-borges-dark rounded-borges-sm border border-borges-border">
+              <div className="text-xs font-medium text-borges-light mb-2">Entités du sous-graphe</div>
+              <div className="text-xs text-borges-light max-h-20 overflow-y-auto space-y-1">
+                {queryResultNodes.map((node: any, i: number) => (
+                  <div key={i} className="truncate text-borges-light-muted">
+                    • {node.properties?.name || node.id} <span className="text-borges-muted text-xs">({node.labels?.[0] || 'Entity'})</span>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           )}
 
