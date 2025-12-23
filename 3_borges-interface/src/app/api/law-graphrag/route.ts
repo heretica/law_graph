@@ -187,21 +187,23 @@ export async function POST(request: NextRequest) {
       graphrag_data: provenance ? {
         entities: (provenance.entities || [])
           .filter((e): e is NonNullable<typeof e> => e != null)
-          .map((e, i) => ({
+          .map((e: any, i: number) => ({
             id: e.id || e.name || `entity-${i}`,
             name: e.name || e.id || `Entity ${i}`,
             type: e.type || 'CIVIC_ENTITY',
-            description: e.description || ''
+            description: e.description || '',
+            importance_score: typeof e.importance_score === 'number' ? e.importance_score : 0.5 // Default to 0.5 if missing
           })),
         relationships: (provenance.relationships || [])
           .filter((r): r is NonNullable<typeof r> => r != null && r.source != null && r.target != null)
-          .map((r, i) => ({
+          .map((r: any, i: number) => ({
             id: `rel-${i}`,
             source: r.source!,
             target: r.target!,
             type: r.type || 'RELATED_TO',
             description: r.description || '',
-            weight: r.weight || 1.0
+            weight: r.weight || 1.0,
+            order: typeof r.order === 'number' ? r.order : 1 // Default to direct (1) if missing
           })),
         source_chunks: (provenance.source_quotes || [])
           .filter((q): q is NonNullable<typeof q> => q != null && q.content != null)

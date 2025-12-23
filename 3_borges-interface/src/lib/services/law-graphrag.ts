@@ -72,9 +72,10 @@ class LawGraphRAGService {
         description: entity.description || '',
         source_commune: entity.source_commune || '',
         entity_type: entity.type,
+        importance_score: entity.importance_score || 0.5,
       },
       degree: 1, // Will be calculated from relationships
-      centrality_score: 0.5, // Default centrality
+      centrality_score: entity.importance_score || 0.5, // Use importance_score for sizing
     }))
 
     // Calculate node degrees from relationships
@@ -96,6 +97,7 @@ class LawGraphRAGService {
       properties: {
         description: rel.description || '',
         weight: rel.weight || 1,
+        order: rel.order || 1, // Direct relationships by default
       },
     }))
 

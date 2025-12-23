@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import TextChunkModal from './TextChunkModal'
+import { getEntityTypeColor, getEntityTypeLabel, ENTITY_TYPE_LABELS, ENTITY_TYPES } from '@/lib/utils/entityTypeColors'
 
 interface Node {
   id: string
@@ -237,8 +238,13 @@ export default function GraphVisualization3DForce({
     return entityTypeToFrench[firstLabel] || firstLabel
   }
 
-  // Get color for node based on its entity type
+  // Get color for node based on its entity type (using new 62+ entity type mapping)
   const getNodeColor = (node: ReconciliationData['nodes'][0]): string => {
+    // First try the entity_type property (most accurate)
+    if (node.properties?.entity_type) {
+      return getEntityTypeColor(node.properties.entity_type.toString())
+    }
+    // Fall back to existing logic for GraphML compatibility
     const entityType = getEntityType(node)
     return typeColors[entityType] || typeColors.default
   }
@@ -841,41 +847,41 @@ export default function GraphVisualization3DForce({
 
       {/* Legend - Expandable on mobile, hidden when side panel is open */}
       {reconciliationData && !isLoading && !sidePanelOpen && (
-        <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-borges-secondary border border-borges-border p-2 md:p-3 rounded-borges-md text-xs max-w-sm">
-          {/* Desktop: Full legend */}
-          <div className="hidden md:block">
-            <div className="font-medium text-borges-light mb-2">Légende</div>
-            {/* Entity Types */}
-            <div className="mb-3">
-              <div className="text-borges-light-muted text-xs font-medium mb-1">Entités</div>
-              <div className="space-y-1">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ffd700' }}></div>
-                  <span className="text-borges-light-muted">Communes</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#7bed9f' }}></div>
-                  <span className="text-borges-light-muted">Concepts</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff4757' }}></div>
-                  <span className="text-borges-light-muted">Personnes</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: '#ff69b4' }}></div>
-                  <span className="text-borges-light-muted">Communautés</span>
+        <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-borges-secondary border border-borges-border rounded-borges-md text-xs max-w-sm md:max-h-[70vh] flex flex-col">
+          {/* Desktop: Scrollable legend */}
+          <div className="hidden md:flex flex-col max-h-[70vh]">
+            <div className="font-medium text-borges-light mb-2 px-3 pt-3 flex-shrink-0">Légende (62+ types)</div>
+
+            {/* Scrollable entity types section */}
+            <div className="overflow-y-auto flex-1 px-3 pb-3">
+              <div className="mb-3">
+                <div className="text-borges-light-muted text-xs font-medium mb-2 sticky top-0 bg-borges-secondary">Entités</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {ENTITY_TYPES.map((type) => (
+                    <div key={type} className="flex items-center gap-2 text-xs">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: getEntityTypeColor(type) }}
+                      ></div>
+                      <span className="text-borges-light-muted truncate" title={ENTITY_TYPE_LABELS[type]}>
+                        {ENTITY_TYPE_LABELS[type]}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-            {/* Relationship Types */}
-            <div className="border-t border-borges-border pt-2">
-              <div className="text-borges-light-muted text-xs font-medium mb-1">Relations</div>
-              <div className="space-y-1 text-borges-light-muted text-xs">
-                <div>→ CONCERNS</div>
-                <div>→ RELATED_TO</div>
-                <div>→ MENTIONS</div>
-                <div>→ SIMILAR_TO</div>
-                <div>→ CONTAINS</div>
+
+              {/* Relationship Types */}
+              <div className="border-t border-borges-border pt-2 mt-3">
+                <div className="text-borges-light-muted text-xs font-medium mb-2">Relations courantes</div>
+                <div className="space-y-1 text-borges-light-muted text-xs">
+                  <div className="flex items-center"><span className="mr-2">→</span>CONCERNS</div>
+                  <div className="flex items-center"><span className="mr-2">→</span>RELATED_TO</div>
+                  <div className="flex items-center"><span className="mr-2">→</span>MENTIONS</div>
+                  <div className="flex items-center"><span className="mr-2">→</span>SIMILAR_TO</div>
+                  <div className="flex items-center"><span className="mr-2">→</span>CONTAINS</div>
+                </div>
+                <div className="text-borges-light-muted text-xs mt-2 italic">Note: Les relations d'ordre 2-3 sont plus claires</div>
               </div>
             </div>
           </div>
@@ -885,54 +891,50 @@ export default function GraphVisualization3DForce({
             onClick={() => setIsLegendExpanded(!isLegendExpanded)}
           >
             {isLegendExpanded ? (
-              /* Expanded: Full legend with labels */
-              <div className="space-y-2">
+              /* Expanded: Mobile legend with sample types */
+              <div className="p-3 space-y-2 max-h-60 overflow-y-auto">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-borges-light">Légende</span>
+                  <span className="font-medium text-borges-light">Légende (62+ types)</span>
                   <span className="text-borges-muted text-xs">▲</span>
                 </div>
-                {/* Entity Types */}
+                {/* Sample Entity Types */}
                 <div>
-                  <div className="text-borges-light-muted text-xs font-medium mb-1">Entités</div>
-                  <div className="space-y-1">
-                    <div className="flex items-center">
-                      <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: '#ffd700' }}></div>
-                      <span className="text-borges-light-muted">Communes</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: '#7bed9f' }}></div>
-                      <span className="text-borges-light-muted">Concepts</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: '#ff4757' }}></div>
-                      <span className="text-borges-light-muted">Personnes</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: '#ff69b4' }}></div>
-                      <span className="text-borges-light-muted">Communautés</span>
-                    </div>
+                  <div className="text-borges-light-muted text-xs font-medium mb-1">Entités (exemples)</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {ENTITY_TYPES.slice(0, 12).map((type) => (
+                      <div key={type} className="flex items-center gap-2">
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: getEntityTypeColor(type) }}
+                        ></div>
+                        <span className="text-borges-light-muted truncate">{ENTITY_TYPE_LABELS[type]}</span>
+                      </div>
+                    ))}
                   </div>
+                  <div className="text-borges-muted text-xs mt-2">... +{ENTITY_TYPES.length - 12} types</div>
                 </div>
-                {/* Relationship Types */}
+                {/* Relations */}
                 <div className="border-t border-borges-border pt-2">
                   <div className="text-borges-light-muted text-xs font-medium mb-1">Relations</div>
                   <div className="space-y-0.5 text-borges-light-muted text-xs">
-                    <div>→ CONCERNS</div>
-                    <div>→ RELATED_TO</div>
-                    <div>→ MENTIONS</div>
+                    <div>→ CONCERNS / MENTIONS</div>
+                    <div>→ RELATED_TO / CONTAINS</div>
                     <div>→ SIMILAR_TO</div>
-                    <div>→ CONTAINS</div>
                   </div>
                 </div>
               </div>
             ) : (
               /* Collapsed: Color dots with expand indicator */
-              <div className="flex items-center gap-1">
+              <div className="p-2 flex items-center justify-between">
                 <div className="flex flex-wrap gap-1">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#ffd700' }}></div>
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#7bed9f' }}></div>
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#ff4757' }}></div>
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#ff69b4' }}></div>
+                  {ENTITY_TYPES.slice(0, 6).map((type) => (
+                    <div
+                      key={type}
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: getEntityTypeColor(type) }}
+                    ></div>
+                  ))}
+                  <div className="text-borges-muted text-xs ml-1">...</div>
                 </div>
                 <span className="text-borges-muted text-xs ml-1">▼</span>
               </div>

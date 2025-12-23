@@ -24,13 +24,14 @@ export interface LawGraphRAGQuery {
 export interface LegalEntity {
   id: string;
   name: string;
-  type: 'theme' | 'actor' | 'proposal' | 'concept' | 'entity';
+  type: string; // Support all 62+ entity types from API
   description?: string;
   source_commune?: string;
+  importance_score?: number; // 0-1, for node sizing
 }
 
 /**
- * Relationship between civic entities
+ * Relationship between civic entities with multi-order support
  */
 export interface LegalRelationship {
   id: string;
@@ -38,7 +39,8 @@ export interface LegalRelationship {
   target: string;
   type: string;
   description?: string;
-  weight?: number;
+  weight?: number; // 0-1, relationship strength
+  order?: number; // 1 = direct, 2 = second-order, 3 = third-order relationships
 }
 
 /**
