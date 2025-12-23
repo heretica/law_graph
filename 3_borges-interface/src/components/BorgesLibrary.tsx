@@ -982,7 +982,8 @@ function BorgesLibrary() {
             )}
 
             {/* GraphML Loading Error Display - T013 */}
-            {graphMLError && !isGraphMLLoading && (
+            {/* Only show error if loading failed AND no data was loaded */}
+            {graphMLError && !isGraphMLLoading && !reconciliationData?.nodes?.length && (
               <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
                 <div className="text-center max-w-md px-8">
                   <div className="text-6xl mb-4">⚠️</div>
