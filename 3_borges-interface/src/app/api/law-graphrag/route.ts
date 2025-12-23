@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const LAW_GRAPHRAG_API_URL = process.env.LAW_GRAPHRAG_API_URL || 'https://law-graphrag-reconciliation-api.up.railway.app'
+const LAW_GRAPHRAG_API_URL = process.env.LAW_GRAPHRAG_API_URL || 'https://law-graphrag-reconciliation-api-production.up.railway.app'
 
 export async function POST(request: NextRequest) {
   try {
