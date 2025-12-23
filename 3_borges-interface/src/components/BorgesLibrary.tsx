@@ -305,41 +305,13 @@ function BorgesLibrary() {
     }
   }
 
-  // GraphML data loading hook - Constitution Principle III (No Orphan Nodes)
-  // Provides initial graph visualization from static GraphML files
-  // MCP queries will overlay/update this data with query-specific results
-  const {
-    document: graphMLDocument,
-    isLoading: isGraphMLLoading,
-    error: graphMLError,
-    reload: reloadGraphML
-  } = useGraphMLData({
-    url: '/data/grand-debat.graphml',
-    filterOrphans: true, // Constitution Principle III - No orphan nodes
-    onLoad: (doc) => {
-      console.log('📊 GraphML loaded successfully:', doc.nodes.length, 'nodes,', doc.edges.length, 'edges')
-      // Transform GraphML to reconciliation format for visualization
-      const transformedData = transformToReconciliationData(doc)
-      setReconciliationData(transformedData)
-      setProcessingStats({
-        nodes: transformedData.nodes.length,
-        communities: 0,
-        neo4jRelationships: transformedData.relationships.length
-      })
-    },
-    onError: (error) => {
-      console.error('❌ GraphML loading failed:', error)
-      // Don't block the UI - MCP queries will still work
-    }
-  })
+  // DISABLED: GraphML static file loading - now using live MCP API data
+  // The full graph is loaded from MCP API on component mount (see useEffect below)
+  // This avoids race condition between GraphML and MCP data loads
 
-  // Sync GraphML loading state with component loading state
-  useEffect(() => {
-    setIsLoadingGraph(isGraphMLLoading)
-    if (!isGraphMLLoading && !graphMLError) {
-      setShowLoadingOverlay(false)
-    }
-  }, [isGraphMLLoading, graphMLError])
+  // Placeholder state for compatibility (no longer loads GraphML)
+  const isGraphMLLoading = false
+  const graphMLError = null
 
   // Check localStorage for tutorial skip on mount
   useEffect(() => {
@@ -357,7 +329,8 @@ function BorgesLibrary() {
     const loadFullGraph = async () => {
       try {
         console.log('🏛️ Loading full Grand Débat graph from MCP API...')
-        setCurrentProcessingPhase('🏛️ Chargement du graphe complet...')
+        setIsLoadingGraph(true)
+        setCurrentProcessingPhase('🏛️ Chargement du graphe complet depuis l\'API...')
 
         const graphData = await lawGraphRAGService.fetchFullGraph()
 
@@ -388,12 +361,16 @@ function BorgesLibrary() {
 
           console.log('📊 Full graph loaded and displayed')
         } else {
-          console.warn('⚠️ No graph data returned from MCP, will fall back to GraphML')
+          console.warn('⚠️ No graph data returned from MCP')
+          throw new Error('MCP returned empty graph data')
         }
       } catch (error) {
         console.error('❌ Error loading full graph from MCP:', error)
-        // Fall back to GraphML if MCP fails
+        // Show error to user
+        setCurrentProcessingPhase('❌ Erreur de chargement - rechargez la page')
       } finally {
+        setIsLoadingGraph(false)
+        setShowLoadingOverlay(false)
         setCurrentProcessingPhase(null)
       }
     }
@@ -1153,41 +1130,7 @@ function BorgesLibrary() {
               </div>
             )}
 
-            {/* GraphML Loading Error Display - T013 */}
-            {/* Only show error if loading failed AND no data was loaded */}
-            {graphMLError && !isGraphMLLoading && !reconciliationData?.nodes?.length && (
-              <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
-                <div className="text-center max-w-md px-8">
-                  <div className="text-6xl mb-4">⚠️</div>
-                  <h3 className="text-xl font-semibold text-borges-light mb-2">
-                    Erreur de chargement des données
-                  </h3>
-                  <p className="text-borges-light-muted mb-4">
-                    Le fichier GraphML des contributions citoyennes n&apos;a pas pu être chargé.
-                  </p>
-                  <p className="text-sm text-borges-muted mb-6">
-                    {graphMLError.message}
-                  </p>
-                  <div className="flex gap-4 justify-center">
-                    <button
-                      onClick={() => reloadGraphML()}
-                      className="px-4 py-2 bg-borges-accent text-borges-dark rounded hover:bg-borges-accent/80 transition-colors"
-                    >
-                      Réessayer
-                    </button>
-                    <button
-                      onClick={() => setShowLoadingOverlay(false)}
-                      className="px-4 py-2 bg-borges-border text-borges-light rounded hover:bg-borges-border/80 transition-colors"
-                    >
-                      Continuer sans données
-                    </button>
-                  </div>
-                  <p className="text-xs text-borges-muted mt-4">
-                    Vous pouvez toujours utiliser les requêtes MCP pour explorer les données.
-                  </p>
-                </div>
-              </div>
-            )}
+            {/* GraphML error display removed - now using MCP API */}
             </GraphErrorBoundary>
             </div>
 
