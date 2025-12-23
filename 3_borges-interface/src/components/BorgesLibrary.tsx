@@ -210,6 +210,15 @@ function BorgesLibrary() {
   // Store query result nodes for entity lookup
   const [queryResultNodes, setQueryResultNodes] = useState<any[]>([])
 
+  // Store source chunks from query results for provenance display
+  const [sourceChunks, setSourceChunks] = useState<Array<{
+    chunk_id: string
+    content: string
+    document_id: string
+    commune?: string
+  }>>([])
+  const [showSourceChunksPanel, setShowSourceChunksPanel] = useState(false)
+
   // Grand Débat National civic data exploration - Constitution v3.0.0
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0)
   const civicQuotes = [
@@ -458,6 +467,14 @@ function BorgesLibrary() {
         setCurrentQueryId(tempQueryId)
         setShowProvenancePanel(true)
         console.log('📊 Provenance tracking enabled for civic query:', tempQueryId)
+
+        // Extract and store source chunks from the query result for provenance display
+        const chunks = result.graphrag_data?.source_chunks || []
+        console.log(`📚 Found ${chunks.length} source chunks from MCP query`)
+        setSourceChunks(chunks)
+        if (chunks.length > 0) {
+          setShowSourceChunksPanel(true)
+        }
 
         // Transform response to graph data format
         const graphData = lawGraphRAGService.transformToGraphData(result)
@@ -1210,6 +1227,59 @@ function BorgesLibrary() {
                 onEntityClick={handleEntityClick}
                 showTooltip={true}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Source Chunks Panel - Constitution Principle V: End-to-End Interpretability */}
+      {showSourceChunksPanel && sourceChunks.length > 0 && (
+        <div className="borges-panel fixed bottom-0 right-0 left-0 md:bottom-4 md:right-4 md:left-auto w-full md:w-[400px] md:max-h-[45vh] overflow-hidden text-borges-light shadow-borges-lg z-30 rounded-t-2xl md:rounded-borges-md safe-area-bottom flex flex-col mb-0 md:mb-0"
+          style={{
+            marginBottom: showAnswer ? (typeof window !== 'undefined' && window.innerWidth < 768 ? `${answerPanelHeight}vh` : '0') : '0'
+          }}>
+          <div className="flex justify-between items-start mb-2 md:mb-3 px-3 md:px-4 pt-3 md:pt-3 flex-shrink-0">
+            <h3 className="text-sm md:text-h3 text-borges-light font-medium">Extraits citoyens</h3>
+            <button
+              onClick={() => setShowSourceChunksPanel(false)}
+              className="borges-btn-ghost text-lg touch-target flex items-center justify-center"
+              aria-label="Fermer"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-3 md:px-4 pb-3">
+            <div className="space-y-3">
+              {sourceChunks.map((chunk, idx) => (
+                <div key={chunk.chunk_id} className="p-2 md:p-3 bg-borges-dark rounded-borges-sm border border-borges-border">
+                  {/* Commune badge */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs px-2 py-0.5 bg-yellow-900/50 rounded text-borges-light">
+                      🏛️ {chunk.commune || chunk.document_id}
+                    </span>
+                    <span className="text-xs text-borges-light-muted">Chunk #{idx + 1}</span>
+                  </div>
+                  {/* Chunk content preview */}
+                  <p className="text-xs md:text-sm text-borges-light-muted leading-relaxed line-clamp-4 mb-2">
+                    {chunk.content}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setEntityChunkData({
+                        entityName: chunk.document_id,
+                        aggregatedChunks: chunk.content,
+                        relatedRelationships: 1,
+                        communeId: chunk.document_id
+                      })
+                      setIsEntityChunkModalOpen(true)
+                    }}
+                    className="text-xs text-borges-accent hover:text-borges-light transition-colors"
+                  >
+                    Voir le texte complet →
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
