@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns">
+  <!-- Grand Débat National - Cahiers de Doléances 2019 -->
+  <!-- Sample data for 50 communes in Charente-Maritime -->
+
+  <!-- Node Attribute Definitions -->
+  <key id="label" for="node" attr.name="label" attr.type="string"/>
+  <key id="entity_type" for="node" attr.name="entity_type" attr.type="string"/>
+  <key id="commune" for="node" attr.name="commune" attr.type="string"/>
+  <key id="description" for="node" attr.name="description" attr.type="string"/>
+  <key id="degree" for="node" attr.name="degree" attr.type="int"/>
+  <key id="centrality_score" for="node" attr.name="centrality_score" attr.type="double"/>
+
+  <!-- Edge Attribute Definitions -->
+  <key id="rel_type" for="edge" attr.name="type" attr.type="string"/>
+  <key id="weight" for="edge" attr.name="weight" attr.type="double"/>
+  <key id="source_chunks" for="edge" attr.name="source_chunks" attr.type="string"/>
+  <key id="description" for="edge" attr.name="description" attr.type="string"/>
+
+  <graph id="grand-debat-charente-maritime" edgedefault="directed">
+
+    <!-- Commune Nodes (Central Entities) -->
+    <node id="COMMUNE_rochefort">
+      <data key="label">Rochefort</data>
+      <data key="entity_type">COMMUNE</data>
+      <data key="commune">Rochefort</data>
+      <data key="description">Commune de Rochefort - Cahier de Doléances 2019</data>
+      <data key="degree">15</data>
+      <data key="centrality_score">0.95</data>
+    </node>
+
+    <node id="COMMUNE_la_rochelle">
+      <data key="label">La Rochelle</data>
+      <data key="entity_type">COMMUNE</data>
+      <data key="commune">La Rochelle</data>
+      <data key="description">Commune de La Rochelle - Cahier de Doléances 2019</data>
+      <data key="degree">20</data>
+      <data key="centrality_score">0.98</data>
+    </node>
+
+    <node id="COMMUNE_saintes">
+      <data key="label">Saintes</data>
+      <data key="entity_type">COMMUNE</data>
+      <data key="commune">Saintes</data>
+      <data key="description">Commune de Saintes - Cahier de Doléances 2019</data>
+      <data key="degree">12</data>
+      <data key="centrality_score">0.88</data>
+    </node>
+
+    <!-- Concept Nodes (Thematic Concerns) -->
+    <node id="concept_impots_locaux">
+      <data key="label">Impôts locaux</data>
+      <data key="entity_type">CONCEPT</data>
+      <data key="commune">Rochefort</data>
+      <data key="description">Préoccupations citoyennes sur la fiscalité locale</data>
+      <data key="degree">8</data>
+      <data key="centrality_score">0.85</data>
+    </node>
+
+    <node id="concept_services_publics">
+      <data key="label">Services publics</data>
+      <data key="entity_type">CONCEPT</data>
+      <data key="commune">La Rochelle</data>
+      <data key="description">Accès aux services publics de proximité</data>
+      <data key="degree">10</data>
+      <data key="centrality_score">0.82</data>
+    </node>
+
+    <node id="concept_transport">
+      <data key="label">Transports</data>
+      <data key="entity_type">CONCEPT</data>
+      <data key="commune">Saintes</data>
+      <data key="description">Mobilité et transports en commun</data>
+      <data key="degree">7</data>
+      <data key="centrality_score">0.75</data>
+    </node>
+
+    <node id="concept_environnement">
+      <data key="label">Environnement</data>
+      <data key="entity_type">CONCEPT</data>
+      <data key="commune">La Rochelle</data>
+      <data key="description">Protection de l'environnement et transition écologique</data>
+      <data key="degree">9</data>
+      <data key="centrality_score">0.80</data>
+    </node>
+
+    <node id="concept_democratie">
+      <data key="label">Démocratie locale</data>
+      <data key="entity_type">CONCEPT</data>
+      <data key="commune">Rochefort</data>
+      <data key="description">Participation citoyenne et démocratie directe</data>
+      <data key="degree">6</data>
+      <data key="centrality_score">0.72</data>
+    </node>
+
+    <node id="concept_emploi">
+      <data key="label">Emploi</data>
+      <data key="entity_type">CONCEPT</data>
+      <data key="commune">Saintes</data>
+      <data key="description">Création d'emplois et développement économique</data>
+      <data key="degree">5</data>
+      <data key="centrality_score">0.68</data>
+    </node>
+
+    <!-- Person Nodes (Representative Citizens) -->
+    <node id="person_citoyen_1">
+      <data key="label">Citoyen de Rochefort</data>
+      <data key="entity_type">PERSON</data>
+      <data key="commune">Rochefort</data>
+      <data key="description">Contribution citoyenne anonymisée</data>
+      <data key="degree">3</data>
+      <data key="centrality_score">0.45</data>
+    </node>
+
+    <node id="person_citoyen_2">
+      <data key="label">Citoyen de La Rochelle</data>
+      <data key="entity_type">PERSON</data>
+      <data key="commune">La Rochelle</data>
+      <data key="description">Contribution citoyenne anonymisée</data>
+      <data key="degree">4</data>
+      <data key="centrality_score">0.50</data>
+    </node>
+
+    <!-- Community Nodes (Thematic Clusters) -->
+    <node id="community_fiscalite">
+      <data key="label">Communauté Fiscalité</data>
+      <data key="entity_type">Community</data>
+      <data key="commune">Rochefort</data>
+      <data key="description">Cluster thématique sur les questions fiscales</data>
+      <data key="degree">6</data>
+      <data key="centrality_score">0.70</data>
+    </node>
+
+    <node id="community_ecologie">
+      <data key="label">Communauté Écologie</data>
+      <data key="entity_type">Community</data>
+      <data key="commune">La Rochelle</data>
+      <data key="description">Cluster thématique sur les questions environnementales</data>
+      <data key="degree">5</data>
+      <data key="centrality_score">0.65</data>
+    </node>
+
+    <!-- Edges (Relationships) -->
+
+    <!-- Commune to Concept relationships -->
+    <edge id="edge_001" source="COMMUNE_rochefort" target="concept_impots_locaux">
+      <data key="rel_type">CONCERNS</data>
+      <data key="weight">0.9</data>
+      <data key="source_chunks">Les impôts locaux sont trop élevés par rapport aux services rendus. Il faudrait une meilleure répartition de la charge fiscale entre communes.</data>
+      <data key="description">Rochefort exprime des préoccupations fiscales</data>
+    </edge>
+
+    <edge id="edge_002" source="COMMUNE_la_rochelle" target="concept_services_publics">
+      <data key="rel_type">CONCERNS</data>
+      <data key="weight">0.85</data>
+      <data key="source_chunks">Les services publics de proximité disparaissent. La fermeture des bureaux de poste et des perceptions pose problème aux personnes âgées.</data>
+      <data key="description">La Rochelle sur l'accès aux services publics</data>
+    </edge>
+
+    <edge id="edge_003" source="COMMUNE_saintes" target="concept_transport">
+      <data key="rel_type">CONCERNS</data>
+      <data key="weight">0.8</data>
+      <data key="source_chunks">Le manque de transports en commun isole les zones rurales. Il faut développer les lignes de bus et les solutions de covoiturage.</data>
+      <data key="description">Saintes sur les questions de mobilité</data>
+    </edge>
+
+    <edge id="edge_004" source="COMMUNE_la_rochelle" target="concept_environnement">
+      <data key="rel_type">CONCERNS</data>
+      <data key="weight">0.88</data>
+      <data key="source_chunks">La transition écologique doit être accélérée. La protection du littoral et la qualité de l'air sont des priorités pour les Rochelais.</data>
+      <data key="description">La Rochelle sur l'environnement</data>
+    </edge>
+
+    <edge id="edge_005" source="COMMUNE_rochefort" target="concept_democratie">
+      <data key="rel_type">CONCERNS</data>
+      <data key="weight">0.75</data>
+      <data key="source_chunks">Les citoyens veulent être davantage consultés. Le référendum d'initiative citoyenne est plébiscité.</data>
+      <data key="description">Rochefort sur la participation citoyenne</data>
+    </edge>
+
+    <!-- Concept to Concept relationships -->
+    <edge id="edge_006" source="concept_impots_locaux" target="concept_services_publics">
+      <data key="rel_type">RELATED_TO</data>
+      <data key="weight">0.7</data>
+      <data key="source_chunks">Le lien entre impôts et services est central. Les citoyens veulent voir le résultat de leurs contributions.</data>
+      <data key="description">Relation fiscalité-services</data>
+    </edge>
+
+    <edge id="edge_007" source="concept_transport" target="concept_environnement">
+      <data key="rel_type">RELATED_TO</data>
+      <data key="weight">0.82</data>
+      <data key="source_chunks">Les transports propres sont une solution écologique. Le développement du vélo et des transports électriques est souhaité.</data>
+      <data key="description">Relation transport-environnement</data>
+    </edge>
+
+    <edge id="edge_008" source="concept_democratie" target="concept_impots_locaux">
+      <data key="rel_type">RELATED_TO</data>
+      <data key="weight">0.65</data>
+      <data key="source_chunks">Les citoyens veulent décider de l'utilisation de leurs impôts via des budgets participatifs.</data>
+      <data key="description">Relation démocratie-fiscalité</data>
+    </edge>
+
+    <!-- Person to Concept relationships -->
+    <edge id="edge_009" source="person_citoyen_1" target="concept_impots_locaux">
+      <data key="rel_type">MENTIONS</data>
+      <data key="weight">0.6</data>
+      <data key="source_chunks">Je paie trop d'impôts et je ne vois pas les résultats dans ma commune.</data>
+      <data key="description">Témoignage citoyen sur la fiscalité</data>
+    </edge>
+
+    <edge id="edge_010" source="person_citoyen_2" target="concept_environnement">
+      <data key="rel_type">MENTIONS</data>
+      <data key="weight">0.7</data>
+      <data key="source_chunks">L'environnement est ma priorité. Il faut agir maintenant pour les générations futures.</data>
+      <data key="description">Témoignage citoyen sur l'environnement</data>
+    </edge>
+
+    <!-- Community relationships -->
+    <edge id="edge_011" source="community_fiscalite" target="concept_impots_locaux">
+      <data key="rel_type">CONTAINS</data>
+      <data key="weight">0.95</data>
+      <data key="source_chunks">La communauté fiscalité regroupe toutes les contributions sur les impôts et taxes.</data>
+      <data key="description">Cluster fiscalité</data>
+    </edge>
+
+    <edge id="edge_012" source="community_ecologie" target="concept_environnement">
+      <data key="rel_type">CONTAINS</data>
+      <data key="weight">0.92</data>
+      <data key="source_chunks">La communauté écologie regroupe les contributions sur l'environnement et la transition.</data>
+      <data key="description">Cluster écologie</data>
+    </edge>
+
+    <!-- Cross-commune relationships -->
+    <edge id="edge_013" source="COMMUNE_rochefort" target="COMMUNE_la_rochelle">
+      <data key="rel_type">SIMILAR_TO</data>
+      <data key="weight">0.78</data>
+      <data key="source_chunks">Rochefort et La Rochelle partagent des préoccupations similaires sur les services publics et la fiscalité locale.</data>
+      <data key="description">Similitude inter-communes</data>
+    </edge>
+
+    <edge id="edge_014" source="COMMUNE_saintes" target="COMMUNE_rochefort">
+      <data key="rel_type">SIMILAR_TO</data>
+      <data key="weight">0.72</data>
+      <data key="source_chunks">Saintes et Rochefort expriment des besoins similaires en matière de transports et d'emploi.</data>
+      <data key="description">Similitude inter-communes</data>
+    </edge>
+
+  </graph>
+</graphml>

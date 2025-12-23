@@ -1,8 +1,12 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Cormorant_Garamond } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const cormorantGaramond = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['300', '400', '500'],
+  variable: '--font-borges',
+})
 
 export const metadata: Metadata = {
   title: 'Le graphe de Borges',
@@ -28,7 +32,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className="dark">
-      <body className={`${inter.className} min-h-screen bg-borges-dark text-borges-light`}>
+      <body className={`${cormorantGaramond.variable} font-borges min-h-screen bg-borges-dark text-borges-light`}>
         {children}
       </body>
     </html>

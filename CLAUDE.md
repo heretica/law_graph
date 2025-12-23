@@ -44,10 +44,18 @@ Chaque entité doit être traçable jusqu'à sa commune source et au texte citoy
 
 ## Key Files
 
+**Core Components:**
 - `3_borges-interface/src/components/BorgesLibrary.tsx` - Main app component
-- `3_borges-interface/src/components/GraphVisualization3DForce.tsx` - 3D graph
+- `3_borges-interface/src/components/GraphVisualization3DForce.tsx` - 3D graph with `isCommune()` detection
 - `3_borges-interface/src/app/api/law-graphrag/route.ts` - MCP proxy route
 - `3_borges-interface/src/lib/services/law-graphrag.ts` - MCP client service
+
+**GraphML Infrastructure (Feature 004-ui-consistency):**
+- `3_borges-interface/src/types/graphml.ts` - Type definitions for GraphML parsing
+- `3_borges-interface/src/lib/utils/graphml-parser.ts` - `parseGraphML()`, `validateGraphML()`, `filterOrphanNodes()`
+- `3_borges-interface/src/lib/utils/commune-mapping.ts` - `getCommuneDisplayName()` for civic provenance
+- `3_borges-interface/src/hooks/useGraphMLData.ts` - React hook for loading GraphML files
+- `3_borges-interface/public/data/grand-debat.graphml` - Sample GraphML data (50 communes)
 
 ## MCP Tools Available
 
@@ -70,3 +78,31 @@ LAW_GRAPHRAG_API_URL=https://graphragmcp-production.up.railway.app
 1. MCP server must be accessible before testing
 2. Test with civic queries: "Quelles sont les préoccupations sur les impôts ?"
 3. Verify commune attribution appears in results
+
+## GraphML Data Loading (Feature 004-ui-consistency)
+
+The interface now loads initial graph data from GraphML files without requiring the MCP server:
+
+```
+public/data/grand-debat.graphml → useGraphMLData hook → BorgesLibrary → GraphVisualization3DForce
+```
+
+**Data Flow:**
+1. `useGraphMLData()` fetches and parses GraphML on page load
+2. Orphan nodes (degree=0) are filtered per Constitution Principle I
+3. `transformToReconciliationData()` converts to visualization format
+4. MCP queries overlay/update this initial data
+
+**GraphML Node Types:**
+- `COMMUNE` - Central civic entities (gold #ffd700, positioned at center)
+- `CONCEPT` - Thematic concerns from citizen contributions
+- `PERSON` - Anonymized citizen representatives
+- `Community` - Thematic clusters
+
+## Active Technologies
+- TypeScript 5.x, React 19.2.1, Next.js 16.0.7 + 3d-force-graph 1.79.0, Three.js 0.181.0, D3 7.8.5, Tailwind CSS 3.3.5
+- GraphML parsing in browser (DOMParser) - no database required for initial visualization
+- Borges design system (colors: #0a0a0a, #f5f5f5, #7dd3fc; font: Cormorant Garamond)
+
+## Recent Changes
+- **004-ui-consistency**: GraphML infrastructure, commune-centric 3D graph, Borges visual identity, civic provenance chain

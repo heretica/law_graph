@@ -2,11 +2,13 @@
  * EntityDetailModal Component
  * Displays detailed information about a graph entity with source chunks
  * Feature: 001-interactive-graphrag-refinement - User Story 1 (AC2)
+ * Updated: 004-ui-consistency (T039-T041) - Commune provenance
  *
+ * Constitution Principle VII: Civic Provenance Chain
  * Shows:
  * - Entity properties from reconciliation data
  * - Connected relationships with source chunks
- * - Source book information
+ * - Source commune information (Grand Débat) or book information (legacy)
  * - Complete provenance trail from entity to source text
  */
 
@@ -14,6 +16,7 @@
 
 import { useState, useEffect } from 'react';
 import HighlightedText from './HighlightedText';
+import { getCommuneDisplayName } from '@/lib/utils/commune-mapping';
 
 interface ReconciliationNode {
   id: string;
@@ -168,6 +171,37 @@ function extractBookDisplayName(nodeName: string): string {
   }
 
   return fallbackName || 'Unknown Book';
+}
+
+// Helper to get provenance display name - supports both communes and books (T041)
+// Constitution Principle VII: Civic Provenance Chain
+function getProvenanceDisplayName(source: string | undefined): { name: string; type: 'commune' | 'book' | 'unknown' } {
+  if (!source) return { name: 'Source inconnue', type: 'unknown' };
+
+  // Check if it's a commune (COMMUNE_ prefix or commune property)
+  if (source.startsWith('COMMUNE_') || source.toLowerCase().includes('commune')) {
+    const communeName = getCommuneDisplayName(source.replace(/^COMMUNE_/i, ''));
+    return { name: communeName, type: 'commune' };
+  }
+
+  // Check if it's a book (LIVRE_ prefix)
+  if (source.startsWith('LIVRE_') || source.toLowerCase().includes('livre')) {
+    return { name: extractBookDisplayName(source), type: 'book' };
+  }
+
+  // Try commune mapping first (Grand Débat context)
+  const communeName = getCommuneDisplayName(source);
+  if (communeName !== source && !communeName.includes('non disponible')) {
+    return { name: communeName, type: 'commune' };
+  }
+
+  // Fall back to book mapping
+  const bookName = extractBookDisplayName(source);
+  if (bookName !== 'Unknown Book') {
+    return { name: bookName, type: 'book' };
+  }
+
+  return { name: source, type: 'unknown' };
 }
 
 // Helper to format description - escape <SEP> characters for readability

@@ -140,15 +140,16 @@ export default function GraphVisualization3DForce({
   } | null>(null)
 
   // Color mapping for different node types
+  // Constitution Principle II: Commune-Centric Architecture
   const typeColors: Record<string, string> = {
     'Personnes': '#ff4757',
     'Lieux': '#00d2d3',
     'Événements': '#5352ed',
     'Concepts': '#7bed9f',
     'Organisations': '#ffa502',
-    'Livres': '#ffd700',        // Bright gold - shiniest color
-    'Communautés': '#ff69b4',   // Pink for communities
-    'BOOK': '#ffd700',          // Bright gold - shiniest color
+    'Communes': '#ffd700',       // Bright gold - central entities (T026)
+    'Communautés': '#ff69b4',    // Pink for thematic communities
+    'COMMUNE': '#ffd700',        // Bright gold for communes (central civic entities)
     'PERSON': '#ff4757',
     'GEO': '#00d2d3',
     'LOCATION': '#00d2d3',
@@ -156,10 +157,13 @@ export default function GraphVisualization3DForce({
     'CONCEPT': '#7bed9f',
     'ORGANIZATION': '#ffa502',
     'Community': '#ff69b4',
+    // Legacy book support (for backward compatibility)
+    'Livres': '#ffd700',
+    'BOOK': '#ffd700',
     'default': '#dfe4ea'
   }
 
-  // Map entity_type from Neo4j to French display labels for legend matching
+  // Map entity_type from Neo4j/GraphML to French display labels for legend matching (T027)
   const entityTypeToFrench: Record<string, string> = {
     'PERSON': 'Personnes',
     'GEO': 'Lieux',
@@ -167,8 +171,10 @@ export default function GraphVisualization3DForce({
     'EVENT': 'Événements',
     'CONCEPT': 'Concepts',
     'ORGANIZATION': 'Organisations',
-    'Book': 'Livres',
+    'COMMUNE': 'Communes',       // Constitution Principle II: Commune-Centric
     'Community': 'Communautés',
+    // Legacy book support (for backward compatibility)
+    'Book': 'Livres',
     // Handle malformed entity_type values (with quotes or pipes from Neo4j)
     '("PERSON': 'Personnes',
     '|"PERSON': 'Personnes',
@@ -182,6 +188,20 @@ export default function GraphVisualization3DForce({
     '|CONCEPT': 'Concepts',
   }
 
+  // Check if a node is a Commune (central civic entity) - T022
+  // Constitution Principle II: Commune-Centric Architecture
+  const isCommune = (node: { id?: string; group?: string; labels?: string[]; properties?: Record<string, any> }): boolean => {
+    // Check entity_type property
+    if (node.properties?.entity_type === 'COMMUNE') return true
+    // Check labels array
+    if (node.labels?.includes('COMMUNE')) return true
+    // Check group (set during graph transformation)
+    if (node.group === 'Communes' || node.group === 'COMMUNE') return true
+    // Check ID pattern (GraphML convention)
+    if (typeof node.id === 'string' && node.id.startsWith('COMMUNE_')) return true
+    return false
+  }
+
   // Get the entity type from node data, prioritizing entity_type property
   const getEntityType = (node: ReconciliationData['nodes'][0]): string => {
     // First try entity_type property (most reliable for actual type)
@@ -192,14 +212,18 @@ export default function GraphVisualization3DForce({
       // If not mapped, return as-is (might be directly usable)
       return rawType
     }
-    // Check if it's a Book node by labels or ID pattern
+    // Check if it's a Commune node (Constitution Principle II: Commune-Centric)
+    if (isCommune(node)) {
+      return 'Communes'
+    }
+    // Check for Community (thematic clusters)
+    if (node.labels?.includes('Community')) {
+      return 'Communautés'
+    }
+    // Legacy: Check if it's a Book node by labels or ID pattern
     if (node.labels?.includes('Book') || node.labels?.includes('BOOK') ||
         String(node.id).startsWith('LIVRE_')) {
       return 'Livres'
-    }
-    // Check for Community
-    if (node.labels?.includes('Community')) {
-      return 'Communautés'
     }
     // Then try the second label (first is usually "Entity")
     if (node.labels && node.labels.length > 1) {
@@ -318,13 +342,13 @@ export default function GraphVisualization3DForce({
         })
 
         // Principe #4: Proper spacing between nodes for visibility of relationships
-        // Configure forces to create book-centered topology: Books → Hubs → Sub-hubs → Periphery
+        // Constitution Principle II: Commune-Centric Architecture (T023-T025)
+        // Configure forces to create commune-centered topology: Communes → Hubs → Sub-hubs → Periphery
         const chargeForce = graph.d3Force('charge')
         if (chargeForce) {
           chargeForce.strength((node: any) => {
-            // Books have moderate repulsion but stay central
-            const isBook = node.group === 'Livres' || node.group === 'BOOK' || String(node.id).startsWith('LIVRE_')
-            if (isBook) return -200  // Books moderate repulsion for better balance
+            // Communes have moderate repulsion but stay central (T023)
+            if (isCommune(node)) return -200  // Communes moderate repulsion for better balance
 
             // High-degree nodes (hubs) have stronger repulsion for good spreading
             const degree = node.val || 1
@@ -340,11 +364,11 @@ export default function GraphVisualization3DForce({
         if (linkForce) {
           linkForce
             .distance((link: any) => {
-              // Balanced distances for good visibility without excessive spiral effect
-              const sourceIsBook = link.source.group === 'Livres' || link.source.group === 'BOOK' || String(link.source.id).startsWith('LIVRE_')
-              const targetIsBook = link.target.group === 'Livres' || link.target.group === 'BOOK' || String(link.target.id).startsWith('LIVRE_')
+              // Balanced distances for good visibility without excessive spiral effect (T024)
+              const sourceIsCommune = isCommune(link.source)
+              const targetIsCommune = isCommune(link.target)
 
-              if (sourceIsBook || targetIsBook) return 400  // Books to first-hop: balanced distance
+              if (sourceIsCommune || targetIsCommune) return 400  // Communes to first-hop: balanced distance
 
               // Hub-to-hub connections: moderate spacing for good structure
               const sourceDegree = link.source.val || 1
@@ -358,14 +382,13 @@ export default function GraphVisualization3DForce({
             .strength(0.7)  // Stronger links to maintain structural cohesion and reduce spiral
         }
 
-        // Add center force to keep books gravitating toward center
+        // Add center force to keep communes gravitating toward center
         const d3 = await import('d3-force')
         graph.d3Force('center', d3.forceCenter(0, 0).strength(0.1))
 
-        // Add radial force to push non-book nodes outward in much larger layers for long-range visibility
+        // Add radial force to push non-commune nodes outward in layers for long-range visibility (T025)
         graph.d3Force('radial', d3.forceRadial((node: any) => {
-          const isBook = node.group === 'Livres' || node.group === 'BOOK' || String(node.id).startsWith('LIVRE_')
-          if (isBook) return 0  // Books stay at center
+          if (isCommune(node)) return 0  // Communes stay at center
 
           const degree = node.val || 1
           if (degree > 10) return 400  // Hubs in middle ring (4x larger: 100 * 4)
@@ -557,14 +580,11 @@ export default function GraphVisualization3DForce({
           ? (node.properties?.name || node.properties?.title || String(node.id))
           : String(node.id)
 
-        // Principle #2: Books are the "core" entities and should be bigger
-        const isBookNode = (node as any).type === 'Book' ||
-                          (node.labels && node.labels.includes('Livres')) ||
-                          (node.labels && node.labels.includes('BOOK')) ||
-                          String(nodeId).startsWith('LIVRE_')
+        // Constitution Principle II: Communes are the "core" entities and should be bigger
+        const isCommuneNode = isCommune(node)
 
         const baseSize = Math.max(1, (node.degree || 0) / 5)
-        const bookMultiplier = isBookNode ? 3 : 1  // Books are 3x larger
+        const communeMultiplier = isCommuneNode ? 3 : 1  // Communes are 3x larger (central civic entities)
 
         // Get entity type for proper color matching with legend
         const entityType = getEntityType(node)
@@ -588,7 +608,7 @@ export default function GraphVisualization3DForce({
           name: getNodeName(node, nodeId),
           group: entityType, // Use entity type for group (used in force calculations)
           color: getNodeColor(node), // Pass full node to get color from entity_type property
-          val: baseSize * bookMultiplier // Books are significantly larger
+          val: baseSize * communeMultiplier // Communes are significantly larger (central civic entities)
         }
       })
 

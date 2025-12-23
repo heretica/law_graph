@@ -2,12 +2,14 @@
  * ProvenancePanel Component
  * Displays the complete provenance chain for a GraphRAG query
  * Feature: 001-interactive-graphrag-refinement - User Story 1 (AC1)
+ * Updated: 004-ui-consistency (T036-T038) - Commune attribution
  *
+ * Constitution Principle VII: Civic Provenance Chain
  * Shows:
  * - Query details
- * - Entities used (ranked by relevance)
+ * - Entities used (ranked by relevance) with commune attribution
  * - Relationships traversed
- * - Source chunks with book references
+ * - Source chunks with commune of origin
  */
 
 'use client';
@@ -15,6 +17,7 @@
 import { useState, useEffect } from 'react';
 import type { ProvenanceChain, UsedEntity, TraversedRelationship, SourceChunk } from '@/types/provenance';
 import { getProvenanceChain, formatEntityDisplay, formatRelationshipDisplay } from '@/lib/services/provenance';
+import { getCommuneDisplayName } from '@/lib/utils/commune-mapping';
 
 interface ProvenancePanelProps {
   queryId: string | null;
@@ -63,7 +66,7 @@ export default function ProvenancePanel({
         <div className="text-center max-w-md">
           <div className="text-4xl mb-4">🔍</div>
           <p className="text-lg mb-2 text-white">Answer Provenance Panel</p>
-          <p className="text-sm">Submit a query to see which entities, relationships, and source text chunks were used to build the answer. Click through to trace each element back to the original books.</p>
+          <p className="text-sm">Submit a query to see which entities, relationships, and source text chunks were used to build the answer. Click through to trace each element back to the original civic contributions.</p>
         </div>
       </div>
     );
@@ -181,8 +184,9 @@ export default function ProvenancePanel({
                       </div>
                       <div className="text-xs text-gray-400">
                         Type: <span className="text-borges-light">{entity.entity_type}</span>
-                        {entity.book_title && (
-                          <> • Book: <span className="text-gray-300">{entity.book_title}</span></>
+                        {/* Constitution Principle VII: Commune attribution (T037) */}
+                        {(entity.commune || entity.book_title) && (
+                          <> • Commune: <span className="text-yellow-300">{getCommuneDisplayName(entity.commune || entity.book_title)}</span></>
                         )}
                       </div>
                       {entity.description && (
@@ -254,13 +258,14 @@ export default function ProvenancePanel({
                   className="p-3 bg-borges-dark rounded border border-gray-700 hover:border-borges-light cursor-pointer transition-colors"
                   onClick={() => onChunkClick?.(chunk.chunk_id)}
                 >
+                  {/* Constitution Principle VII: Commune of origin (T038) */}
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs px-2 py-0.5 bg-yellow-900/50 rounded text-yellow-300">
-                      📖 {chunk.book_title}
+                      🏛️ {getCommuneDisplayName(chunk.commune || chunk.book_title)}
                     </span>
                     {chunk.page && (
                       <span className="text-xs text-gray-400">
-                        Page {chunk.page}
+                        Contribution #{chunk.page}
                       </span>
                     )}
                   </div>

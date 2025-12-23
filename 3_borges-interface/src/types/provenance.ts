@@ -1,6 +1,7 @@
 /**
  * TypeScript types for provenance tracking
  * Feature: 001-interactive-graphrag-refinement
+ * Updated: 004-ui-consistency - Commune provenance (Constitution Principle VII)
  */
 
 export interface UsedEntity {
@@ -11,6 +12,9 @@ export interface UsedEntity {
   rank: number;
   relevance_score: number;
   contribution?: 'direct_match' | 'context' | 'community_member';
+  // Civic provenance (Grand Débat National)
+  commune?: string;
+  // Legacy book provenance
   book_id?: string;
   book_title?: string;
   book_author?: string;
@@ -31,6 +35,9 @@ export interface TraversedRelationship {
 export interface SourceChunk {
   chunk_id: string;
   content: string;
+  // Civic provenance (Grand Débat National)
+  commune?: string;
+  // Legacy book provenance
   book_id: string;
   book_title: string;
   book_author?: string;

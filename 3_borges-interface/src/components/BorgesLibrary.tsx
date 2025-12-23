@@ -102,6 +102,7 @@ import EntityDetailModal from './EntityDetailModal'
 import { lawGraphRAGService } from '@/lib/services/law-graphrag'
 import { colorService, type EntityColorInfo } from '@/lib/utils/colorService'
 import type { TraversedRelationship } from '@/types/provenance'
+import { useGraphMLData, transformToReconciliationData } from '@/hooks/useGraphMLData'
 
 
 interface ReconciliationGraphData {
@@ -295,12 +296,41 @@ function BorgesLibrary() {
     }
   }
 
+  // GraphML data loading hook - Constitution Principle III (No Orphan Nodes)
+  // Provides initial graph visualization from static GraphML files
+  // MCP queries will overlay/update this data with query-specific results
+  const {
+    document: graphMLDocument,
+    isLoading: isGraphMLLoading,
+    error: graphMLError,
+    reload: reloadGraphML
+  } = useGraphMLData({
+    url: '/data/grand-debat.graphml',
+    filterOrphans: true, // Constitution Principle III - No orphan nodes
+    onLoad: (doc) => {
+      console.log('📊 GraphML loaded successfully:', doc.nodes.length, 'nodes,', doc.edges.length, 'edges')
+      // Transform GraphML to reconciliation format for visualization
+      const transformedData = transformToReconciliationData(doc)
+      setReconciliationData(transformedData)
+      setProcessingStats({
+        nodes: transformedData.nodes.length,
+        communities: 0,
+        neo4jRelationships: transformedData.relationships.length
+      })
+    },
+    onError: (error) => {
+      console.error('❌ GraphML loading failed:', error)
+      // Don't block the UI - MCP queries will still work
+    }
+  })
+
+  // Sync GraphML loading state with component loading state
   useEffect(() => {
-    // Single-purpose interface: Grand Débat National data loaded on query
-    // No initial data load needed - data arrives via MCP queries
-    setIsLoadingGraph(false)
-    setShowLoadingOverlay(false)
-  }, [])
+    setIsLoadingGraph(isGraphMLLoading)
+    if (!isGraphMLLoading && !graphMLError) {
+      setShowLoadingOverlay(false)
+    }
+  }, [isGraphMLLoading, graphMLError])
 
   // Check localStorage for tutorial skip on mount
   useEffect(() => {
@@ -918,7 +948,12 @@ function BorgesLibrary() {
                   </p>
 
                   {/* Loading progress indicator */}
-                  {loadingProgress && (
+                  {isGraphMLLoading && (
+                    <div className="mb-4 text-borges-light text-sm font-medium animate-pulse">
+                      <span>Chargement du graphe civique...</span>
+                    </div>
+                  )}
+                  {loadingProgress && !isGraphMLLoading && (
                     <div className="mb-4 text-borges-light text-sm font-medium">
                       {loadingProgress.step === 'nodes' && (
                         <span>Exploration des contributions... {loadingProgress.current}/{loadingProgress.total}</span>
@@ -942,6 +977,41 @@ function BorgesLibrary() {
                     </div>
                     <div className="text-borges-muted text-xs mt-2">— Grand Débat National 2019</div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* GraphML Loading Error Display - T013 */}
+            {graphMLError && !isGraphMLLoading && (
+              <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+                <div className="text-center max-w-md px-8">
+                  <div className="text-6xl mb-4">⚠️</div>
+                  <h3 className="text-xl font-semibold text-borges-light mb-2">
+                    Erreur de chargement des données
+                  </h3>
+                  <p className="text-borges-light-muted mb-4">
+                    Le fichier GraphML des contributions citoyennes n&apos;a pas pu être chargé.
+                  </p>
+                  <p className="text-sm text-borges-muted mb-6">
+                    {graphMLError.message}
+                  </p>
+                  <div className="flex gap-4 justify-center">
+                    <button
+                      onClick={() => reloadGraphML()}
+                      className="px-4 py-2 bg-borges-accent text-borges-dark rounded hover:bg-borges-accent/80 transition-colors"
+                    >
+                      Réessayer
+                    </button>
+                    <button
+                      onClick={() => setShowLoadingOverlay(false)}
+                      className="px-4 py-2 bg-borges-border text-borges-light rounded hover:bg-borges-border/80 transition-colors"
+                    >
+                      Continuer sans données
+                    </button>
+                  </div>
+                  <p className="text-xs text-borges-muted mt-4">
+                    Vous pouvez toujours utiliser les requêtes MCP pour explorer les données.
+                  </p>
                 </div>
               </div>
             )}
