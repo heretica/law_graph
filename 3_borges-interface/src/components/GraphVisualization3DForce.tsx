@@ -12,6 +12,8 @@ interface Node {
   centrality_score?: number
   name?: string
   color?: string
+  val?: number
+  group?: string
 }
 
 interface Link {
@@ -126,6 +128,9 @@ export default function GraphVisualization3DForce({
 
   // Legend expand state for mobile
   const [isLegendExpanded, setIsLegendExpanded] = useState(false)
+
+  // Track unique relationship types from the data
+  const [relationshipTypes, setRelationshipTypes] = useState<Set<string>>(new Set())
 
   // TextChunkModal state
   const [isChunkModalOpen, setIsChunkModalOpen] = useState(false)
@@ -558,6 +563,14 @@ export default function GraphVisualization3DForce({
         value: 1
       }))
 
+    // Extract all unique relationship types for the legend
+    const uniqueRelTypes = new Set<string>()
+    allValidLinks.forEach(link => {
+      if (link.type) uniqueRelTypes.add(link.type)
+    })
+    setRelationshipTypes(uniqueRelTypes)
+    console.log('📋 Found relationship types:', Array.from(uniqueRelTypes))
+
     // Identify all nodes that participate in at least one relationship
     const connectedNodeIds = new Set<string>()
     allValidLinks.forEach(link => {
@@ -614,9 +627,13 @@ export default function GraphVisualization3DForce({
           name: getNodeName(node, nodeId),
           group: entityType, // Use entity type for group (used in force calculations)
           color: getNodeColor(node), // Pass full node to get color from entity_type property
-          val: baseSize * communeMultiplier // Communes are significantly larger (central civic entities)
+          val: baseSize * communeMultiplier, // Communes are significantly larger (central civic entities)
+          degree: node.degree // Preserve degree for sorting
         }
       })
+      // Limit to top 1000 nodes by degree (connected importance)
+      .sort((a, b) => (b.degree || 0) - (a.degree || 0))
+      .slice(0, 1000)
 
     // Create a Set of final valid node IDs for link filtering
     const finalValidNodeIds = new Set(nodes.map(n => n.id))
@@ -852,11 +869,11 @@ export default function GraphVisualization3DForce({
           <div className="hidden md:flex flex-col max-h-[70vh]">
             <div className="font-medium text-borges-light mb-2 px-3 pt-3 flex-shrink-0">Légende (62+ types)</div>
 
-            {/* Scrollable entity types section */}
+            {/* Scrollable entity types and relationship types section */}
             <div className="overflow-y-auto flex-1 px-3 pb-3">
-              <div className="mb-3">
-                <div className="text-borges-light-muted text-xs font-medium mb-2 sticky top-0 bg-borges-secondary">Entités</div>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="mb-4">
+                <div className="text-borges-light-muted text-xs font-medium mb-2 sticky top-0 bg-borges-secondary py-1">Types d'entités</div>
+                <div className="space-y-1">
                   {ENTITY_TYPES.map((type) => (
                     <div key={type} className="flex items-center gap-2 text-xs">
                       <div
@@ -871,17 +888,21 @@ export default function GraphVisualization3DForce({
                 </div>
               </div>
 
-              {/* Relationship Types */}
-              <div className="border-t border-borges-border pt-2 mt-3">
-                <div className="text-borges-light-muted text-xs font-medium mb-2">Relations courantes</div>
+              {/* Relationship Types - Dynamic from API data */}
+              <div className="border-t border-borges-border pt-3">
+                <div className="text-borges-light-muted text-xs font-medium mb-2 sticky top-0 bg-borges-secondary py-1">Types de relations</div>
                 <div className="space-y-1 text-borges-light-muted text-xs">
-                  <div className="flex items-center"><span className="mr-2">→</span>CONCERNS</div>
-                  <div className="flex items-center"><span className="mr-2">→</span>RELATED_TO</div>
-                  <div className="flex items-center"><span className="mr-2">→</span>MENTIONS</div>
-                  <div className="flex items-center"><span className="mr-2">→</span>SIMILAR_TO</div>
-                  <div className="flex items-center"><span className="mr-2">→</span>CONTAINS</div>
+                  {relationshipTypes.size > 0 ? (
+                    Array.from(relationshipTypes).sort().map((relType) => (
+                      <div key={relType} className="flex items-center">
+                        <span className="mr-2">→</span>
+                        <span className="font-medium">{relType}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-borges-muted text-xs italic">Aucune relation</div>
+                  )}
                 </div>
-                <div className="text-borges-light-muted text-xs mt-2 italic">Note: Les relations d'ordre 2-3 sont plus claires</div>
               </div>
             </div>
           </div>
@@ -913,13 +934,17 @@ export default function GraphVisualization3DForce({
                   </div>
                   <div className="text-borges-muted text-xs mt-2">... +{ENTITY_TYPES.length - 12} types</div>
                 </div>
-                {/* Relations */}
+                {/* Relations - Dynamic from API data */}
                 <div className="border-t border-borges-border pt-2">
                   <div className="text-borges-light-muted text-xs font-medium mb-1">Relations</div>
                   <div className="space-y-0.5 text-borges-light-muted text-xs">
-                    <div>→ CONCERNS / MENTIONS</div>
-                    <div>→ RELATED_TO / CONTAINS</div>
-                    <div>→ SIMILAR_TO</div>
+                    {relationshipTypes.size > 0 ? (
+                      Array.from(relationshipTypes).sort().map((relType) => (
+                        <div key={relType}>→ {relType}</div>
+                      ))
+                    ) : (
+                      <div className="text-borges-muted text-xs italic">Aucune relation</div>
+                    )}
                   </div>
                 </div>
               </div>
