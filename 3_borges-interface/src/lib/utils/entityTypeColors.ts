@@ -1,10 +1,51 @@
 /**
  * Entity Type Colors and Configuration
- * Maps all 62+ entity types to distinct colors and styles
- * Based on API nano_graphrag entity extraction types
+ * Maps entity types to distinct colors and styles
+ *
+ * GRAND_DEBAT_ONTOLOGY_TYPES: 24 types from model.mmd (primary)
+ * ENTITY_TYPES: Extended generic types (fallback)
  */
 
+// ============================================================================
+// GRAND DÉBAT NATIONAL - 24 Types Ontologiques (model.mmd)
+// Constitution Principe V: End-to-End Interpretability
+// ============================================================================
+export const GRAND_DEBAT_ONTOLOGY_TYPES = [
+  'CITOYEN',
+  'CONTRIBUTION',
+  'CONSULTATION',
+  'QUESTION',
+  'THEMATIQUE',
+  'ENCODAGE',
+  'CLUSTER_SEMANTIQUE',
+  'TYPE_REPONDANT',
+  'OPINION',
+  'PROPOSITION',
+  'DOLEANCE',
+  'VERBATIM',
+  'REFORME_DEMOCRATIQUE',
+  'REFORME_FISCALE',
+  'NIVEAU_CONFIANCE',
+  'ACTEUR_INSTITUTIONNEL',
+  'SERVICE_PUBLIC',
+  'CONSENSUS',
+  'COURANT_IDEOLOGIQUE',
+  'TERRITOIRE',
+  'TYPE_IMPOT',
+  'MODE_SCRUTIN',
+  'MESURE_ECOLOGIQUE',
+  'COMMUNE',
+] as const
+
+export type GrandDebatOntologyType = (typeof GRAND_DEBAT_ONTOLOGY_TYPES)[number]
+
+// ============================================================================
+// Extended Generic Types (fallback for non-ontology entities)
+// ============================================================================
 export const ENTITY_TYPES = [
+  // Include Grand Débat types first
+  ...GRAND_DEBAT_ONTOLOGY_TYPES,
+  // Generic types
   'PERSON',
   'ORGANIZATION',
   'LOCATION',
@@ -55,8 +96,7 @@ export const ENTITY_TYPES = [
   'PROGRAMMING_LANGUAGE',
   'MEDICAL_PROCEDURE',
   'CELESTIAL_BODY',
-  // Grand Débat specific types
-  'COMMUNE',
+  // Legacy Grand Débat aliases
   'CONCEPT',
   'COMMUNITY',
   'CIVIC_ENTITY',
@@ -72,6 +112,38 @@ export type EntityType = (typeof ENTITY_TYPES)[number]
  * Uses a mix of hues to maximize visual differentiation
  */
 export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
+  // ============================================================================
+  // GRAND DÉBAT NATIONAL - 24 Types Ontologiques (Prioritaires)
+  // Palette Datack: Jaune #F5C518, variations thématiques
+  // ============================================================================
+  'CITOYEN': '#F5C518',              // Datack Yellow - Citoyens au centre
+  'CONTRIBUTION': '#FFD93D',         // Yellow Bright - Contributions
+  'CONSULTATION': '#1A1A1A',         // Datack Black - Cadre institutionnel
+  'QUESTION': '#7c4dff',             // Purple - Questions posées
+  'THEMATIQUE': '#00bcd4',           // Teal - Thèmes
+  'ENCODAGE': '#9e9e9e',             // Gray - Encodage technique
+  'CLUSTER_SEMANTIQUE': '#7bed9f',   // Green - Clusters sémantiques
+  'TYPE_REPONDANT': '#ff6348',       // Orange-red - Types de répondants
+  'OPINION': '#5352ed',              // Blue - Opinions
+  'PROPOSITION': '#2196f3',          // Blue - Propositions citoyennes
+  'DOLEANCE': '#e91e63',             // Pink - Doléances
+  'VERBATIM': '#78909c',             // Blue-gray - Verbatims
+  'REFORME_DEMOCRATIQUE': '#1a237e', // Dark blue - Réformes démocratie
+  'REFORME_FISCALE': '#4caf50',      // Green - Réformes fiscales
+  'NIVEAU_CONFIANCE': '#ff9800',     // Orange - Niveaux de confiance
+  'ACTEUR_INSTITUTIONNEL': '#673ab7', // Deep purple - Acteurs institutionnels
+  'SERVICE_PUBLIC': '#3f51b5',       // Indigo - Services publics
+  'CONSENSUS': '#8bc34a',            // Light green - Consensus
+  'COURANT_IDEOLOGIQUE': '#9c27b0',  // Purple - Courants idéologiques
+  'TERRITOIRE': '#00d2d3',           // Cyan - Territoires
+  'TYPE_IMPOT': '#4caf50',           // Green - Types d'impôts
+  'MODE_SCRUTIN': '#607d8b',         // Blue-gray - Modes de scrutin
+  'MESURE_ECOLOGIQUE': '#4caf50',    // Green - Mesures écologiques
+  'COMMUNE': '#ffd700',              // Gold - Communes (central)
+
+  // ============================================================================
+  // Generic Types (fallback)
+  // ============================================================================
   // People & Roles
   'PERSON': '#ff4757',           // Red
   'PROFESSION': '#ff6348',       // Orange-red
@@ -84,7 +156,6 @@ export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
 
   // Places
   'LOCATION': '#00d2d3',         // Cyan
-  'COMMUNE': '#00bcd4',          // Teal (Grand Débat)
 
   // Temporal
   'DATE': '#673ab7',             // Deep purple
@@ -176,6 +247,37 @@ export function getEntityTypeColor(entityType: string | undefined): string {
  * Get display label for entity type (French)
  */
 export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
+  // ============================================================================
+  // GRAND DÉBAT NATIONAL - 24 Types Ontologiques (Labels Français)
+  // ============================================================================
+  'CITOYEN': 'Citoyen',
+  'CONTRIBUTION': 'Contribution',
+  'CONSULTATION': 'Consultation',
+  'QUESTION': 'Question',
+  'THEMATIQUE': 'Thématique',
+  'ENCODAGE': 'Encodage',
+  'CLUSTER_SEMANTIQUE': 'Cluster sémantique',
+  'TYPE_REPONDANT': 'Type de répondant',
+  'OPINION': 'Opinion',
+  'PROPOSITION': 'Proposition citoyenne',
+  'DOLEANCE': 'Doléance',
+  'VERBATIM': 'Verbatim',
+  'REFORME_DEMOCRATIQUE': 'Réforme démocratique',
+  'REFORME_FISCALE': 'Réforme fiscale',
+  'NIVEAU_CONFIANCE': 'Niveau de confiance',
+  'ACTEUR_INSTITUTIONNEL': 'Acteur institutionnel',
+  'SERVICE_PUBLIC': 'Service public',
+  'CONSENSUS': 'Consensus',
+  'COURANT_IDEOLOGIQUE': 'Courant idéologique',
+  'TERRITOIRE': 'Territoire',
+  'TYPE_IMPOT': 'Type d\'impôt',
+  'MODE_SCRUTIN': 'Mode de scrutin',
+  'MESURE_ECOLOGIQUE': 'Mesure écologique',
+  'COMMUNE': 'Commune',
+
+  // ============================================================================
+  // Generic Types (fallback)
+  // ============================================================================
   'PERSON': 'Personne',
   'ORGANIZATION': 'Organisation',
   'LOCATION': 'Lieu',
@@ -226,7 +328,7 @@ export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   'PROGRAMMING_LANGUAGE': 'Langage de programmation',
   'MEDICAL_PROCEDURE': 'Procédure médicale',
   'CELESTIAL_BODY': 'Corps céleste',
-  'COMMUNE': 'Commune',
+  // Legacy Grand Débat aliases (labels already defined in Grand Débat section)
   'CONCEPT': 'Concept',
   'COMMUNITY': 'Communauté',
   'CIVIC_ENTITY': 'Entité civique',
