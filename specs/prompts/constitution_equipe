@@ -1,0 +1,59 @@
+En utilisant le MCP think clear, tu vas mettre en place une orchestration d'agents (skill/workflow agent orchestration) dont l'objectif est d'affiner et d'optimiser le graphe du Grand Débat. Pour rappel, le graphe du Grand Débat est une base de connaissance citoyenne qui permet aux représentants politiques français de comprendre, à partir de leurs expressions, de construire une action publique ancrée dans l'expression de leurs besoins **au mot près**. J'insiste ici sur l'importance du fait que l'action publique doit venir des résultats de l'interrogation de cette voix citoyenne, cette interrogation devant s'ancrer dans les textes rédigés par les citoyens, au mot près et sans modification. Ainsi, le graphe du Grand Débat établi une filiation exacte, précise entre d'une part un ensemble d'expressions citoyennes écrite et l'action publique dessinée par l'interrogation de cette base de connaissance.
+ 
+Ainsi en est-il pour la finalité de cette orchestration d'agents.
+ 
+Maintenant sur **l'architecture d'ensemble cible** dd laquelle tu ne dois pas déroger :
+ 
+1. les données citoyennes doivent être stockées (comme c'est déjà le cas dans le MCP --> dossier nano graphRAG) dans un format "graphRAG friendly" avec une base vectorielle nano qui stocke les embeddings des expressions citoyennes ainsi que dans un graph store qui stocke le graphe construit à partir de ces expressions (/Users/arthursarazin/Documents/graphRAGmcp/law_data)
+ 
+2. une ontologie (/Users/arthursarazin/Documents/law_graph_core/ontology) à été définie pour représenter la réalité sous-jacente aux expressions citoyennes ainsi que l'espace politique et analytique dans lesquels elles se situent. C'est cette ontologie qui a permis de définir les types d'entités et de relations à extraire des expressions citoyennes. C'est également cette ontologie qui sert à donner le sens aux résultats de la requête faite à la base citoyenne. Son influence est la suivante :
+* les entités restituées ont été définies par l'ontologie
+* la légende affichée à côté de l'ontologie relève de l'ontologie
+ 
+3. Un graphRAG inspiré d'un nanographRAG qui donne à voir :
+* les entités extraites
+* les relations extraites
+ 
+Ce graphRAG est totalement transparent en ce qu'il restitue (/Users/arthursarazin/Documents/graphRAGmcp/nano_graphrag) toutes les étapes intermédiaires et assure une interpretabilité de bout-en-bout :
+*des chunks aux vecteurs
+*des vecteurs au graph store
+*du graph store aux sorties du MCP
+ 
+4. un Model Context Protocol qui expose et permet de consommer le graphRAG. Ce MCP propose un point d'entrée local (mode ascendant d'un graphRAG, qui va des entités les plus précises et remonte vers les communautés pour répondre) et un point d'entrée global (inverse). Ce MCP est déployé sur Railway (graphragmcp-production.up.railway.app)
+ 
+5. une interface (/Users/arthursarazin/Documents/law_graph/3_borges-interface) qui consomme le MCP et qui doit être à iso-fonctionnalité du graphe de Borges (https://le-graphe-de-borges.vercel.app/). Cette interface doit :
+* permettre de sélectionner les unités de connaissance (les communes pour le grand Débat) à interroger en mode local ou global.
+* requêter en mode local ou global ces unités ou l'ensemble
+* voir (dès l'entrée dans le graphe) l'ensemble du graphe ou les entités les plus influentes d'après les calculs d'un algorithme PageRank. Dès le premier regard, l'utilisateur doit saisir l'ambiance
+* après chaque requête, voir apparaître dynamiquement le sous-graphe construit par le graphRAG pour répondre à la question
+* la réponse du graphRAG dans laquelle est surlignée les mots correspondants aux entités ou relations récupérées
+* au click sur une entités, voir apparaître la description de l'entité et les chunks d'expression citoyenne auxquels sont rattachées ces entités. Pour savoir si cette fonctionnalité est réussie, il faut que l'utilisateur puisse, en faisant un contrôle F retrouver les mêmes mots sur les 3 panneaux : réponse du RAG, graphe et description des entités.
+ 
+Ainsi en est-il de l'architecture.
+ 
+Maintenant à propos du schéma de collaboration entre les agents
+ 
+Je veux un agent responsable pour chaque partie de l'architecture et je veux qu'ils collaborent de la manière suivante :
+1. l'agent en charge de l'ontologie s'assure que l'agent en charge de la base vectorielle et du graph store ont bien respecté son ontologie.
+2. l'agent en charge du MCP s'assure que l'agent en charge du vectore store et de la base vectorielle offre la possibilité d'une interpretabilité de bout-en-bout permettant de retrouver les chunks originaux ayant été utilisé pour la réponse
+ 
+3. l'agent en charge de l'interface doit vérifier que l'agent en charge du MCP restitue toutes les données dont il a besoin pour l'interface :
+* l'ensemble du graphe
+* la réponse du graphRAG
+* le sous-graphe récupérées lors de la réponse
+* les chunks correspondant
+ 
+3. Un chef de l'UX/UI qui s'assure que l'interface ne comporte aucun bug et qu'elle est accessible par téléphone. Ce chef doit aussi faire respecter la charte graphique de Datack (site Web)
+ 
+4. Un chef de produit qui réfléchit au business model du graphe du Grand Débat, qui rédige la page "A propos" du graphe. Il doit assurer la commercialisation particulière de l'ontologie couplée à l'ingénierie du GraphRAG et une recherche poussée sur l'interface
+ 
+5. le chef designer organise les cycles de conception qui fait appels à tous les agents précédemment nommés, demande une note de 1 à 10 sur l'état de développement à tous les niveaux, et dessine les pistes d'amélioration. Ce chef designer est en charge de suivre les développement en utilisant Speckit. Il est en charge de maintenir la documentation constituée : 
+* de la constitution : /Users/arthursarazin/Documents/law_graph/.specify/memory/constitution.md
+* des specifications pour chaque branche (par ex /Users/arthursarazin/Documents/law_graph/specs/004-ui-consistency/spec.md)
+* des logs de recherche (par ex /Users/arthursarazin/Documents/law_graph/specs/004-ui-consistency/research.md)
+* des modèles de données pour tous les endpoints (par ex /Users/arthursarazin/Documents/law_graph/specs/004-ui-consistency/data-model.md)
+* du plan de développement (par ex /Users/arthursarazin/Documents/law_graph/specs/004-ui-consistency/plan.md)
+* de la liste des tâches à mettre en place lors de l'implémentation (/Users/arthursarazin/Documents/law_graph/specs/004-ui-consistency/tasks.md)
+
+
+Pour cette orchestration, tu utiliseras un ou plusieurs skills et/ou workflow et/ou plugin à ta disposition. 

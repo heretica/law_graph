@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import TextChunkModal from './TextChunkModal'
-import { getEntityTypeColor, getEntityTypeLabel, ENTITY_TYPE_LABELS, ENTITY_TYPES } from '@/lib/utils/entityTypeColors'
+import { getEntityTypeColor, getEntityTypeLabel, ENTITY_TYPE_LABELS, ENTITY_TYPES, GRAND_DEBAT_ONTOLOGY_TYPES } from '@/lib/utils/entityTypeColors'
 
 interface Node {
   id: string
@@ -844,10 +844,10 @@ export default function GraphVisualization3DForce({
       }}
     >
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center text-borges-light">
+        <div className="absolute inset-0 flex items-center justify-center text-datack-light">
           <div className="text-center">
-            <div className="text-2xl mb-2 text-borges-light">Initializing...</div>
-            <div className="text-borges-light-muted">Initialisation du graphe 3D...</div>
+            <div className="text-2xl mb-2 text-datack-yellow">Initializing...</div>
+            <div className="text-datack-muted">Initialisation du graphe 3D...</div>
           </div>
         </div>
       )}
@@ -860,32 +860,32 @@ export default function GraphVisualization3DForce({
 
       {/* Info overlay - Hidden on mobile */}
       {reconciliationData && !isLoading && (
-        <div className="absolute top-2 left-2 md:top-4 md:left-4 bg-borges-secondary border border-borges-border p-2 md:p-3 rounded-borges-md text-xs md:text-sm hidden md:block">
-          <div className="text-borges-light font-medium">Dimensions</div>
-          <div className="text-borges-light-muted">{reconciliationData.nodes.length} noeuds</div>
-          <div className="text-borges-light-muted">{reconciliationData.relationships.length} relations</div>
+        <div className="absolute top-2 left-2 md:top-4 md:left-4 bg-datack-dark border border-datack-border p-2 md:p-3 rounded-lg text-xs md:text-sm hidden md:block">
+          <div className="text-datack-light font-medium">Dimensions</div>
+          <div className="text-datack-muted">{reconciliationData.nodes.length} noeuds</div>
+          <div className="text-datack-muted">{reconciliationData.relationships.length} relations</div>
         </div>
       )}
 
       {/* Legend - Expandable on mobile, hidden when side panel is open */}
       {reconciliationData && !isLoading && !sidePanelOpen && (
-        <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-borges-secondary border border-borges-border rounded-borges-md text-xs max-w-sm md:max-h-[70vh] flex flex-col">
+        <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-datack-dark border border-datack-border rounded-lg text-xs max-w-sm md:max-h-[70vh] flex flex-col">
           {/* Desktop: Scrollable legend */}
           <div className="hidden md:flex flex-col max-h-[70vh]">
-            <div className="font-medium text-borges-light mb-2 px-3 pt-3 flex-shrink-0">Légende (62+ types)</div>
+            <div className="font-medium text-datack-light mb-2 px-3 pt-3 flex-shrink-0">Légende (24 types ontologiques)</div>
 
             {/* Scrollable entity types and relationship types section */}
             <div className="overflow-y-auto flex-1 px-3 pb-3">
               <div className="mb-4">
-                <div className="text-borges-light-muted text-xs font-medium mb-2 sticky top-0 bg-borges-secondary py-1">Types d'entités</div>
+                <div className="text-datack-muted text-xs font-medium mb-2 sticky top-0 bg-datack-dark py-1">Types d'entités Grand Débat</div>
                 <div className="space-y-1">
-                  {ENTITY_TYPES.map((type) => (
+                  {GRAND_DEBAT_ONTOLOGY_TYPES.map((type) => (
                     <div key={type} className="flex items-center gap-2 text-xs">
                       <div
                         className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: getEntityTypeColor(type) }}
                       ></div>
-                      <span className="text-borges-light-muted truncate" title={ENTITY_TYPE_LABELS[type]}>
+                      <span className="text-datack-muted truncate" title={ENTITY_TYPE_LABELS[type]}>
                         {ENTITY_TYPE_LABELS[type]}
                       </span>
                     </div>
@@ -894,18 +894,18 @@ export default function GraphVisualization3DForce({
               </div>
 
               {/* Relationship Types - Dynamic from API data */}
-              <div className="border-t border-borges-border pt-3">
-                <div className="text-borges-light-muted text-xs font-medium mb-2 sticky top-0 bg-borges-secondary py-1">Types de relations</div>
-                <div className="space-y-1 text-borges-light-muted text-xs">
+              <div className="border-t border-datack-border pt-3">
+                <div className="text-datack-muted text-xs font-medium mb-2 sticky top-0 bg-datack-dark py-1">Types de relations</div>
+                <div className="space-y-1 text-datack-muted text-xs">
                   {relationshipTypes.size > 0 ? (
                     Array.from(relationshipTypes).sort().map((relType) => (
                       <div key={relType} className="flex items-center">
-                        <span className="mr-2">→</span>
+                        <span className="mr-2 text-datack-yellow">→</span>
                         <span className="font-medium">{relType}</span>
                       </div>
                     ))
                   ) : (
-                    <div className="text-borges-muted text-xs italic">Aucune relation</div>
+                    <div className="text-datack-gray text-xs italic">Aucune relation</div>
                   )}
                 </div>
               </div>
@@ -917,38 +917,37 @@ export default function GraphVisualization3DForce({
             onClick={() => setIsLegendExpanded(!isLegendExpanded)}
           >
             {isLegendExpanded ? (
-              /* Expanded: Mobile legend with sample types */
+              /* Expanded: Mobile legend with all 24 ontology types */
               <div className="p-3 space-y-2 max-h-60 overflow-y-auto">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-borges-light">Légende (62+ types)</span>
-                  <span className="text-borges-muted text-xs">▲</span>
+                  <span className="font-medium text-datack-light">Légende (24 types)</span>
+                  <span className="text-datack-gray text-xs">▲</span>
                 </div>
-                {/* Sample Entity Types */}
+                {/* All 24 Ontology Entity Types */}
                 <div>
-                  <div className="text-borges-light-muted text-xs font-medium mb-1">Entités (exemples)</div>
+                  <div className="text-datack-muted text-xs font-medium mb-1">Types Grand Débat</div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    {ENTITY_TYPES.slice(0, 12).map((type) => (
+                    {GRAND_DEBAT_ONTOLOGY_TYPES.map((type) => (
                       <div key={type} className="flex items-center gap-2">
                         <div
                           className="w-2 h-2 rounded-full flex-shrink-0"
                           style={{ backgroundColor: getEntityTypeColor(type) }}
                         ></div>
-                        <span className="text-borges-light-muted truncate">{ENTITY_TYPE_LABELS[type]}</span>
+                        <span className="text-datack-muted truncate">{ENTITY_TYPE_LABELS[type]}</span>
                       </div>
                     ))}
                   </div>
-                  <div className="text-borges-muted text-xs mt-2">... +{ENTITY_TYPES.length - 12} types</div>
                 </div>
                 {/* Relations - Dynamic from API data */}
-                <div className="border-t border-borges-border pt-2">
-                  <div className="text-borges-light-muted text-xs font-medium mb-1">Relations</div>
-                  <div className="space-y-0.5 text-borges-light-muted text-xs">
+                <div className="border-t border-datack-border pt-2">
+                  <div className="text-datack-muted text-xs font-medium mb-1">Relations</div>
+                  <div className="space-y-0.5 text-datack-muted text-xs">
                     {relationshipTypes.size > 0 ? (
                       Array.from(relationshipTypes).sort().map((relType) => (
                         <div key={relType}>→ {relType}</div>
                       ))
                     ) : (
-                      <div className="text-borges-muted text-xs italic">Aucune relation</div>
+                      <div className="text-datack-gray text-xs italic">Aucune relation</div>
                     )}
                   </div>
                 </div>
@@ -957,16 +956,16 @@ export default function GraphVisualization3DForce({
               /* Collapsed: Color dots with expand indicator */
               <div className="p-2 flex items-center justify-between">
                 <div className="flex flex-wrap gap-1">
-                  {ENTITY_TYPES.slice(0, 6).map((type) => (
+                  {GRAND_DEBAT_ONTOLOGY_TYPES.slice(0, 6).map((type) => (
                     <div
                       key={type}
                       className="w-2.5 h-2.5 rounded-full"
                       style={{ backgroundColor: getEntityTypeColor(type) }}
                     ></div>
                   ))}
-                  <div className="text-borges-muted text-xs ml-1">...</div>
+                  <div className="text-datack-gray text-xs ml-1">+18</div>
                 </div>
-                <span className="text-borges-muted text-xs ml-1">▼</span>
+                <span className="text-datack-gray text-xs ml-1">▼</span>
               </div>
             )}
           </div>
@@ -976,25 +975,25 @@ export default function GraphVisualization3DForce({
       {/* Link Hover Tooltip - follows cursor (only show if not pinned) */}
       {hoveredLink && !pinnedLink && (
         <div
-          className="fixed bg-borges-secondary border border-borges-border p-2 rounded-borges-md text-xs z-50 w-48 pointer-events-none"
+          className="fixed bg-datack-dark border border-datack-border p-2 rounded-lg text-xs z-50 w-48 pointer-events-none"
           style={{
             left: `${mousePos.x + 15}px`,
             top: `${mousePos.y + 15}px`,
           }}
         >
-          <div className="font-medium text-borges-light mb-1">Relation</div>
+          <div className="font-medium text-datack-light mb-1">Relation</div>
           <div className="space-y-1">
             <div>
-              <span className="text-borges-muted">Type:</span>
-              <span className="text-borges-light ml-1">{hoveredLink.type || hoveredLink.relation}</span>
+              <span className="text-datack-gray">Type:</span>
+              <span className="text-datack-light ml-1">{hoveredLink.type || hoveredLink.relation}</span>
             </div>
-            <div className="text-borges-light-muted text-xs">
+            <div className="text-datack-muted text-xs">
               {typeof hoveredLink.source === 'object' ? (hoveredLink.source as any)?.name || 'Unknown' : hoveredLink.source}
-              <span className="mx-1">→</span>
+              <span className="mx-1 text-datack-yellow">→</span>
               {typeof hoveredLink.target === 'object' ? (hoveredLink.target as any)?.name || 'Unknown' : hoveredLink.target}
             </div>
           </div>
-          <div className="border-t border-borges-border mt-2 pt-2 text-borges-muted text-xs">
+          <div className="border-t border-datack-border mt-2 pt-2 text-datack-gray text-xs">
             Click to pin
           </div>
         </div>
@@ -1003,7 +1002,7 @@ export default function GraphVisualization3DForce({
       {/* Pinned Link Tooltip - fixed position, interactive */}
       {pinnedLink && (
         <div
-          className="fixed bg-borges-secondary border-2 border-borges-accent p-3 rounded-borges-md text-xs z-50 w-72 max-h-96 overflow-y-auto shadow-borges-lg"
+          className="fixed bg-datack-dark border-2 border-datack-yellow p-3 rounded-lg text-xs z-50 w-72 max-h-96 overflow-y-auto shadow-lg"
           style={{
             left: `${Math.min(pinnedLinkPos.x + 15, window.innerWidth - 300)}px`,
             top: `${Math.min(pinnedLinkPos.y + 15, window.innerHeight - 400)}px`,
@@ -1012,12 +1011,12 @@ export default function GraphVisualization3DForce({
           {/* Header with close button */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-borges-accent rounded-full" />
-              <span className="font-medium text-borges-light">Pinned Relation</span>
+              <div className="w-2 h-2 bg-datack-yellow rounded-full" />
+              <span className="font-medium text-datack-light">Pinned Relation</span>
             </div>
             <button
               onClick={() => setPinnedLink(null)}
-              className="text-borges-muted hover:text-borges-light p-1"
+              className="text-datack-gray hover:text-datack-light p-1"
               title="Unpin"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1028,38 +1027,38 @@ export default function GraphVisualization3DForce({
 
           <div className="space-y-2">
             {/* Relation type */}
-            <div className="p-2 bg-borges-dark rounded-borges-sm">
-              <span className="text-borges-muted">Type:</span>
-              <span className="text-borges-light ml-2 font-medium">{pinnedLink.type || pinnedLink.relation}</span>
+            <div className="p-2 bg-datack-black rounded-sm">
+              <span className="text-datack-gray">Type:</span>
+              <span className="text-datack-light ml-2 font-medium">{pinnedLink.type || pinnedLink.relation}</span>
             </div>
 
             {/* Source → Target */}
             <div>
-              <span className="text-borges-muted">Between:</span>
-              <div className="text-borges-light mt-1">
+              <span className="text-datack-gray">Between:</span>
+              <div className="text-datack-light mt-1">
                 {typeof pinnedLink.source === 'object' ? (pinnedLink.source as any)?.name || (pinnedLink.source as any)?.id || 'Unknown' : pinnedLink.source}
-                <span className="text-borges-muted mx-2">→</span>
+                <span className="text-datack-yellow mx-2">→</span>
                 {typeof pinnedLink.target === 'object' ? (pinnedLink.target as any)?.name || (pinnedLink.target as any)?.id || 'Unknown' : pinnedLink.target}
               </div>
             </div>
 
             {pinnedLink.has_graphml_metadata && (
               <>
-                <div className="border-t border-borges-border pt-2 mt-2">
-                  <div className="text-borges-accent text-xs font-medium mb-2">GraphML Metadata</div>
+                <div className="border-t border-datack-border pt-2 mt-2">
+                  <div className="text-datack-yellow text-xs font-medium mb-2">GraphML Metadata</div>
                 </div>
 
                 {pinnedLink.graphml_weight && (
                   <div>
-                    <span className="text-borges-muted">Weight:</span>
-                    <span className="text-borges-light ml-2 font-mono">{pinnedLink.graphml_weight.toFixed(2)}</span>
+                    <span className="text-datack-gray">Weight:</span>
+                    <span className="text-datack-light ml-2 font-mono">{pinnedLink.graphml_weight.toFixed(2)}</span>
                   </div>
                 )}
 
                 {pinnedLink.graphml_description && (
                   <div>
-                    <span className="text-borges-muted">Description:</span>
-                    <div className="text-borges-light-muted mt-1 text-xs leading-relaxed p-2 bg-borges-dark rounded-borges-sm">
+                    <span className="text-datack-gray">Description:</span>
+                    <div className="text-datack-muted mt-1 text-xs leading-relaxed p-2 bg-datack-black rounded-sm">
                       {pinnedLink.graphml_description}
                     </div>
                   </div>
@@ -1068,7 +1067,7 @@ export default function GraphVisualization3DForce({
                 {pinnedLink.graphml_source_chunks && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-borges-muted">Source Text:</span>
+                      <span className="text-datack-gray">Source Text:</span>
                       <button
                         onClick={() => handleSourceNavigation(
                           pinnedLink.graphml_source_chunks!,
@@ -1079,13 +1078,13 @@ export default function GraphVisualization3DForce({
                             relationType: pinnedLink.relation || pinnedLink.type || 'RELATED'
                           }
                         )}
-                        className="borges-btn-primary text-xs px-2 py-1"
+                        className="bg-datack-yellow text-datack-black hover:bg-datack-yellow-bright px-2 py-1 rounded text-xs font-medium"
                         title="Open full source text"
                       >
                         Read Source
                       </button>
                     </div>
-                    <div className="text-borges-light-muted text-xs p-2 bg-borges-dark rounded-borges-sm border-l-2 border-borges-accent max-h-32 overflow-y-auto">
+                    <div className="text-datack-muted text-xs p-2 bg-datack-black rounded-sm border-l-2 border-datack-yellow max-h-32 overflow-y-auto">
                       {pinnedLink.graphml_source_chunks}
                     </div>
                   </div>
@@ -1093,22 +1092,22 @@ export default function GraphVisualization3DForce({
 
                 {pinnedLink.graphml_order && pinnedLink.graphml_order > 0 && (
                   <div>
-                    <span className="text-borges-muted">Order:</span>
-                    <span className="text-borges-light ml-2">{pinnedLink.graphml_order}</span>
+                    <span className="text-datack-gray">Order:</span>
+                    <span className="text-datack-light ml-2">{pinnedLink.graphml_order}</span>
                   </div>
                 )}
               </>
             )}
 
             {!pinnedLink.has_graphml_metadata && (
-              <div className="text-borges-muted text-xs p-2 bg-borges-dark rounded-borges-sm">
+              <div className="text-datack-gray text-xs p-2 bg-datack-black rounded-sm">
                 No enriched GraphML metadata available
               </div>
             )}
           </div>
 
           {/* Footer hint */}
-          <div className="border-t border-borges-border mt-3 pt-2 text-borges-muted text-xs">
+          <div className="border-t border-datack-border mt-3 pt-2 text-datack-gray text-xs">
             Click another relation or X to close
           </div>
         </div>
