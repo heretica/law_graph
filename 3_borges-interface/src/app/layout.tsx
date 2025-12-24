@@ -1,27 +1,27 @@
 import type { Metadata } from 'next'
-import { Cormorant_Garamond } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import './globals.css'
 
-const cormorantGaramond = Cormorant_Garamond({
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['300', '400', '500'],
-  variable: '--font-borges',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-datack',
 })
 
 export const metadata: Metadata = {
-  title: 'Le graphe de Borges',
-  description: 'Une exploration interactive des connexions infinies entre les livres',
-  authors: [{ name: 'Arthur Sarazin' }],
-  keywords: ['Borges', 'bibliothèque', 'graph', 'littérature', 'connexions'],
+  title: 'Grand Débat National - Datack',
+  description: 'Exploration interactive des connexions citoyennes du Grand Débat 2019',
+  authors: [{ name: 'Datack' }],
+  keywords: ['Grand Débat', 'citoyenneté', 'graph', 'GraphRAG', 'Datack', 'données citoyennes'],
   openGraph: {
-    title: 'Le graphe de Borges',
-    description: 'Une exploration interactive des connexions infinies entre les livres',
+    title: 'Grand Débat National - Datack',
+    description: 'Exploration interactive des connexions citoyennes du Grand Débat 2019',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Le graphe de Borges',
-    description: 'Une exploration interactive des connexions infinies entre les livres',
+    title: 'Grand Débat National - Datack',
+    description: 'Exploration interactive des connexions citoyennes du Grand Débat 2019',
   },
 }
 
@@ -32,7 +32,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" className="dark">
-      <body className={`${cormorantGaramond.variable} font-borges min-h-screen bg-borges-dark text-borges-light`}>
+      <body className={`${inter.variable} font-datack min-h-screen bg-datack-black text-datack-light`}>
         {children}
       </body>
     </html>

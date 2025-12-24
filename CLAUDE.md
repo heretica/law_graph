@@ -103,6 +103,8 @@ public/data/grand-debat.graphml → useGraphMLData hook → BorgesLibrary → Gr
 - TypeScript 5.x, React 19.2.1, Next.js 16.0.7 + 3d-force-graph 1.79.0, Three.js 0.181.0, D3 7.8.5, Tailwind CSS 3.3.5
 - GraphML parsing in browser (DOMParser) - no database required for initial visualization
 - Borges design system (colors: #0a0a0a, #f5f5f5, #7dd3fc; font: Cormorant Garamond)
+- TypeScript 5.2.2 (Interface), Python 3.11 (Agents si scripts), Markdown (Agents Claude Code) + Next.js 16, React 19, Tailwind CSS 3.3.5, 3d-force-graph 1.79.0, Inter (Google Fonts) (005-agent-orchestration)
+- Fichiers Markdown pour scores/findings, GraphML pour données graphe (005-agent-orchestration)
 
 ## Recent Changes
 - **004-ui-consistency**: GraphML infrastructure, commune-centric 3D graph, Borges visual identity, civic provenance chain

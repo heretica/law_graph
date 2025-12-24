@@ -1,19 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --borges-dark: #0a0a0a;
-  --borges-light: #f5f5f5;
-  --borges-accent: #7dd3fc;
-  --borges-secondary: #2a2a2a;
-  --borges-muted: #666666;
-  --borges-dark-hover: #1a1a1a;
-  --borges-light-muted: #a0a0a0;
-  --borges-border: #333333;
-  --borges-focus: rgba(125, 211, 252, 0.4);
+  /* Datack Brand Colors (Feature 005-agent-orchestration) */
+  --datack-yellow: #F5C518;
+  --datack-yellow-bright: #FFD93D;
+  --datack-black: #1A1A1A;
+  --datack-dark: #2D2D2D;
+  --datack-light: #F0F0F0;
+  --datack-gray: #6B7280;
+  --datack-border: #404040;
+  --datack-focus: rgba(245, 197, 24, 0.4);
 }
 
 * {
@@ -26,36 +24,36 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 body {
-  color: var(--borges-light);
-  background: var(--borges-dark);
+  color: var(--datack-light);
+  background: var(--datack-black);
 }
 
-/* Focus states - T003 */
+/* Focus states - Datack yellow accent */
 *:focus-visible {
-  outline: 2px solid var(--borges-light);
+  outline: 2px solid var(--datack-yellow);
   outline-offset: 2px;
 }
 
-/* Scrollbar styling - T004 */
+/* Scrollbar styling - Datack theme */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--borges-dark);
+  background: var(--datack-black);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--borges-border);
+  background: var(--datack-border);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--borges-muted);
+  background: var(--datack-gray);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -64,7 +62,7 @@ body {
   }
 }
 
-.borges-fade-in {
+.datack-fade-in {
   animation: fadeIn 1s ease-in-out;
 }
 
@@ -79,7 +77,7 @@ body {
   }
 }
 
-.borges-pulse {
+.datack-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
@@ -92,31 +90,31 @@ body {
   }
 }
 
-/* Blue to white glow animation for processing states */
-@keyframes blueWhiteGlow {
+/* Yellow glow animation for processing states - Datack brand */
+@keyframes yellowWhiteGlow {
   0%, 100% {
-    color: #3b82f6; /* blue-500 */
-    text-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    color: #F5C518;
+    text-shadow: 0 0 8px rgba(245, 197, 24, 0.6);
   }
   50% {
     color: #ffffff;
-    text-shadow: 0 0 12px rgba(255, 255, 255, 0.8), 0 0 20px rgba(59, 130, 246, 0.4);
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.8), 0 0 20px rgba(245, 197, 24, 0.4);
   }
 }
 
-.animate-blue-white-glow {
-  animation: blueWhiteGlow 1.5s ease-in-out infinite;
+.animate-yellow-white-glow {
+  animation: yellowWhiteGlow 1.5s ease-in-out infinite;
 }
 
-/* Spinner glow animation */
-@keyframes spinnerBlueWhiteGlow {
+/* Spinner glow animation - Datack yellow */
+@keyframes spinnerYellowWhiteGlow {
   0%, 100% {
-    color: #3b82f6;
-    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.8));
+    color: #F5C518;
+    filter: drop-shadow(0 0 4px rgba(245, 197, 24, 0.8));
   }
   50% {
     color: #ffffff;
-    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 12px rgba(59, 130, 246, 0.5));
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 12px rgba(245, 197, 24, 0.5));
   }
 }
 
@@ -130,114 +128,83 @@ body {
 }
 
 .animate-spinner-glow {
-  animation: spinnerBlueWhiteGlow 1.5s ease-in-out infinite, spin 1s linear infinite;
+  animation: spinnerYellowWhiteGlow 1.5s ease-in-out infinite, spin 1s linear infinite;
 }
 
-/* Processing button pulse - white to vivid blue */
+/* Processing button pulse - white to Datack yellow */
 @keyframes pulseBrightness {
   0%, 100% {
-    background-color: #f5f5f5;
-    color: #0a0a0a;
-    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+    background-color: #F0F0F0;
+    color: #1A1A1A;
+    box-shadow: 0 0 5px rgba(245, 197, 24, 0.3);
   }
   50% {
-    background-color: #3b82f6;
-    color: #ffffff;
-    box-shadow: 0 0 25px rgba(59, 130, 246, 0.8), 0 0 50px rgba(59, 130, 246, 0.4);
+    background-color: #F5C518;
+    color: #1A1A1A;
+    box-shadow: 0 0 25px rgba(245, 197, 24, 0.8), 0 0 50px rgba(245, 197, 24, 0.4);
   }
 }
 
-.animate-blue-white-glow {
-  animation: blueWhiteGlow 1.5s ease-in-out infinite;
+/* ===== Datack Utility Classes ===== */
+
+/* Button styling utility classes */
+.datack-btn-primary {
+  @apply px-4 py-2 bg-datack-yellow text-datack-black font-medium
+    hover:bg-datack-yellow-bright transition-colors rounded-datack-sm;
 }
 
-/* Spinner glow animation */
-@keyframes spinnerBlueWhiteGlow {
-  0%, 100% {
-    color: #3b82f6;
-    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.8));
-  }
-  50% {
-    color: #ffffff;
-    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 12px rgba(59, 130, 246, 0.5));
-  }
+.datack-btn-secondary {
+  @apply px-4 py-2 bg-datack-dark border border-datack-border
+    text-datack-light hover:border-datack-yellow transition-colors rounded-datack-sm;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.datack-btn-ghost {
+  @apply px-4 py-2 text-datack-gray hover:text-datack-light transition-colors;
 }
 
-.animate-spinner-glow {
-  animation: spinnerBlueWhiteGlow 1.5s ease-in-out infinite, spin 1s linear infinite;
+/* Input field styling utility classes */
+.datack-input {
+  @apply w-full px-3 py-2 bg-datack-dark border border-datack-border
+    text-datack-light placeholder-datack-gray rounded-datack-sm
+    focus:border-datack-yellow focus:ring-1 focus:ring-datack-yellow/40;
 }
 
-/* ===== Phase 2: Foundational Utility Classes ===== */
-
-/* T005: Button styling utility classes */
-.borges-btn-primary {
-  @apply px-4 py-2 border border-borges-light text-borges-light
-    hover:bg-borges-light hover:text-borges-dark transition-colors rounded-borges-sm;
+/* Panel/card styling utility classes */
+.datack-panel {
+  @apply bg-datack-dark border border-datack-border rounded-datack-md p-4 shadow-datack-md;
 }
 
-.borges-btn-secondary {
-  @apply px-4 py-2 bg-borges-secondary border border-borges-border
-    text-borges-light hover:border-borges-light-muted transition-colors rounded-borges-sm;
+.datack-panel-title {
+  @apply text-h2 text-datack-light mb-4;
 }
 
-.borges-btn-ghost {
-  @apply px-4 py-2 text-borges-light-muted hover:text-borges-light transition-colors;
-}
-
-/* T006: Input field styling utility classes */
-.borges-input {
-  @apply w-full px-3 py-2 bg-borges-secondary border border-borges-border
-    text-borges-light placeholder-borges-muted rounded-borges-sm
-    focus:border-borges-light focus:ring-1 focus:ring-borges-light/40;
-}
-
-/* T007: Panel/card styling utility classes */
-.borges-panel {
-  @apply bg-borges-secondary border border-borges-border rounded-borges-md p-4 shadow-borges-md;
-}
-
-.borges-panel-title {
-  @apply text-h2 text-borges-light mb-4;
-}
-
-/* T008: Modal styling utility classes */
-.borges-modal-overlay {
+/* Modal styling utility classes */
+.datack-modal-overlay {
   @apply fixed inset-0 bg-black/80 z-50;
 }
 
-.borges-modal {
-  @apply bg-borges-secondary border border-borges-border
-    rounded-borges-lg shadow-borges-lg p-6;
+.datack-modal {
+  @apply bg-datack-dark border border-datack-border
+    rounded-datack-lg shadow-datack-lg p-6;
 }
 
-.borges-modal-title {
-  @apply text-h2 text-borges-light mb-4;
+.datack-modal-title {
+  @apply text-h2 text-datack-light mb-4;
 }
 
-/* ===== Phase 8: Mobile Responsiveness (Constitution Principle VIII) ===== */
+/* ===== Mobile Responsiveness (Constitution Principle VIII) ===== */
 
-/* T048: Responsive typography - minimum 16px body text on mobile */
+/* Responsive typography - minimum 16px body text on mobile */
 html {
-  font-size: 16px; /* Base size - never smaller on mobile */
+  font-size: 16px;
 }
 
 @media (max-width: 767px) {
-  /* Mobile-first adjustments */
   html {
-    font-size: 16px; /* Enforce minimum */
-    -webkit-text-size-adjust: 100%; /* Prevent iOS text inflation */
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
   }
 
-  /* Responsive display text */
   .text-display {
     font-size: 1.75rem !important;
   }
@@ -255,43 +222,41 @@ html {
   }
 }
 
-/* T046: Touch-friendly targets - minimum 44x44px */
+/* Touch-friendly targets - minimum 44x44px */
 .touch-target {
   @apply min-w-touch min-h-touch;
 }
 
 /* Mobile-friendly button sizes */
 @media (max-width: 767px) {
-  .borges-btn-primary,
-  .borges-btn-secondary,
-  .borges-btn-ghost {
+  .datack-btn-primary,
+  .datack-btn-secondary,
+  .datack-btn-ghost {
     @apply min-h-touch px-4 py-3;
   }
 
-  /* Larger tap targets for mobile */
   button,
   [role="button"],
   a {
     min-height: 44px;
   }
 
-  /* Input fields need comfortable height on mobile */
-  .borges-input,
+  .datack-input,
   input,
   select {
     min-height: 44px;
-    font-size: 16px; /* Prevents iOS zoom on focus */
+    font-size: 16px;
   }
 }
 
 /* Mobile-friendly panels */
 @media (max-width: 767px) {
-  .borges-panel {
-    @apply p-3 rounded-borges-sm;
+  .datack-panel {
+    @apply p-3 rounded-datack-sm;
     max-width: calc(100vw - 2rem);
   }
 
-  .borges-modal {
+  .datack-modal {
     @apply p-4 m-4 max-h-[90vh] overflow-y-auto;
     width: calc(100vw - 2rem);
   }
@@ -299,7 +264,7 @@ html {
 
 /* Tablet adjustments */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .borges-panel {
+  .datack-panel {
     max-width: 90vw;
   }
 }
@@ -310,7 +275,7 @@ html {
 }
 
 .mobile-nav-menu {
-  @apply fixed inset-0 bg-borges-dark/95 z-50 flex flex-col p-6;
+  @apply fixed inset-0 bg-datack-black/95 z-50 flex flex-col p-6;
   transform: translateX(-100%);
   transition: transform 0.3s ease-in-out;
 }
@@ -320,7 +285,7 @@ html {
 }
 
 .mobile-nav-item {
-  @apply py-4 text-lg text-borges-light border-b border-borges-border;
+  @apply py-4 text-lg text-datack-light border-b border-datack-border;
 }
 
 /* Hide on mobile, show on desktop */
@@ -366,3 +331,44 @@ html {
     padding-top: max(1rem, env(safe-area-inset-top));
   }
 }
+
+/* ===== Legacy Borges class aliases for backwards compatibility ===== */
+/* These allow gradual migration - can be removed after full rebranding */
+.borges-dark { background-color: var(--datack-black); }
+.borges-light { color: var(--datack-light); }
+.bg-borges-dark { background-color: var(--datack-black); }
+.bg-borges-light { background-color: var(--datack-light); }
+.text-borges-light { color: var(--datack-light); }
+.text-borges-dark { color: var(--datack-black); }
+.border-borges-border { border-color: var(--datack-border); }
+.border-borges-light { border-color: var(--datack-light); }
+.bg-borges-secondary { background-color: var(--datack-dark); }
+.text-borges-muted { color: var(--datack-gray); }
+.text-borges-light-muted { color: var(--datack-gray); }
+.bg-borges-dark-hover { background-color: var(--datack-dark); }
+.border-borges-light-muted { border-color: var(--datack-gray); }
+.hover\:bg-borges-light:hover { background-color: var(--datack-light); }
+.hover\:text-borges-dark:hover { color: var(--datack-black); }
+.hover\:border-borges-light:hover { border-color: var(--datack-light); }
+.hover\:text-borges-light:hover { color: var(--datack-light); }
+.hover\:border-borges-light-muted:hover { border-color: var(--datack-gray); }
+.focus\:border-borges-light:focus { border-color: var(--datack-yellow); }
+.focus\:ring-borges-light\/40:focus { --tw-ring-color: rgba(245, 197, 24, 0.4); }
+.placeholder-borges-muted::placeholder { color: var(--datack-gray); }
+.rounded-borges-sm { border-radius: 4px; }
+.rounded-borges-md { border-radius: 8px; }
+.rounded-borges-lg { border-radius: 12px; }
+.shadow-borges-sm { box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+.shadow-borges-md { box-shadow: 0 4px 6px rgba(0,0,0,0.4); }
+.shadow-borges-lg { box-shadow: 0 10px 15px rgba(0,0,0,0.5); }
+.borges-fade-in { animation: fadeIn 1s ease-in-out; }
+.borges-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.borges-btn-primary { @apply datack-btn-primary; }
+.borges-btn-secondary { @apply datack-btn-secondary; }
+.borges-btn-ghost { @apply datack-btn-ghost; }
+.borges-input { @apply datack-input; }
+.borges-panel { @apply datack-panel; }
+.borges-panel-title { @apply datack-panel-title; }
+.borges-modal-overlay { @apply datack-modal-overlay; }
+.borges-modal { @apply datack-modal; }
+.borges-modal-title { @apply datack-modal-title; }
