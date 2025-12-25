@@ -16,5 +16,3 @@ export {
   type QueryCacheEntry,
   type ReconciliationData,
 } from './query-cache'
-
-export { handleQueryWithCache, queryWithStats, batchQueriesWithCache } from './example-usage'

@@ -47,7 +47,7 @@ function cleanupExpiredSessions() {
   const now = Date.now()
   const expiredSessions: string[] = []
 
-  for (const [sessionId, session] of sessionPool.entries()) {
+  for (const [sessionId, session] of Array.from(sessionPool.entries())) {
     if (now - session.lastUsed > SESSION_TTL) {
       session.status = 'expired'
       expiredSessions.push(sessionId)
@@ -76,7 +76,7 @@ async function getAvailableSession(): Promise<string> {
   }
 
   // Try to find an idle session
-  for (const [sessionId, session] of sessionPool.entries()) {
+  for (const [sessionId, session] of Array.from(sessionPool.entries())) {
     if (session.status === 'idle' && now - session.lastUsed < SESSION_TTL) {
       session.status = 'active'
       session.lastUsed = now
@@ -91,7 +91,7 @@ async function getAvailableSession(): Promise<string> {
     let oldestSessionId: string | null = null
     let oldestTime = now
 
-    for (const [sessionId, session] of sessionPool.entries()) {
+    for (const [sessionId, session] of Array.from(sessionPool.entries())) {
       if (session.status === 'idle' && session.lastUsed < oldestTime) {
         oldestTime = session.lastUsed
         oldestSessionId = sessionId

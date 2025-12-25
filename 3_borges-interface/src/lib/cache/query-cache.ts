@@ -167,7 +167,7 @@ export function evictOldest(): void {
   let oldestKey: string | null = null
   let oldestTimestamp = Infinity
 
-  for (const [key, entry] of cache.entries) {
+  for (const [key, entry] of Array.from(cache.entries.entries())) {
     if (entry.timestamp < oldestTimestamp) {
       oldestTimestamp = entry.timestamp
       oldestKey = key
@@ -207,7 +207,7 @@ export function getCacheStats(): {
   let oldestTimestamp: number | null = null
   let newestTimestamp: number | null = null
 
-  for (const entry of cache.entries.values()) {
+  for (const entry of Array.from(cache.entries.values())) {
     if (oldestTimestamp === null || entry.timestamp < oldestTimestamp) {
       oldestTimestamp = entry.timestamp
     }
