@@ -15,6 +15,18 @@ export interface LawGraphRAGQuery {
   mode?: 'local' | 'global';
   /** Optional: Filter by specific commune ID */
   commune_id?: string;
+  /** Optional: Filter by multiple commune IDs for comparative analysis */
+  commune_ids?: string[];
+}
+
+/**
+ * Commune information from grand_debat_list_communes
+ * Constitution Principle #2: Commune-Centric Architecture
+ */
+export interface CommuneInfo {
+  id: string;
+  name: string;
+  entity_count?: number;
 }
 
 /**

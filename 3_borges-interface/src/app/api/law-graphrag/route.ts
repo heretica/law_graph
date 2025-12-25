@@ -340,16 +340,123 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { query, mode = 'local', commune_id } = body
+    const { query, mode = 'local', commune_id, commune_ids } = body
 
     // Get session from pool (reuses existing or creates new)
     sessionId = await getAvailableSession()
 
-    // If commune_id is provided, query specific commune
-    // Otherwise, query all communes
+    // Determine query strategy:
+    // 1. commune_ids array (multi-commune comparative analysis)
+    // 2. commune_id (single commune query)
+    // 3. No filter (query all communes)
     let result: unknown
 
-    if (commune_id) {
+    if (commune_ids && Array.isArray(commune_ids) && commune_ids.length > 0) {
+      // Multi-commune query: Execute parallel queries and merge results
+      // Constitution Principle #3: Cross-Commune Analysis
+      console.log(`[Multi-Commune] Querying ${commune_ids.length} communes in parallel`)
+
+      const communeResults = await Promise.all(
+        commune_ids.map(async (cid: string) => {
+          try {
+            return await callMcpTool(sessionId!, 'grand_debat_query', {
+              commune_id: cid,
+              query,
+              mode,
+              include_sources: true
+            })
+          } catch (error) {
+            console.error(`[Multi-Commune] Failed for ${cid}:`, error)
+            return null // Partial failure handling
+          }
+        })
+      )
+
+      // Merge results with Set-based deduplication
+      const entityMap = new Map<string, { id: string; name: string; type: string; description?: string; source_commune?: string }>()
+      const relationshipSet = new Set<string>()
+      const relationships: Array<{ source: string; target: string; type: string; description?: string; weight?: number }> = []
+      const sourceQuotes: Array<{ content: string; commune: string; chunk_id: number }> = []
+      const answerParts: string[] = []
+
+      for (const res of communeResults) {
+        if (!res) continue
+        const mcpRes = res as {
+          answer?: string
+          commune_id?: string
+          commune_name?: string
+          provenance?: {
+            entities?: Array<{ id?: string; name?: string; type?: string; description?: string; source_commune?: string }>
+            relationships?: Array<{ source?: string; target?: string; type?: string; description?: string; weight?: number }>
+            source_quotes?: Array<{ content?: string; commune?: string; chunk_id?: number }>
+          }
+        }
+
+        // Collect answer
+        if (mcpRes.answer) {
+          const communeName = mcpRes.commune_name || mcpRes.commune_id || 'Unknown'
+          answerParts.push(`**${communeName}**: ${mcpRes.answer}`)
+        }
+
+        // Deduplicate entities by id
+        if (mcpRes.provenance?.entities) {
+          for (const e of mcpRes.provenance.entities) {
+            if (e && e.id && !entityMap.has(e.id)) {
+              entityMap.set(e.id, {
+                id: e.id,
+                name: e.name || e.id,
+                type: e.type || 'CIVIC_ENTITY',
+                description: e.description,
+                source_commune: e.source_commune
+              })
+            }
+          }
+        }
+
+        // Deduplicate relationships by source-target-type key
+        if (mcpRes.provenance?.relationships) {
+          for (const r of mcpRes.provenance.relationships) {
+            if (r && r.source && r.target) {
+              const key = `${r.source}-${r.target}-${r.type || 'RELATED_TO'}`
+              if (!relationshipSet.has(key)) {
+                relationshipSet.add(key)
+                relationships.push({
+                  source: r.source,
+                  target: r.target,
+                  type: r.type || 'RELATED_TO',
+                  description: r.description,
+                  weight: r.weight
+                })
+              }
+            }
+          }
+        }
+
+        // Collect source quotes with commune attribution
+        if (mcpRes.provenance?.source_quotes) {
+          for (const q of mcpRes.provenance.source_quotes) {
+            if (q && q.content) {
+              sourceQuotes.push({
+                content: q.content,
+                commune: q.commune || mcpRes.commune_id || 'Unknown',
+                chunk_id: q.chunk_id || sourceQuotes.length
+              })
+            }
+          }
+        }
+      }
+
+      // Build merged result in expected format
+      result = {
+        success: true,
+        answer: answerParts.join('\n\n'),
+        provenance: {
+          entities: Array.from(entityMap.values()),
+          relationships,
+          source_quotes: sourceQuotes
+        }
+      }
+    } else if (commune_id) {
       result = await callMcpTool(sessionId, 'grand_debat_query', {
         commune_id,
         query,
@@ -500,10 +607,14 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Health check - list available communes
+ * Health check and commune list endpoint
+ * GET /api/law-graphrag - Health check
+ * GET /api/law-graphrag?action=list_communes - List communes for selector
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   let sessionId: string | null = null
+  const { searchParams } = new URL(request.url)
+  const action = searchParams.get('action')
 
   try {
     // Get session from pool
@@ -516,7 +627,21 @@ export async function GET() {
       releaseSession(sessionId)
     }
 
-    // Health check can be cached briefly (30s) to reduce server load during monitoring
+    // If action is list_communes, return just the communes data
+    // This is used by the CommuneSelector component
+    if (action === 'list_communes') {
+      return NextResponse.json({
+        status: 'ok',
+        data: result
+      }, {
+        headers: {
+          // Communes list can be cached for longer (5 minutes) as it rarely changes
+          'Cache-Control': 'public, max-age=300, stale-while-revalidate=60',
+        },
+      })
+    }
+
+    // Default: Health check response
     return NextResponse.json({
       status: 'healthy',
       proxy: 'law-graphrag-mcp',

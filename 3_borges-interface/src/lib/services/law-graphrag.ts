@@ -12,6 +12,7 @@ import type {
   LawGraphRAGResponse,
   LawGraphRAGError,
   LawGraphRAGGraphData,
+  CommuneInfo,
 } from '@/types/law-graphrag'
 import { getCacheKey, getFromCache, setInCache } from '@/lib/cache/query-cache'
 
@@ -27,6 +28,40 @@ class LawGraphRAGService {
   }
 
   /**
+   * Fetch available communes from the MCP server
+   * Constitution Principle #2: Commune-Centric Architecture
+   * @returns List of communes with their entity counts
+   */
+  async fetchCommunes(): Promise<CommuneInfo[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}?action=list_communes`, {
+        method: 'GET',
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch communes: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      // Parse the communes from the health check response
+      // The data comes in format { communes: [{ commune_id, commune_name, entity_count }] }
+      if (result.data?.communes && Array.isArray(result.data.communes)) {
+        return result.data.communes.map((c: { commune_id?: string; commune_name?: string; entity_count?: number }) => ({
+          id: c.commune_id || '',
+          name: c.commune_name || c.commune_id || '',
+          entity_count: c.entity_count,
+        }))
+      }
+
+      return []
+    } catch (error) {
+      console.error('Error fetching communes:', error)
+      return []
+    }
+  }
+
+  /**
    * Query the Law GraphRAG for legal knowledge
    * Feature: 006-graph-optimization - Cache integration
    * @param query - The query request
@@ -34,7 +69,12 @@ class LawGraphRAGService {
    */
   async query(query: LawGraphRAGQuery): Promise<LawGraphRAGResponse> {
     // Generate cache key from query text and commune filter
-    const communes = query.commune_id ? [query.commune_id] : []
+    // Support both single commune_id and multiple commune_ids
+    const communes = query.commune_ids?.length
+      ? query.commune_ids
+      : query.commune_id
+        ? [query.commune_id]
+        : []
     const cacheKey = await getCacheKey(query.query, communes)
 
     // Check cache for existing entry
@@ -210,4 +250,4 @@ class LawGraphRAGService {
 export const lawGraphRAGService = new LawGraphRAGService()
 
 // Export types for convenience
-export type { LawGraphRAGQuery, LawGraphRAGResponse, LawGraphRAGGraphData }
+export type { LawGraphRAGQuery, LawGraphRAGResponse, LawGraphRAGGraphData, CommuneInfo }

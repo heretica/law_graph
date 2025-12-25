@@ -99,6 +99,7 @@ import TutorialOverlay from './TutorialOverlay'
 import TextChunkModal from './TextChunkModal'
 import ProvenancePanel from './ProvenancePanel'
 import EntityDetailModal from './EntityDetailModal'
+import CommuneSelector, { CommuneSelectorMobile, type Commune } from './CommuneSelector'
 // CitizenExtractsPanel merged into EntityDetailModal (Feature 005-agent-orchestration)
 import { lawGraphRAGService } from '@/lib/services/law-graphrag'
 import type { CitizenExtract, GrandDebatEntity } from '@/types/law-graphrag'
@@ -198,6 +199,12 @@ function BorgesLibrary() {
   } | null>(null)
   // Single-purpose: Grand Débat National GraphRAG only (Constitution v3.0.0 Principle VI)
   const [mode, setMode] = useState<'local' | 'global'>('global')
+
+  // Commune selection for filtered/comparative analysis (Constitution Principles #2, #3)
+  const [availableCommunes, setAvailableCommunes] = useState<Commune[]>([])
+  const [selectedCommunes, setSelectedCommunes] = useState<string[]>([])
+  const [loadingCommunes, setLoadingCommunes] = useState(true)
+
   const [processingStartTime, setProcessingStartTime] = useState<number | null>(null)
   const [elapsedTime, setElapsedTime] = useState<number>(0)
   const [processingStats, setProcessingStats] = useState<{
@@ -262,6 +269,25 @@ function BorgesLibrary() {
       return () => clearTimeout(timeout)
     }
   }, [showErrorAlert])
+
+  // Fetch available communes on mount (Constitution Principle #2: Commune-Centric)
+  useEffect(() => {
+    const fetchCommunes = async () => {
+      try {
+        setLoadingCommunes(true)
+        const communes = await lawGraphRAGService.fetchCommunes()
+        // Sort communes alphabetically
+        const sortedCommunes = communes.sort((a, b) => a.name.localeCompare(b.name))
+        setAvailableCommunes(sortedCommunes)
+        console.log(`🏛️ Loaded ${sortedCommunes.length} communes for selection`)
+      } catch (error) {
+        console.error('Failed to fetch communes:', error)
+      } finally {
+        setLoadingCommunes(false)
+      }
+    }
+    fetchCommunes()
+  }, [])
 
   // Function to extract chunks related to a specific entity
   const extractEntityChunks = (entityId: string) => {
@@ -603,9 +629,22 @@ function BorgesLibrary() {
         setTimeout(() => reject(new Error('TIMEOUT')), 30000)
       })
 
+      // Build query params with optional commune filtering
+      // Constitution Principles #2 (Commune-Centric) and #3 (Cross-Commune Analysis)
+      const queryParams: { query: string; mode: 'local' | 'global'; commune_ids?: string[] } = {
+        query,
+        mode
+      }
+
+      // Only include commune_ids if a subset of communes is selected (not all)
+      if (selectedCommunes.length > 0 && selectedCommunes.length < availableCommunes.length) {
+        queryParams.commune_ids = selectedCommunes
+        console.log(`🏛️ Filtering by ${selectedCommunes.length} selected communes`)
+      }
+
       // Race between query and timeout
       const result = await Promise.race([
-        lawGraphRAGService.query({ query, mode }),
+        lawGraphRAGService.query(queryParams),
         timeoutPromise
       ])
 
@@ -829,7 +868,7 @@ function BorgesLibrary() {
       setProcessingStartTime(null)
       setCurrentProcessingPhase(null)
     }
-  }, [mode])
+  }, [mode, selectedCommunes, availableCommunes])
 
   return (
     <div className="min-h-screen bg-datack-black text-datack-light">
@@ -863,6 +902,14 @@ function BorgesLibrary() {
             <div className="text-xs text-datack-gray mt-1">50 communes · Charente-Maritime</div>
           </div>
         </div>
+
+        {/* Mobile Commune Selector - Constitution Principles #2, #3 */}
+        <CommuneSelectorMobile
+          communes={availableCommunes}
+          selectedCommunes={selectedCommunes}
+          onSelectionChange={setSelectedCommunes}
+          disabled={isProcessing || loadingCommunes}
+        />
 
         {/* Mobile Mode Toggle */}
         <div className="mobile-nav-item">
@@ -941,6 +988,15 @@ function BorgesLibrary() {
                   </div>
                 </div>
 
+                {/* Commune Selector - Constitution Principles #2, #3 */}
+                <CommuneSelector
+                  communes={availableCommunes}
+                  selectedCommunes={selectedCommunes}
+                  onSelectionChange={setSelectedCommunes}
+                  disabled={isProcessing || loadingCommunes}
+                  className="hidden md:block"
+                />
+
                 {/* Search Input - Full width on mobile */}
                 <div className="flex gap-2 flex-1">
                   <input
@@ -1012,7 +1068,11 @@ function BorgesLibrary() {
 
               {/* Mobile-only: Current settings indicator */}
               <div className="flex md:hidden items-center justify-between text-xs text-datack-muted">
-                <span>🏛️ Grand Débat National</span>
+                <span>
+                  🏛️ {selectedCommunes.length > 0 && selectedCommunes.length < availableCommunes.length
+                    ? `${selectedCommunes.length} commune${selectedCommunes.length > 1 ? 's' : ''}`
+                    : 'Grand Débat National'}
+                </span>
                 <span>{mode === 'local' ? 'Local' : 'Global'}</span>
               </div>
             </div>
