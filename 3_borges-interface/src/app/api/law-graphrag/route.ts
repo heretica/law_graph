@@ -12,7 +12,124 @@ export const dynamic = 'force-dynamic'
 
 const LAW_GRAPHRAG_MCP_URL = process.env.LAW_GRAPHRAG_API_URL || 'https://graphragmcp-production.up.railway.app'
 
-// Session cache (in production, use Redis or similar)
+// Session pool configuration
+const SESSION_TTL = 300000 // 5 minutes
+const MAX_SESSIONS = 3
+
+interface PooledSession {
+  sessionId: string
+  lastUsed: number
+  requestCount: number
+  status: 'active' | 'idle' | 'expired'
+}
+
+// Session pool singleton
+const sessionPool: Map<string, PooledSession> = new Map()
+
+// Cleanup interval
+let cleanupInterval: NodeJS.Timeout | null = null
+
+/**
+ * Start periodic cleanup of expired sessions
+ */
+function startSessionCleanup() {
+  if (cleanupInterval) return
+
+  cleanupInterval = setInterval(() => {
+    cleanupExpiredSessions()
+  }, 60000) // Every minute
+}
+
+/**
+ * Remove expired sessions from the pool
+ */
+function cleanupExpiredSessions() {
+  const now = Date.now()
+  const expiredSessions: string[] = []
+
+  for (const [sessionId, session] of sessionPool.entries()) {
+    if (now - session.lastUsed > SESSION_TTL) {
+      session.status = 'expired'
+      expiredSessions.push(sessionId)
+    }
+  }
+
+  for (const sessionId of expiredSessions) {
+    sessionPool.delete(sessionId)
+    console.log(`[SessionPool] Cleaned up expired session: ${sessionId}`)
+  }
+
+  if (expiredSessions.length > 0) {
+    console.log(`[SessionPool] Removed ${expiredSessions.length} expired session(s). Pool size: ${sessionPool.size}`)
+  }
+}
+
+/**
+ * Get an available session from the pool or create a new one
+ */
+async function getAvailableSession(): Promise<string> {
+  const now = Date.now()
+
+  // Start cleanup on first use
+  if (!cleanupInterval) {
+    startSessionCleanup()
+  }
+
+  // Try to find an idle session
+  for (const [sessionId, session] of sessionPool.entries()) {
+    if (session.status === 'idle' && now - session.lastUsed < SESSION_TTL) {
+      session.status = 'active'
+      session.lastUsed = now
+      session.requestCount++
+      console.log(`[SessionPool] Reusing session ${sessionId} (requests: ${session.requestCount})`)
+      return sessionId
+    }
+  }
+
+  // If pool is at capacity, remove oldest expired/idle session
+  if (sessionPool.size >= MAX_SESSIONS) {
+    let oldestSessionId: string | null = null
+    let oldestTime = now
+
+    for (const [sessionId, session] of sessionPool.entries()) {
+      if (session.status === 'idle' && session.lastUsed < oldestTime) {
+        oldestTime = session.lastUsed
+        oldestSessionId = sessionId
+      }
+    }
+
+    if (oldestSessionId) {
+      sessionPool.delete(oldestSessionId)
+      console.log(`[SessionPool] Removed oldest session to make room: ${oldestSessionId}`)
+    }
+  }
+
+  // Create new session
+  const newSessionId = await initializeMcpSession()
+  sessionPool.set(newSessionId, {
+    sessionId: newSessionId,
+    lastUsed: now,
+    requestCount: 1,
+    status: 'active'
+  })
+
+  console.log(`[SessionPool] Created new session ${newSessionId}. Pool size: ${sessionPool.size}`)
+  return newSessionId
+}
+
+/**
+ * Release a session back to the pool after use
+ */
+function releaseSession(sessionId: string) {
+  const session = sessionPool.get(sessionId)
+  if (session) {
+    session.status = 'idle'
+    session.lastUsed = Date.now()
+    console.log(`[SessionPool] Released session ${sessionId} (requests: ${session.requestCount})`)
+  }
+}
+
+// Legacy variable (kept for compatibility, but pool is now used)
 let mcpSessionId: string | null = null
 
 /**
@@ -54,71 +171,148 @@ async function initializeMcpSession(): Promise<string> {
 }
 
 /**
- * Call MCP tool
+ * Check if an error is permanent and should not be retried
  */
-async function callMcpTool(sessionId: string, toolName: string, args: Record<string, unknown>): Promise<unknown> {
-  const response = await fetch(`${LAW_GRAPHRAG_MCP_URL}/mcp`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json, text/event-stream',
-      'mcp-session-id': sessionId,
-    },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      method: 'tools/call',
-      params: {
-        name: toolName,
-        arguments: args
-      },
-      id: Date.now()
-    })
-  })
+function isPermanentError(error: Error): boolean {
+  const errorMessage = error.message.toLowerCase()
+  const permanentIndicators = [
+    'unauthorized',
+    'forbidden',
+    'not_found',
+    'not found',
+    'validation_error',
+    'invalid',
+    'bad request',
+    '401',
+    '403',
+    '404',
+    '400'
+  ]
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`MCP tool call failed: ${response.status} - ${errorText}`)
-  }
+  return permanentIndicators.some(indicator => errorMessage.includes(indicator))
+}
 
-  // Parse SSE response
-  const text = await response.text()
+/**
+ * Retry wrapper with exponential backoff
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  context: string,
+  maxRetries: number = 2,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null
 
-  // SSE format: "event: message\ndata: {...}\n\n"
-  const lines = text.split('\n')
-  for (const line of lines) {
-    if (line.startsWith('data: ')) {
-      const jsonStr = line.substring(6)
-      try {
-        const parsed = JSON.parse(jsonStr)
-        if (parsed.result?.content?.[0]?.text) {
-          return JSON.parse(parsed.result.content[0].text)
-        }
-        return parsed
-      } catch {
-        continue
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+
+      // Don't retry on permanent errors
+      if (isPermanentError(lastError)) {
+        console.log(`[Retry] Permanent error detected for ${context}, not retrying: ${lastError.message}`)
+        throw lastError
+      }
+
+      // Log retry attempt
+      if (attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt)
+        console.log(`[Retry] Attempt ${attempt + 1}/${maxRetries + 1} failed for ${context}: ${lastError.message}. Retrying in ${delay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      } else {
+        console.log(`[Retry] All ${maxRetries + 1} attempts failed for ${context}: ${lastError.message}`)
       }
     }
   }
 
-  throw new Error('Could not parse MCP response')
+  throw lastError
+}
+
+/**
+ * Call MCP tool with retry logic
+ */
+async function callMcpTool(sessionId: string, toolName: string, args: Record<string, unknown>): Promise<unknown> {
+  return withRetry(
+    async () => {
+      const response = await fetch(`${LAW_GRAPHRAG_MCP_URL}/mcp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream',
+          'mcp-session-id': sessionId,
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: {
+            name: toolName,
+            arguments: args
+          },
+          id: Date.now()
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`MCP tool call failed: ${response.status} - ${errorText}`)
+      }
+
+      // Parse SSE response
+      const text = await response.text()
+
+      // SSE format: "event: message\ndata: {...}\n\n"
+      const lines = text.split('\n')
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const jsonStr = line.substring(6)
+          try {
+            const parsed = JSON.parse(jsonStr)
+            if (parsed.result?.content?.[0]?.text) {
+              const textContent = parsed.result.content[0].text
+              // Check if textContent is already an object or needs parsing
+              if (typeof textContent === 'string') {
+                try {
+                  return JSON.parse(textContent)
+                } catch {
+                  // If parsing fails, return as-is (might be plain text)
+                  return textContent
+                }
+              }
+              // Already an object, return directly
+              return textContent
+            }
+            return parsed
+          } catch {
+            continue
+          }
+        }
+      }
+
+      throw new Error('Could not parse MCP response')
+    },
+    `${toolName}(${JSON.stringify(args).substring(0, 50)}...)`,
+    2, // maxRetries
+    1000 // baseDelay
+  )
 }
 
 export async function POST(request: NextRequest) {
+  let sessionId: string | null = null
+
   try {
     const body = await request.json()
     const { query, mode = 'local', commune_id } = body
 
-    // Always initialize a fresh session to avoid stale session errors
-    console.log('Initializing fresh MCP session...')
-    mcpSessionId = await initializeMcpSession()
-    console.log('MCP session initialized:', mcpSessionId)
+    // Get session from pool (reuses existing or creates new)
+    sessionId = await getAvailableSession()
 
     // If commune_id is provided, query specific commune
     // Otherwise, query all communes
     let result: unknown
 
     if (commune_id) {
-      result = await callMcpTool(mcpSessionId, 'grand_debat_query', {
+      result = await callMcpTool(sessionId, 'grand_debat_query', {
         commune_id,
         query,
         mode,
@@ -126,7 +320,7 @@ export async function POST(request: NextRequest) {
       })
     } else {
       // Query top communes for initial load - increased for denser graph visualization
-      result = await callMcpTool(mcpSessionId, 'grand_debat_query_all', {
+      result = await callMcpTool(sessionId, 'grand_debat_query_all', {
         query,
         mode: 'global',
         max_communes: 15,  // Increased from 3 to 15 for richer initial graph (target: 150-200 nodes)
@@ -224,12 +418,20 @@ export async function POST(request: NextRequest) {
       } : undefined
     }
 
+    // Release session back to pool for reuse
+    if (sessionId) {
+      releaseSession(sessionId)
+    }
+
     return NextResponse.json(transformedResponse)
   } catch (error) {
     console.error('Law GraphRAG MCP query failed:', error)
 
-    // Reset session on error (might be expired)
-    mcpSessionId = null
+    // If session was created, mark it as expired and remove from pool
+    if (sessionId && sessionPool.has(sessionId)) {
+      sessionPool.delete(sessionId)
+      console.log(`[SessionPool] Removed failed session ${sessionId}`)
+    }
 
     return NextResponse.json(
       {
@@ -246,23 +448,38 @@ export async function POST(request: NextRequest) {
  * Health check - list available communes
  */
 export async function GET() {
-  try {
-    // Initialize session if needed
-    if (!mcpSessionId) {
-      mcpSessionId = await initializeMcpSession()
-    }
+  let sessionId: string | null = null
 
-    const result = await callMcpTool(mcpSessionId, 'grand_debat_list_communes', {})
+  try {
+    // Get session from pool
+    sessionId = await getAvailableSession()
+
+    const result = await callMcpTool(sessionId, 'grand_debat_list_communes', {})
+
+    // Release session back to pool
+    if (sessionId) {
+      releaseSession(sessionId)
+    }
 
     return NextResponse.json({
       status: 'healthy',
       proxy: 'law-graphrag-mcp',
       upstream: LAW_GRAPHRAG_MCP_URL,
+      sessionPool: {
+        size: sessionPool.size,
+        maxSessions: MAX_SESSIONS,
+        ttl: SESSION_TTL
+      },
       data: result
     })
   } catch (error) {
     console.error('Law GraphRAG health check failed:', error)
-    mcpSessionId = null
+
+    // If session was created, mark it as expired and remove from pool
+    if (sessionId && sessionPool.has(sessionId)) {
+      sessionPool.delete(sessionId)
+      console.log(`[SessionPool] Removed failed session ${sessionId}`)
+    }
 
     return NextResponse.json(
       {

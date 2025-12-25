@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import TextChunkModal from './TextChunkModal'
 import { getEntityTypeColor, getEntityTypeLabel, ENTITY_TYPE_LABELS, ENTITY_TYPES, GRAND_DEBAT_ONTOLOGY_TYPES } from '@/lib/utils/entityTypeColors'
+import { getLODSettings, DEFAULT_LOD_CONFIG } from '@/lib/utils/lod-config'
 
 interface Node {
   id: string
@@ -126,11 +127,19 @@ export default function GraphVisualization3DForce({
   const [pinnedLinkPos, setPinnedLinkPos] = useState({ x: 0, y: 0 })
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
+  // LOD: Track camera distance for performance optimization
+  const [cameraDistance, setCameraDistance] = useState<number>(1000)
+
   // Legend expand state for mobile
   const [isLegendExpanded, setIsLegendExpanded] = useState(false)
 
   // Track unique relationship types from the data
   const [relationshipTypes, setRelationshipTypes] = useState<Set<string>>(new Set())
+
+  // LOD: Compute current LOD settings based on camera distance
+  const currentLODSettings = useMemo(() => {
+    return getLODSettings(cameraDistance, DEFAULT_LOD_CONFIG)
+  }, [cameraDistance])
 
   // TextChunkModal state
   const [isChunkModalOpen, setIsChunkModalOpen] = useState(false)
@@ -297,12 +306,12 @@ export default function GraphVisualization3DForce({
         // Configure node appearance
         graph.nodeAutoColorBy('group')
         graph.nodeRelSize(6)
-        graph.nodeResolution(8)
+        graph.nodeResolution(8) // Initial resolution, will be updated by LOD
         graph.nodeVal((node: any) => node.val || 1)
         graph.nodeColor((node: any) => node.color || '#dfe4ea')
         graph.nodeLabel((node: any) => node.name || node.id)
 
-        // Configure link appearance
+        // Configure link appearance - initial values, will be updated by LOD
         graph.linkDirectionalParticles(2)
         graph.linkDirectionalParticleSpeed(0.006)
         graph.linkColor(() => '#9d9d9d')  // Light links for dark background
@@ -422,6 +431,75 @@ export default function GraphVisualization3DForce({
     initGraph()
   }, [])
 
+  // LOD: Apply Level of Detail settings based on camera distance
+  useEffect(() => {
+    if (!graphRef.current || !isGraphReady) return
+
+    // Set up camera position tracking
+    const graph = graphRef.current
+    let animationFrameId: number
+
+    const updateCameraDistance = () => {
+      try {
+        // Access camera from the graph instance
+        const camera = graph.camera()
+        if (camera && camera.position) {
+          // Calculate distance from origin (where the graph center is)
+          const distance = Math.sqrt(
+            camera.position.x * camera.position.x +
+            camera.position.y * camera.position.y +
+            camera.position.z * camera.position.z
+          )
+
+          // Update camera distance state (triggers LOD recalculation via useMemo)
+          setCameraDistance(distance)
+        }
+      } catch (error) {
+        console.error('Error tracking camera distance:', error)
+      }
+
+      // Continue tracking
+      animationFrameId = requestAnimationFrame(updateCameraDistance)
+    }
+
+    // Start tracking camera position
+    animationFrameId = requestAnimationFrame(updateCameraDistance)
+
+    // Cleanup
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId)
+      }
+    }
+  }, [isGraphReady])
+
+  // LOD: Apply LOD settings to graph when they change
+  useEffect(() => {
+    if (!graphRef.current || !isGraphReady) return
+
+    console.log(`🎨 LOD: Applying settings for distance ${cameraDistance.toFixed(0)}:`, currentLODSettings)
+
+    const graph = graphRef.current
+
+    try {
+      // Apply link particle settings based on LOD
+      if (currentLODSettings.linkParticles) {
+        graph.linkDirectionalParticles(2) // Show particles
+        graph.linkDirectionalParticleSpeed(currentLODSettings.linkParticleSpeed)
+      } else {
+        graph.linkDirectionalParticles(0) // Disable particles for performance
+        graph.linkDirectionalParticleSpeed(0)
+      }
+
+      // Apply node resolution based on LOD
+      graph.nodeResolution(currentLODSettings.nodeResolution)
+
+      console.log(`✅ LOD: Applied - particles: ${currentLODSettings.linkParticles}, resolution: ${currentLODSettings.nodeResolution}`)
+    } catch (error) {
+      console.error('Error applying LOD settings:', error)
+    }
+  }, [currentLODSettings, isGraphReady, cameraDistance])
+
   // Dynamically add nodes and links progressively
   const addNodesProgressively = (nodes: Node[], links: Link[], onComplete?: () => void) => {
     if (!graphRef.current) return
@@ -520,7 +598,7 @@ export default function GraphVisualization3DForce({
                            (currentNodeIndex >= nodes.length && processedLinkIndex < validLinks.length)
 
       if (shouldContinue) {
-        setTimeout(addBatch, 250) // Add next batch after 250ms
+        requestAnimationFrame(addBatch) // Sync with display refresh for smoother rendering
       } else {
         console.log(`✅ Graph construction complete: ${nodes.length} nodes, ${processedLinkIndex} links added`)
         if (onComplete) onComplete()
@@ -844,7 +922,7 @@ export default function GraphVisualization3DForce({
       }}
     >
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center text-datack-light">
+        <div className="absolute inset-0 flex items-center justify-center text-datack-light pointer-events-none">
           <div className="text-center">
             <div className="text-2xl mb-2 text-datack-yellow">Initializing...</div>
             <div className="text-datack-muted">Initialisation du graphe 3D...</div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 
 const GraphVisualization3DForce = dynamic(() => import('./GraphVisualization3DForce'), {
@@ -358,6 +358,54 @@ function BorgesLibrary() {
     )
   }
 
+  // Memoized node normalization - Graph Performance Optimization (006-graph-optimization)
+  // Transforms raw graph nodes into normalized format with guaranteed properties
+  const normalizeGraphNodes = useMemo(() => {
+    return (nodes: any[]) => {
+      return nodes.map(node => ({
+        ...node,
+        properties: node.properties as Record<string, any>,
+        degree: node.degree ?? 1,
+        centrality_score: node.centrality_score ?? 0.5
+      }))
+    }
+  }, [])
+
+  // Memoized entity color mapping - Graph Performance Optimization (006-graph-optimization)
+  // Transforms graph nodes into entity color format for interpretability
+  const mapNodesToColorEntities = useMemo(() => {
+    return (nodes: any[]) => {
+      return nodes.map((node: any, idx: number) => ({
+        id: node.properties?.name || node.id,
+        type: node.labels?.[0] || 'CIVIC_ENTITY',
+        description: node.properties?.description,
+        score: node.centrality_score || 0.5,
+        order: idx
+      }))
+    }
+  }, [])
+
+  // Memoized query keyword matcher - Graph Performance Optimization (006-graph-optimization)
+  // Filters nodes based on query keywords with O(n) complexity but memoized function
+  const createQueryMatcher = useMemo(() => {
+    return (query: string, nodes: any[]) => {
+      const queryLower = query.toLowerCase()
+      const queryWords = queryLower.split(/\s+/).filter(w => w.length > 3)
+
+      return nodes.filter(node => {
+        const labels = node.labels.map((l: string) => l.toLowerCase())
+        const name = (node.properties?.name || '').toLowerCase()
+        const description = (node.properties?.description || '').toLowerCase()
+
+        return queryWords.some(word =>
+          labels.some((label: string) => label.includes(word)) ||
+          name.includes(word) ||
+          description.includes(word)
+        )
+      })
+    }
+  }, [])
+
   // DISABLED: GraphML static file loading - now using live MCP API data
   // The full graph is loaded from MCP API on component mount (see useEffect below)
   // This avoids race condition between GraphML and MCP data loads
@@ -584,12 +632,8 @@ function BorgesLibrary() {
             neo4jRelationships: graphData.relationships.length
           })
 
-          const normalizedNodes = graphData.nodes.map(node => ({
-            ...node,
-            properties: node.properties as Record<string, any>,
-            degree: node.degree ?? 1,
-            centrality_score: node.centrality_score ?? 0.5
-          }))
+          // Use memoized node normalization - Graph Performance Optimization (006-graph-optimization)
+          const normalizedNodes = normalizeGraphNodes(graphData.nodes)
 
           setQueryResultNodes(normalizedNodes)
           setReconciliationData({
@@ -597,13 +641,8 @@ function BorgesLibrary() {
             relationships: graphData.relationships
           })
 
-          const entitiesToColor = graphData.nodes.map((node: any, idx: number) => ({
-            id: node.properties?.name || node.id,
-            type: node.labels?.[0] || 'CIVIC_ENTITY',
-            description: node.properties?.description,
-            score: node.centrality_score || 0.5,
-            order: idx
-          }))
+          // Use memoized entity color mapping - Graph Performance Optimization (006-graph-optimization)
+          const entitiesToColor = mapNodesToColorEntities(graphData.nodes)
 
           if (entitiesToColor.length > 0) {
             const enrichedEntities = colorService.enrichEntitiesWithColors(entitiesToColor)
@@ -614,22 +653,8 @@ function BorgesLibrary() {
           // MCP returned no graph data - build subgraph from base GraphML based on query
           console.log('📊 Building subgraph from base GraphML for query:', query)
 
-          // Extract keywords from query for matching
-          const queryLower = query.toLowerCase()
-          const queryWords = queryLower.split(/\s+/).filter(w => w.length > 3)
-
-          // Find nodes that match query keywords in their labels or properties
-          const matchingNodes = baseGraph.nodes.filter(node => {
-            const labels = node.labels.map(l => l.toLowerCase())
-            const name = (node.properties?.name || '').toLowerCase()
-            const description = (node.properties?.description || '').toLowerCase()
-
-            return queryWords.some(word =>
-              labels.some(label => label.includes(word)) ||
-              name.includes(word) ||
-              description.includes(word)
-            )
-          })
+          // Use memoized query matcher - Graph Performance Optimization (006-graph-optimization)
+          const matchingNodes = createQueryMatcher(query, baseGraph.nodes)
 
           // If no direct matches, show nodes connected to commune nodes
           let subgraphNodes = matchingNodes
@@ -678,14 +703,8 @@ function BorgesLibrary() {
             relationships: subgraphRelationships
           })
 
-          // Color entities for interpretability
-          const entitiesToColor = subgraphNodes.map((node, idx) => ({
-            id: node.properties?.name || node.id,
-            type: node.labels?.[0] || 'CIVIC_ENTITY',
-            description: node.properties?.description,
-            score: node.centrality_score || 0.5,
-            order: idx
-          }))
+          // Use memoized entity color mapping - Graph Performance Optimization (006-graph-optimization)
+          const entitiesToColor = mapNodesToColorEntities(subgraphNodes)
 
           if (entitiesToColor.length > 0) {
             const enrichedEntities = colorService.enrichEntitiesWithColors(entitiesToColor)

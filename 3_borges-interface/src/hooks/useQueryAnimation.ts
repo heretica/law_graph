@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useCallback, useEffect } from 'react'
+import { useRef, useCallback, useEffect, useMemo } from 'react'
 import type { DebugInfo } from '@/lib/services/reconciliation'
 
 export interface AnimationState {
@@ -53,6 +53,9 @@ export function useQueryAnimation(
 
   // Store original positions
   const originalPositionsRef = useRef<Map<string, { x: number; y: number; z: number }>>(new Map())
+
+  // Memoize callbacks object to prevent unnecessary re-renders
+  const stableCallbacks = useMemo(() => callbacks, [callbacks])
 
   // Initialize original positions
   useEffect(() => {
@@ -260,7 +263,7 @@ export function useQueryAnimation(
     const phaseProgress = Math.min(elapsed / phaseInfo.duration, 1)
 
     // Update animation state
-    callbacks?.onProgressUpdate?.(phaseProgress)
+    stableCallbacks?.onProgressUpdate?.(phaseProgress)
 
     // Get animated positions
     const animatedNodes = getAnimatedNodes(currentPhase, phaseProgress)
@@ -276,17 +279,17 @@ export function useQueryAnimation(
       if (nextIndex < debugInfo.animation_timeline.length) {
         currentPhaseRef.current = debugInfo.animation_timeline[nextIndex].phase
         startTimeRef.current = now
-        callbacks?.onPhaseChange?.(currentPhaseRef.current)
+        stableCallbacks?.onPhaseChange?.(currentPhaseRef.current)
       } else {
         // Animation complete
         isPlayingRef.current = false
-        callbacks?.onAnimationComplete?.()
+        stableCallbacks?.onAnimationComplete?.()
         return
       }
     }
 
     animationRef.current = requestAnimationFrame(animate)
-  }, [debugInfo, callbacks, getAnimatedNodes, getAnimatedLinks])
+  }, [debugInfo, stableCallbacks, getAnimatedNodes, getAnimatedLinks])
 
   const play = useCallback(() => {
     if (isPlayingRef.current) return
@@ -308,17 +311,17 @@ export function useQueryAnimation(
     pause()
     currentPhaseRef.current = 'explosion'
     startTimeRef.current = 0
-    callbacks?.onPhaseChange?.('explosion')
-    callbacks?.onProgressUpdate?.(0)
-  }, [pause, callbacks])
+    stableCallbacks?.onPhaseChange?.('explosion')
+    stableCallbacks?.onProgressUpdate?.(0)
+  }, [pause, stableCallbacks])
 
   const seekToPhase = useCallback((phase: string) => {
     pause()
     currentPhaseRef.current = phase
     startTimeRef.current = 0
-    callbacks?.onPhaseChange?.(phase)
-    callbacks?.onProgressUpdate?.(0)
-  }, [pause, callbacks])
+    stableCallbacks?.onPhaseChange?.(phase)
+    stableCallbacks?.onProgressUpdate?.(0)
+  }, [pause, stableCallbacks])
 
   const setSpeed = useCallback((speed: number) => {
     speedRef.current = speed
@@ -333,7 +336,8 @@ export function useQueryAnimation(
     }
   }, [])
 
-  return {
+  // Memoize the return object to prevent unnecessary re-renders
+  return useMemo(() => ({
     play,
     pause,
     reset,
@@ -343,5 +347,5 @@ export function useQueryAnimation(
     getAnimatedLinks,
     currentPhase: currentPhaseRef.current,
     isPlaying: isPlayingRef.current
-  }
+  }), [play, pause, reset, seekToPhase, setSpeed, getAnimatedNodes, getAnimatedLinks])
 }

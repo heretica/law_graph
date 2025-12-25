@@ -73,6 +73,35 @@ Chaque entité doit être traçable jusqu'à sa commune source et au texte citoy
 LAW_GRAPHRAG_API_URL=https://graphragmcp-production.up.railway.app
 ```
 
+## Performance Optimizations (Feature 006-graph-optimization)
+
+### Expected Performance
+- **Startup**: <3s fresh, <1s cached
+- **Single query**: <10s
+- **15-commune query**: <30s
+- **50-commune query**: <90s
+- **Graph interaction**: >30fps stable
+
+### Caching Architecture
+| Layer | Location | TTL | Purpose |
+|-------|----------|-----|---------|
+| Query cache | Client (browser) | 5 min | Avoid redundant MCP calls |
+| Session pool | Frontend API route | 5 min | Reuse MCP connections |
+| GraphRAG cache | Backend server.py | LRU 10 | Avoid re-init per commune |
+| LLM cache | Backend graphrag.py | 1 hour | Avoid duplicate LLM calls |
+| Embedding cache | Backend vdb | 24 hours | Avoid duplicate embeddings |
+
+### Level of Detail (LOD)
+The 3D graph visualization automatically adjusts detail based on camera distance:
+- High detail (<200): Full resolution, particles enabled
+- Medium detail (200-500): Reduced resolution, no particles
+- Low detail (>500): Minimal resolution, no particles
+
+### Retry & Resilience
+- MCP tool calls retry up to 2 times with exponential backoff (1s, 2s)
+- Partial failure handling: queries continue if some communes fail
+- Session cleanup: expired sessions automatically removed
+
 ## Testing
 
 1. MCP server must be accessible before testing
@@ -105,6 +134,8 @@ public/data/grand-debat.graphml → useGraphMLData hook → BorgesLibrary → Gr
 - Borges design system (colors: #0a0a0a, #f5f5f5, #7dd3fc; font: Cormorant Garamond)
 - TypeScript 5.2.2 (Interface), Python 3.11 (Agents si scripts), Markdown (Agents Claude Code) + Next.js 16, React 19, Tailwind CSS 3.3.5, 3d-force-graph 1.79.0, Inter (Google Fonts) (005-agent-orchestration)
 - Fichiers Markdown pour scores/findings, GraphML pour données graphe (005-agent-orchestration)
+- TypeScript 5.2.2 (Frontend), Python 3.11 (Backend) (006-graph-optimization)
+- N/A (no new persistence - leverages existing in-memory caches) (006-graph-optimization)
 
 ## Recent Changes
 - **004-ui-consistency**: GraphML infrastructure, commune-centric 3D graph, Borges visual identity, civic provenance chain
