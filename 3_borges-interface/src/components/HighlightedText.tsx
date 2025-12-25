@@ -233,8 +233,8 @@ export default function HighlightedText({
             key={keyIndex++}
             className="cursor-pointer transition-all duration-200 hover:opacity-80"
             style={{
-              color: entityColor,
-              backgroundColor: '#0a0a0a',
+              color: '#dbff3b', // Datack yellow - unified branding
+              backgroundColor: '#0a0a0a', // Black fill
               padding: '2px 6px',
               borderRadius: '3px',
               fontWeight: 500
@@ -391,8 +391,8 @@ export default function HighlightedText({
             key={keyIndex++}
             className="cursor-pointer transition-all duration-200 hover:opacity-80"
             style={{
-              color: entityColor,
-              backgroundColor: '#0a0a0a',
+              color: '#dbff3b', // Datack yellow - unified branding
+              backgroundColor: '#0a0a0a', // Black fill
               padding: '2px 6px',
               borderRadius: '3px',
               fontWeight: 500
@@ -505,25 +505,24 @@ export default function HighlightedText({
         </div>
       )}
 
-      {/* Entity Legend - Datack Branding */}
+      {/* Entity Legend - Datack Branding (unified yellow) */}
       {entities.length > 0 && (
         <div className="mt-3 pt-2 border-t border-datack-border">
           <div className="text-xs text-datack-muted mb-2">Referenced entities:</div>
           <div className="flex flex-wrap gap-2">
             {entities.slice(0, 8).map((entity, index) => {
-              const entityColor = entity.color || getIntelligenceColor(entity.type, entity.score)
               return (
                 <div
                   key={index}
-                  className="flex items-center text-xs cursor-pointer hover:bg-datack-dark rounded-datack-sm px-2 py-1"
+                  className="flex items-center text-xs cursor-pointer hover:bg-datack-dark rounded-datack-sm px-2 py-1 bg-[#0a0a0a]"
                   onClick={() => onEntityClick?.(entity)}
                   title={`${entity.type}: ${entity.id}`}
                 >
                   <div
-                    className="w-2 h-2 rounded-full mr-1.5 border border-datack-border"
-                    style={{ backgroundColor: entityColor }}
+                    className="w-2 h-2 rounded-full mr-1.5"
+                    style={{ backgroundColor: '#dbff3b' }}
                   />
-                  <span style={{ color: entityColor }} className="font-medium">
+                  <span style={{ color: '#dbff3b' }} className="font-medium">
                     {entity.id.length > 15 ? entity.id.substring(0, 15) + '...' : entity.id}
                   </span>
                 </div>
