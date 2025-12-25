@@ -445,13 +445,22 @@ function BorgesLibrary() {
     }
   }, [])
 
-  // DISABLED: GraphML static file loading - now using live MCP API data
-  // The full graph is loaded from MCP API on component mount (see useEffect below)
-  // This avoids race condition between GraphML and MCP data loads
-
-  // Placeholder state for compatibility (no longer loads GraphML)
-  const isGraphMLLoading = false
-  const graphMLError = null
+  // Load GraphML data for instant startup visualization (Constitution Principle - instant graph display)
+  // GraphML file contains the 50 communes with their relationships
+  const {
+    document: graphMLDocument,
+    isLoading: isGraphMLLoading,
+    error: graphMLError
+  } = useGraphMLData({
+    url: '/data/grand-debat.graphml',
+    filterOrphans: true, // Constitution Principle I: No orphan nodes
+    onLoad: (doc) => {
+      console.log(`📊 GraphML loaded: ${doc.nodes.length} nodes, ${doc.edges.length} edges`)
+    },
+    onError: (err) => {
+      console.error('❌ GraphML loading error:', err)
+    }
+  })
 
   // Check localStorage for tutorial skip on mount
   useEffect(() => {
@@ -464,59 +473,59 @@ function BorgesLibrary() {
     }
   }, [])
 
-  // Load full graph from MCP API on component mount
+  // Transform GraphML data to reconciliation format when loaded
   useEffect(() => {
-    const loadFullGraph = async () => {
-      try {
-        console.log('🏛️ Loading full Grand Débat graph from MCP API...')
-        setIsLoadingGraph(true)
-        setCurrentProcessingPhase('🏛️ Chargement du graphe complet depuis l\'API...')
+    if (graphMLDocument && graphMLDocument.nodes.length > 0) {
+      console.log('🏛️ Transforming GraphML data for visualization...')
+      setCurrentProcessingPhase('🏛️ Chargement du graphe citoyen...')
 
-        const graphData = await lawGraphRAGService.fetchFullGraph()
+      // Transform GraphML to reconciliation data format
+      const transformedData = transformToReconciliationData(graphMLDocument)
 
-        if (graphData && graphData.nodes.length > 0) {
-          console.log(`✅ Loaded ${graphData.nodes.length} nodes and ${graphData.relationships.length} relationships from MCP`)
-
-          // Transform to reconciliation data format
-          const reconciliationData: ReconciliationGraphData = {
-            nodes: graphData.nodes.map(node => ({
-              id: node.id,
-              labels: node.labels,
-              properties: node.properties as Record<string, any>,
-              degree: node.degree ?? 1,
-              centrality_score: node.centrality_score ?? 0.5
-            })),
-            relationships: graphData.relationships
-          }
-
-          // Store as base graph for subgraph queries
-          baseGraphDataRef.current = reconciliationData
-
-          setReconciliationData(reconciliationData)
-          setProcessingStats({
-            nodes: graphData.nodes.length,
-            communities: 0,
-            neo4jRelationships: graphData.relationships.length
-          })
-
-          console.log('📊 Full graph loaded and displayed')
-        } else {
-          console.warn('⚠️ No graph data returned from MCP')
-          throw new Error('MCP returned empty graph data')
-        }
-      } catch (error) {
-        console.error('❌ Error loading full graph from MCP:', error)
-        // Show error to user
-        setCurrentProcessingPhase('❌ Erreur de chargement - rechargez la page')
-      } finally {
-        setIsLoadingGraph(false)
-        setShowLoadingOverlay(false)
-        setCurrentProcessingPhase(null)
+      const graphData: ReconciliationGraphData = {
+        nodes: transformedData.nodes.map(node => ({
+          id: node.id,
+          labels: node.labels,
+          properties: node.properties,
+          degree: typeof node.degree === 'number' ? node.degree : 1,
+          centrality_score: typeof node.centrality_score === 'number' ? node.centrality_score : 0.5
+        })),
+        relationships: transformedData.relationships.map(rel => ({
+          id: rel.id,
+          type: rel.type,
+          source: rel.source,
+          target: rel.target,
+          properties: rel.properties
+        }))
       }
-    }
 
-    loadFullGraph()
-  }, [])
+      // Store as base graph for subgraph queries
+      baseGraphDataRef.current = graphData
+
+      setReconciliationData(graphData)
+      setProcessingStats({
+        nodes: graphData.nodes.length,
+        communities: 0,
+        neo4jRelationships: graphData.relationships.length
+      })
+
+      console.log(`✅ Graph loaded: ${graphData.nodes.length} nodes, ${graphData.relationships.length} relationships`)
+
+      setIsLoadingGraph(false)
+      setShowLoadingOverlay(false)
+      setCurrentProcessingPhase(null)
+    }
+  }, [graphMLDocument])
+
+  // Handle GraphML loading errors
+  useEffect(() => {
+    if (graphMLError) {
+      console.error('❌ GraphML loading failed:', graphMLError)
+      setCurrentProcessingPhase('❌ Erreur de chargement du graphe')
+      setIsLoadingGraph(false)
+      setShowLoadingOverlay(false)
+    }
+  }, [graphMLError])
 
   // Handler for tutorial completion
   const handleTutorialComplete = () => {
