@@ -942,7 +942,7 @@ function BorgesLibrary() {
               <path d="M12 10h8c5.5 0 10 4.5 10 10s-4.5 10-10 10h-8V10z" fill="#0a0a0a" />
               <path d="M16 14h4c3.3 0 6 2.7 6 6s-2.7 6-6 6h-4V14z" fill="#dbff3b" />
             </svg>
-            <span className="text-datack-yellow font-bold text-lg">DATACK</span>
+            <span className="font-bold text-lg bg-[#0a0a0a] text-[#dbff3b] px-2 py-1 rounded">DATACK</span>
           </div>
           <button
             onClick={() => setIsMobileMenuOpen(false)}
@@ -1018,7 +1018,7 @@ function BorgesLibrary() {
               <path d="M12 10h8c5.5 0 10 4.5 10 10s-4.5 10-10 10h-8V10z" fill="#0a0a0a" />
               <path d="M16 14h4c3.3 0 6 2.7 6 6s-2.7 6-6 6h-4V14z" fill="#dbff3b" />
             </svg>
-            <span className="text-datack-yellow font-bold text-lg md:text-xl tracking-tight hidden sm:block">DATACK</span>
+            <span className="font-bold text-lg md:text-xl tracking-tight hidden sm:block bg-[#0a0a0a] text-[#dbff3b] px-2 py-1 rounded">DATACK</span>
           </div>
 
           <div className="h-8 w-px bg-datack-border hidden sm:block" />
@@ -1028,7 +1028,7 @@ function BorgesLibrary() {
               Grand Débat National
             </h1>
             <p className="text-datack-gray mt-1 text-xs md:text-sm max-w-2xl hidden md:block">
-              Explorer les contributions citoyennes · 50 communes de Charente-Maritime · <span className="text-datack-yellow">Cahiers de Doléances 2019</span>
+              Explorer les contributions citoyennes · 50 communes de Charente-Maritime · <span className="bg-[#0a0a0a] text-[#dbff3b] px-2 py-0.5 rounded text-xs font-medium">Cahiers de Doléances 2019</span>
             </p>
           </div>
         </div>
@@ -1086,7 +1086,7 @@ function BorgesLibrary() {
                         handleSimpleQuery(query)
                       }
                     }}
-                    className={`datack-btn-primary disabled:opacity-50 min-w-touch ${isProcessing ? 'animate-pulse-brightness' : ''}`}
+                    className={`px-4 py-2 bg-[#0a0a0a] text-[#dbff3b] font-medium hover:opacity-80 transition-colors rounded disabled:opacity-50 min-w-touch ${isProcessing ? 'animate-pulse-brightness' : ''}`}
                     style={isProcessing ? {
                       animation: 'pulseBrightness 1.2s ease-in-out infinite'
                     } : undefined}
@@ -1098,14 +1098,14 @@ function BorgesLibrary() {
                   </button>
                 </div>
 
-                {/* Desktop-only: Mode Toggle - Datack Yellow Active */}
+                {/* Desktop-only: Mode Toggle - Datack Inverted (black bg + yellow text) */}
                 <div className="hidden md:flex gap-1 bg-datack-dark rounded-datack-sm p-1 border border-datack-border">
                   <button
                     onClick={() => setMode('local')}
                     disabled={isProcessing}
-                    className={`flex items-center px-2 py-1 text-xs rounded-datack-sm font-medium transition-colors disabled:opacity-50 ${
+                    className={`flex items-center px-2 py-1 text-xs rounded font-medium transition-colors disabled:opacity-50 ${
                       mode === 'local'
-                        ? 'bg-datack-yellow text-datack-black'
+                        ? 'bg-[#0a0a0a] text-[#dbff3b]'
                         : 'text-datack-muted hover:text-datack-light'
                     }`}
                     title="Recherche locale par commune"
@@ -1115,9 +1115,9 @@ function BorgesLibrary() {
                   <button
                     onClick={() => setMode('global')}
                     disabled={isProcessing}
-                    className={`flex items-center px-2 py-1 text-xs rounded-datack-sm font-medium transition-colors disabled:opacity-50 ${
+                    className={`flex items-center px-2 py-1 text-xs rounded font-medium transition-colors disabled:opacity-50 ${
                       mode === 'global'
-                        ? 'bg-datack-yellow text-datack-black'
+                        ? 'bg-[#0a0a0a] text-[#dbff3b]'
                         : 'text-datack-muted hover:text-datack-light'
                     }`}
                     title="Recherche globale toutes communes"
