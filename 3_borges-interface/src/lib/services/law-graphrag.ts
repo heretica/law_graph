@@ -262,6 +262,61 @@ class LawGraphRAGService {
   }
 
   /**
+   * PROGRESSIVE: Fetch graph in batches for smooth loading without UI blink
+   * Each batch uses parallel GraphML reading (fast!) but results arrive progressively
+   * @param onBatchLoaded - Callback fired after each batch completes
+   * @param batchSize - Number of communes per batch (default: 10)
+   * @param totalCommunes - Total communes to load (default: 50)
+   */
+  async fetchFullGraphProgressive(
+    onBatchLoaded: (graphData: LawGraphRAGGraphData, progress: { current: number; total: number }) => void,
+    batchSize: number = 10,
+    totalCommunes: number = 50
+  ): Promise<void> {
+    try {
+      console.log(`🎬 Progressive loading: ${totalCommunes} communes in batches of ${batchSize}`)
+
+      for (let loaded = batchSize; loaded <= totalCommunes; loaded += batchSize) {
+        const currentBatch = Math.min(loaded, totalCommunes)
+        console.log(`📦 Loading batch: ${currentBatch}/${totalCommunes} communes (parallel GraphML)`)
+
+        // Fetch this batch using parallel GraphML (still fast!)
+        const response = await fetch(
+          `${this.baseUrl}?action=get_full_graph&max_communes=${currentBatch}&include_relationships=true`,
+          { method: 'GET' }
+        )
+
+        if (!response.ok) {
+          console.warn(`⚠️ Batch ${currentBatch} failed: ${response.status}`)
+          continue
+        }
+
+        const result: LawGraphRAGResponse = await response.json()
+
+        if (result.graphrag_data && result.graphrag_data.entities.length > 0) {
+          const graphData = this.transformToGraphData(result)
+
+          if (graphData && graphData.nodes.length > 0) {
+            // Fire callback with cumulative data
+            onBatchLoaded(graphData, { current: currentBatch, total: totalCommunes })
+            console.log(`✅ Batch loaded: ${graphData.nodes.length} nodes`)
+          }
+        }
+
+        // Small delay between batches for smooth animation (300ms)
+        if (loaded < totalCommunes) {
+          await new Promise(resolve => setTimeout(resolve, 300))
+        }
+      }
+
+      console.log('🎉 Progressive loading complete!')
+    } catch (error) {
+      console.error('❌ Progressive loading error:', error)
+      throw error
+    }
+  }
+
+  /**
    * Check the health status of the Law GraphRAG API
    * @returns Health status information
    */

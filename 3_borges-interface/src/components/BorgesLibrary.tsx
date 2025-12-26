@@ -528,7 +528,8 @@ function BorgesLibrary() {
   }, [graphMLError])
 
   // Background fetch: Load full graph from MCP API after GraphML displays
-  // This provides rich data (150-200+ nodes) while GraphML gives instant feedback
+  // PROGRESSIVE: Loads in batches for smooth animation (no blink!)
+  // Each batch uses parallel GraphML reading (fast!) but results arrive smoothly
   useEffect(() => {
     // Only fetch once, after GraphML has loaded (prevents race condition)
     if (mcpFetchedRef.current || !graphMLDocument || isGraphMLLoading) return
@@ -536,43 +537,43 @@ function BorgesLibrary() {
     const fetchFullMCPGraph = async () => {
       mcpFetchedRef.current = true  // Mark as initiated to prevent duplicate calls
       try {
-        console.log('🌐 Background: Fetching full graph from MCP API...')
-        setCurrentProcessingPhase('🌐 Enrichissement du graphe...')
+        console.log('🌐 Progressive loading: Fetching graph in batches...')
 
-        const graphData = await lawGraphRAGService.fetchFullGraph()
+        await lawGraphRAGService.fetchFullGraphProgressive(
+          (graphData, progress) => {
+            // Callback fired after each batch (10, 20, 30, 40, 50 communes)
+            setCurrentProcessingPhase(`🌐 Chargement ${progress.current}/${progress.total} communes...`)
 
-        if (graphData && graphData.nodes.length > 0) {
-          console.log(`✅ MCP loaded: ${graphData.nodes.length} nodes, ${graphData.relationships.length} relationships`)
+            console.log(`✅ Batch ${progress.current}/${progress.total}: ${graphData.nodes.length} nodes`)
 
-          // Transform to reconciliation data format
-          const enrichedData: ReconciliationGraphData = {
-            nodes: graphData.nodes.map(node => ({
-              id: node.id,
-              labels: node.labels,
-              properties: node.properties as Record<string, any>,
-              degree: node.degree ?? 1,
-              centrality_score: node.centrality_score ?? 0.5
-            })),
-            relationships: graphData.relationships
-          }
+            // Transform to reconciliation data format
+            const enrichedData: ReconciliationGraphData = {
+              nodes: graphData.nodes.map(node => ({
+                id: node.id,
+                labels: node.labels,
+                properties: node.properties as Record<string, any>,
+                degree: node.degree ?? 1,
+                centrality_score: node.centrality_score ?? 0.5
+              })),
+              relationships: graphData.relationships
+            }
 
-          // Update graph with richer MCP data
-          baseGraphDataRef.current = enrichedData
-          setReconciliationData(enrichedData)
-          setProcessingStats({
-            nodes: enrichedData.nodes.length,
-            communities: 0,
-            neo4jRelationships: enrichedData.relationships.length
-          })
+            // Update graph smoothly with new batch (replaces previous - cumulative)
+            baseGraphDataRef.current = enrichedData
+            setReconciliationData(enrichedData)
+            setProcessingStats({
+              nodes: enrichedData.nodes.length,
+              communities: 0,
+              neo4jRelationships: enrichedData.relationships.length
+            })
+          },
+          10, // Batch size: 10 communes at a time
+          50  // Total: 50 communes
+        )
 
-          console.log('📊 Graph enriched with MCP data')
-        } else {
-          // NEW: Show what went wrong
-          console.warn('⚠️ MCP fetch returned empty or null data')
-          console.log('MCP response:', graphData)
-        }
+        console.log('📊 Progressive loading complete!')
       } catch (error) {
-        console.warn('⚠️ Background MCP fetch failed (GraphML still displayed):', error)
+        console.warn('⚠️ Progressive MCP fetch failed (GraphML still displayed):', error)
         // Don't show error - GraphML is still displayed
       } finally {
         setCurrentProcessingPhase(null)
