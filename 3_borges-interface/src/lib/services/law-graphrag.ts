@@ -264,6 +264,7 @@ class LawGraphRAGService {
   /**
    * PROGRESSIVE: Fetch graph in batches for smooth loading without UI blink
    * Each batch uses parallel GraphML reading (fast!) but results arrive progressively
+   * Delay between batches is proportional to nodes added (more nodes = more time to process visually)
    * @param onBatchLoaded - Callback fired after each batch completes
    * @param batchSize - Number of communes per batch (default: 10)
    * @param totalCommunes - Total communes to load (default: 50)
@@ -275,6 +276,8 @@ class LawGraphRAGService {
   ): Promise<void> {
     try {
       console.log(`🎬 Progressive loading: ${totalCommunes} communes in batches of ${batchSize}`)
+
+      let previousNodeCount = 0
 
       for (let loaded = batchSize; loaded <= totalCommunes; loaded += batchSize) {
         const currentBatch = Math.min(loaded, totalCommunes)
@@ -297,15 +300,22 @@ class LawGraphRAGService {
           const graphData = this.transformToGraphData(result)
 
           if (graphData && graphData.nodes.length > 0) {
+            // Calculate nodes added in this batch
+            const nodesAdded = graphData.nodes.length - previousNodeCount
+            previousNodeCount = graphData.nodes.length
+
             // Fire callback with cumulative data
             onBatchLoaded(graphData, { current: currentBatch, total: totalCommunes })
-            console.log(`✅ Batch loaded: ${graphData.nodes.length} nodes`)
-          }
-        }
+            console.log(`✅ Batch loaded: ${graphData.nodes.length} nodes (+${nodesAdded} new)`)
 
-        // Delay between batches for smooth animation (5 seconds)
-        if (loaded < totalCommunes) {
-          await new Promise(resolve => setTimeout(resolve, 5000))
+            // Proportional delay: 1.5s base + 2s per 1000 nodes added
+            // Examples: 1850 nodes → ~5.2s, 3700 nodes → ~9s
+            if (loaded < totalCommunes) {
+              const proportionalDelay = Math.round(1500 + (nodesAdded / 1000) * 2000)
+              console.log(`⏱️ Waiting ${proportionalDelay}ms before next batch (${nodesAdded} nodes added)`)
+              await new Promise(resolve => setTimeout(resolve, proportionalDelay))
+            }
+          }
         }
       }
 
