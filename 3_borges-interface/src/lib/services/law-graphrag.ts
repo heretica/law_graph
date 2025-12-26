@@ -213,10 +213,14 @@ class LawGraphRAGService {
     try {
       // Use a broad query to get comprehensive data across all communes
       // Use 'local' mode to get entities and relationships (global mode only returns communities)
+      // Add timestamp to force cache bypass and ensure we get fresh data
+      const timestamp = Date.now()
       const response = await this.query({
-        query: 'Grand Débat National - préoccupations citoyennes 2019',
+        query: `INIT_GRAPH_${timestamp}`,
         mode: 'local',  // Local mode returns entities + relationships + source chunks
       })
+
+      console.log('🔧 Fetch config:', { query: `INIT_GRAPH_${timestamp}`, mode: 'local', timestamp })
 
       if (response.success === false) {
         console.error('❌ MCP query failed:', response.error)
