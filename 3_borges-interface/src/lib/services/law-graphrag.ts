@@ -224,9 +224,18 @@ class LawGraphRAGService {
         return null
       }
 
+      // Debug: Log the actual response to see what's there
+      console.log('📦 MCP Response:', {
+        success: response.success,
+        hasGraphData: !!response.graphrag_data,
+        graphDataKeys: response.graphrag_data ? Object.keys(response.graphrag_data) : 'null',
+        entitiesCount: response.graphrag_data?.entities?.length ?? 0,
+        relationshipsCount: response.graphrag_data?.relationships?.length ?? 0
+      })
+
       if (!response.graphrag_data || response.graphrag_data.entities.length === 0) {
         console.warn('⚠️ MCP returned no graph data')
-        console.log('Response structure:', Object.keys(response))
+        console.log('Full graphrag_data:', response.graphrag_data)
         return null
       }
 
