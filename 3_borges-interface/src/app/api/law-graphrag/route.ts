@@ -464,11 +464,11 @@ export async function POST(request: NextRequest) {
         include_sources: true
       })
     } else {
-      // Query top communes for initial load - increased for denser graph visualization
+      // Query all communes for full dataset - Constitution: 50 communes in Charente-Maritime
       result = await callMcpTool(sessionId, 'grand_debat_query_all', {
         query,
         mode: 'global',
-        max_communes: 15,  // Increased from 3 to 15 for richer initial graph (target: 150-200 nodes)
+        max_communes: 50,  // Full dataset: all 50 communes in Charente-Maritime (target: 200+ nodes)
         include_sources: true
       })
     }

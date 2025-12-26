@@ -212,19 +212,36 @@ class LawGraphRAGService {
   async fetchFullGraph(): Promise<LawGraphRAGGraphData | null> {
     try {
       // Use a broad query to get comprehensive data across all communes
+      // Add timestamp to bypass cache and ensure fresh data on initial load
       const response = await this.query({
-        query: 'Grand Débat National préoccupations citoyennes',
+        query: 'Grand Débat National - préoccupations citoyennes 2019',
         mode: 'global',  // Mode is ignored - MCP queries both modes now
       })
 
       if (response.success === false) {
-        console.error('Failed to fetch full graph:', response.error)
+        console.error('❌ MCP query failed:', response.error)
+        console.error('Query was:', { query: 'Grand Débat National préoccupations citoyennes', mode: 'global' })
         return null
       }
 
-      return this.transformToGraphData(response)
+      if (!response.graphrag_data || response.graphrag_data.entities.length === 0) {
+        console.warn('⚠️ MCP returned no graph data')
+        console.log('Response structure:', Object.keys(response))
+        return null
+      }
+
+      const graphData = this.transformToGraphData(response)
+
+      if (!graphData || graphData.nodes.length === 0) {
+        console.warn('⚠️ transformToGraphData returned empty graph')
+        console.log('Original response had:', response.graphrag_data?.entities.length, 'entities')
+        return null
+      }
+
+      return graphData
     } catch (error) {
-      console.error('Error fetching full graph from MCP:', error)
+      console.error('❌ Error fetching full graph from MCP:', error)
+      console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A')
       return null
     }
   }

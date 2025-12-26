@@ -530,10 +530,11 @@ function BorgesLibrary() {
   // Background fetch: Load full graph from MCP API after GraphML displays
   // This provides rich data (150-200+ nodes) while GraphML gives instant feedback
   useEffect(() => {
-    // Only fetch if GraphML has loaded (user has something to see)
-    if (!graphMLDocument || isGraphMLLoading) return
+    // Only fetch once, after GraphML has loaded (prevents race condition)
+    if (mcpFetchedRef.current || !graphMLDocument || isGraphMLLoading) return
 
     const fetchFullMCPGraph = async () => {
+      mcpFetchedRef.current = true  // Mark as initiated to prevent duplicate calls
       try {
         console.log('🌐 Background: Fetching full graph from MCP API...')
         setCurrentProcessingPhase('🌐 Enrichissement du graphe...')
@@ -565,6 +566,10 @@ function BorgesLibrary() {
           })
 
           console.log('📊 Graph enriched with MCP data')
+        } else {
+          // NEW: Show what went wrong
+          console.warn('⚠️ MCP fetch returned empty or null data')
+          console.log('MCP response:', graphData)
         }
       } catch (error) {
         console.warn('⚠️ Background MCP fetch failed (GraphML still displayed):', error)
@@ -651,6 +656,9 @@ function BorgesLibrary() {
 
   // Store base GraphML data for restoring after queries
   const baseGraphDataRef = useRef<ReconciliationGraphData | null>(null)
+
+  // Track if MCP background fetch has already been initiated (prevents race condition)
+  const mcpFetchedRef = useRef(false)
 
   // Update base graph data when GraphML loads
   useEffect(() => {
