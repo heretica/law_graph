@@ -610,6 +610,7 @@ export async function POST(request: NextRequest) {
  * Health check and commune list endpoint
  * GET /api/law-graphrag - Health check
  * GET /api/law-graphrag?action=list_communes - List communes for selector
+ * GET /api/law-graphrag?action=get_full_graph - Get full entity graph (no LLM)
  */
 export async function GET(request: NextRequest) {
   let sessionId: string | null = null
@@ -620,7 +621,24 @@ export async function GET(request: NextRequest) {
     // Get session from pool
     sessionId = await getAvailableSession()
 
-    const result = await callMcpTool(sessionId, 'grand_debat_list_communes', {})
+    // Handle different actions
+    let result: unknown
+    let toolName = 'grand_debat_list_communes'
+
+    if (action === 'get_full_graph') {
+      // New action: Get full entity graph without LLM queries
+      const maxCommunes = parseInt(searchParams.get('max_communes') || '50')
+      const includeRelationships = searchParams.get('include_relationships') !== 'false'
+
+      toolName = 'grand_debat_get_full_graph'
+      result = await callMcpTool(sessionId, toolName, {
+        max_communes: maxCommunes,
+        include_relationships: includeRelationships
+      })
+    } else {
+      // Default: list communes
+      result = await callMcpTool(sessionId, toolName, {})
+    }
 
     // Release session back to pool
     if (sessionId) {
@@ -637,6 +655,59 @@ export async function GET(request: NextRequest) {
         headers: {
           // Communes list can be cached for longer (5 minutes) as it rarely changes
           'Cache-Control': 'public, max-age=300, stale-while-revalidate=60',
+        },
+      })
+    }
+
+    // If action is get_full_graph, return the graph data in expected format
+    if (action === 'get_full_graph') {
+      const mcpResult = result as {
+        success?: boolean
+        error?: string
+        provenance?: {
+          entities?: Array<{ id?: string; name?: string; type?: string; description?: string; source_commune?: string; importance_score?: number }>
+          relationships?: Array<{ source?: string; target?: string; type?: string; description?: string; weight?: number }>
+        }
+      }
+
+      if (mcpResult.success === false || mcpResult.error) {
+        throw new Error(mcpResult.error || 'Failed to fetch full graph')
+      }
+
+      const provenance = mcpResult.provenance
+      return NextResponse.json({
+        success: true,
+        query: 'FULL_GRAPH',
+        answer: 'Full entity graph loaded from all communes.',
+        graphrag_data: provenance ? {
+          entities: (provenance.entities || [])
+            .filter((e): e is NonNullable<typeof e> => e != null)
+            .map((e: any, i: number) => ({
+              id: e.id || `entity-${i}`,
+              name: e.name || e.id || `Entity ${i}`,
+              type: e.type || 'CIVIC_ENTITY',
+              description: e.description || '',
+              source_commune: e.source_commune || '',
+              importance_score: typeof e.importance_score === 'number' ? e.importance_score : 0.5
+            })),
+          relationships: (provenance.relationships || [])
+            .filter((r): r is NonNullable<typeof r> => r != null && r.source != null && r.target != null)
+            .map((r: any, i: number) => ({
+              id: `rel-${i}`,
+              source: r.source!,
+              target: r.target!,
+              type: r.type || 'RELATED_TO',
+              description: r.description || '',
+              weight: r.weight || 1.0,
+              order: 1 // Direct relationships
+            })),
+          source_chunks: [],
+          communities: []
+        } : undefined
+      }, {
+        headers: {
+          // Full graph can be cached for longer (15 minutes) as it rarely changes
+          'Cache-Control': 'public, max-age=900, stale-while-revalidate=300',
         },
       })
     }
