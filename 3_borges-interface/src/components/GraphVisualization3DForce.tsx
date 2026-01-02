@@ -852,7 +852,7 @@ export default function GraphVisualization3DForce({
 
   }, [reconciliationData, onNodeVisibilityChange, isGraphReady])
 
-  // Animate GraphRAG processing phases - OPTIMIZED with Set-based O(1) lookups
+  // Animate GraphRAG processing phases - OPTIMIZED with Set-based O(1) lookups + RAF to prevent freeze
   useEffect(() => {
     if (!debugInfo || !graphRef.current) return
 
@@ -877,27 +877,44 @@ export default function GraphVisualization3DForce({
       const currentData = graphRef.current.graphData()
       const graphNodes = currentData.nodes || []
 
-      // PRE-COMPUTE: Build entity name -> matching node IDs map (O(entities × nodes) once)
+      // CRITICAL FIX: Pre-compute entity mappings in chunks to prevent freeze
+      // Split into RAF batches to avoid blocking main thread
       const entityToNodeIds = new Map<string, Set<string>>()
-      entities.forEach((entity: DebugEntity) => {
-        const entityNameLower = entity.name.toLowerCase()
-        const matchingIds = new Set<string>()
 
-        graphNodes.forEach((node: any) => {
-          const nodeName = (node.name || '').toLowerCase()
-          const nodeId = node.id.toString().toLowerCase()
+      // Process entities in batches of 10 to prevent blocking
+      const batchSize = 10
+      for (let i = 0; i < entities.length; i += batchSize) {
+        if (signal.aborted) {
+          console.log('🛑 Animation aborted during pre-computation')
+          return
+        }
 
-          if (nodeName.includes(entityNameLower) ||
-              entityNameLower.includes(nodeName) ||
-              nodeId.includes(entityNameLower)) {
-            matchingIds.add(node.id)
-          }
+        // Yield to browser between batches
+        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+
+        const batch = entities.slice(i, Math.min(i + batchSize, entities.length))
+        batch.forEach((entity: DebugEntity) => {
+          const entityNameLower = entity.name.toLowerCase()
+          const matchingIds = new Set<string>()
+
+          graphNodes.forEach((node: any) => {
+            const nodeName = (node.name || '').toLowerCase()
+            const nodeId = node.id.toString().toLowerCase()
+
+            if (nodeName.includes(entityNameLower) ||
+                entityNameLower.includes(nodeName) ||
+                nodeId.includes(entityNameLower)) {
+              matchingIds.add(node.id)
+            }
+          })
+
+          entityToNodeIds.set(entity.name, matchingIds)
         })
 
-        entityToNodeIds.set(entity.name, matchingIds)
-      })
+        console.log(`📊 Pre-computed batch ${i + batchSize}/${entities.length} entity-node mappings (RAF batching prevents freeze)`)
+      }
 
-      console.log(`📊 Pre-computed ${entityToNodeIds.size} entity-node mappings`)
+      console.log(`✅ Pre-computation complete: ${entityToNodeIds.size} entity-node mappings`)
 
       for (let i = 0; i < timeline.length; i++) {
         if (signal.aborted) {
@@ -950,25 +967,38 @@ export default function GraphVisualization3DForce({
           }
         }
 
-        // Highlight relationships during synthesis phase - OPTIMIZED
+        // Highlight relationships during synthesis phase - OPTIMIZED with RAF batching
         if (phase.phase === 'synthesis' && relationships.length > 0) {
-          // PRE-COMPUTE: Build Set of highlighted link keys
+          // CRITICAL FIX: Build Set of highlighted link keys in batches to prevent freeze
           const highlightedLinkKeys = new Set<string>()
 
-          relationships.forEach((rel: DebugRelationship) => {
-            const sourceNodes = entityToNodeIds.get(rel.source) || new Set<string>()
-            const targetNodes = entityToNodeIds.get(rel.target) || new Set<string>()
+          // Process relationships in batches of 20 to prevent blocking
+          const relBatchSize = 20
+          for (let j = 0; j < relationships.length; j += relBatchSize) {
+            if (signal.aborted) {
+              console.log('🛑 Animation aborted during relationship processing')
+              return
+            }
 
-            // Create link keys for all combinations
-            sourceNodes.forEach(sourceId => {
-              targetNodes.forEach(targetId => {
-                highlightedLinkKeys.add(`${sourceId}-${targetId}`)
-                highlightedLinkKeys.add(`${targetId}-${sourceId}`) // Bidirectional
+            // Yield to browser between batches
+            await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
+
+            const batch = relationships.slice(j, Math.min(j + relBatchSize, relationships.length))
+            batch.forEach((rel: DebugRelationship) => {
+              const sourceNodes = entityToNodeIds.get(rel.source) || new Set<string>()
+              const targetNodes = entityToNodeIds.get(rel.target) || new Set<string>()
+
+              // Create link keys for all combinations
+              sourceNodes.forEach(sourceId => {
+                targetNodes.forEach(targetId => {
+                  highlightedLinkKeys.add(`${sourceId}-${targetId}`)
+                  highlightedLinkKeys.add(`${targetId}-${sourceId}`) // Bidirectional
+                })
               })
             })
-          })
+          }
 
-          console.log(`🔗 Highlighting ${highlightedLinkKeys.size} relationship keys`)
+          console.log(`🔗 Highlighting ${highlightedLinkKeys.size} relationship keys (RAF batched)`)
 
           // O(links) with O(1) Set lookups
           graphRef.current.linkColor((link: any) => {
