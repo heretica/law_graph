@@ -1101,9 +1101,9 @@ export default function GraphVisualization3DForce({
                         <div key={relType} className="flex items-center justify-between text-xs">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <span className="text-[#0a0a0a]">→</span>
-                            <span className="text-datack-light font-medium truncate">{relType}</span>
+                            <span className="text-[#dbff3b] font-medium truncate">{relType}</span>
                           </div>
-                          <span className="text-datack-muted/60 ml-2 flex-shrink-0">×{count}</span>
+                          <span className="text-[#0a0a0a] ml-2 flex-shrink-0">×{count}</span>
                         </div>
                       )
                     })
