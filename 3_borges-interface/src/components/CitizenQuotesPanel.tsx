@@ -8,60 +8,94 @@ interface CitizenQuotesPanelProps {
   isVisible: boolean
 }
 
-// Famous Jacques Chirac quotes for civic entertainment during loading
-const CHIRAC_QUOTES = [
-  "Les promesses n'engagent que ceux qui les reçoivent.",
-  "Il y a plus d'idées dans deux têtes que dans une.",
-  "Qu'est-ce que vous voulez que ça me foute que les Français vivent comme des Japonais ?",
-  "Je préfère les yeux dans les yeux et la poignée de main.",
-  "Notre maison brûle et nous regardons ailleurs.",
-  "Je suis pour ce que les gens sont contre et contre ce que les gens sont pour.",
-  "Abracadabrantesque !",
-  "La France ne peut pas accueillir toute la misère du monde.",
-  "Je ne veux pas de Rafale dans mon jardin.",
-  "Les emmerdes, ça vole toujours en escadrille.",
-  "Il vaut mieux avoir affaire au Bon Dieu qu'à ses saints.",
-  "Ce n'est pas à la grenouille qu'on demande de vider la mare.",
-  "Mangez des pommes !",
-  "Qu'est-ce qui peut arriver de pire ? D'être battu ? Et alors !",
-  "Il y a plus de gens qui meurent de manger trop que de ne pas manger assez.",
-  "La Corrèze avant le Zambèze.",
-  "Tant que je serai là, il n'y aura pas de Rafale.",
-  "Les Français, ils en ont marre des promesses. Ils veulent des actes.",
-  "Sumo ? Non merci, déjà mangé.",
-  "Le bruit et l'odeur.",
-  "J'ai une passion pour la France, c'est vrai. C'est viscéral.",
-  "La politique, ce n'est pas l'art de résoudre les problèmes, c'est l'art de faire taire ceux qui les posent.",
-  "Un homme politique qui ne ment jamais n'est pas un homme politique.",
-  "Les sondages, je les regarde comme ma fille regarde sa Game Boy.",
-  "Je suis un passionné, pas un gestionnaire.",
-  "La seule chose qui compte, c'est l'obstination.",
-  "Un jour, les historiens se demanderont : mais qu'est-ce qu'ils foutaient ?",
-  "Il n'y a que deux puissances au monde : le sabre et l'esprit. À la longue, le sabre est toujours vaincu par l'esprit.",
-  "On ne gouverne pas avec des bons sentiments.",
-  "La France a besoin de tout le monde, sauf des cons.",
-  "Le courage, c'est de ne pas avoir peur de ses contradictions.",
-  "Les technocrates, c'est comme les Daleks : ils ne pensent qu'à exterminer.",
-  "Moi, je ne suis pas là pour être aimé, je suis là pour servir.",
-  "L'immobilisme est en marche et rien ne pourra l'arrêter.",
-  "La vie, c'est comme une bicyclette : il faut avancer pour ne pas perdre l'équilibre.",
-  "Les Français veulent tout et son contraire. Ils veulent être tranquilles et que ça bouge.",
-  "Un référendum, c'est simple : on pose une question, le peuple répond.",
-  "La démocratie, c'est le gouvernement du peuple, par le peuple, pour le peuple. Mais le peuple, c'est moi.",
-  "Je préfère la main tendue au poing levé.",
-  "Les intellectuels, c'est comme les montres : ça retarde toujours.",
-  "On ne fait pas d'omelette sans casser des œufs, mais on peut casser des œufs sans faire d'omelette.",
+// Famous French political quotes for civic entertainment during loading
+const POLITICAL_QUOTES = [
+  // Jacques Chirac - Le grand classique
+  { author: "Jacques Chirac", quote: "Les promesses n'engagent que ceux qui les reçoivent." },
+  { author: "Jacques Chirac", quote: "Abracadabrantesque !" },
+  { author: "Jacques Chirac", quote: "Les emmerdes, ça vole toujours en escadrille." },
+  { author: "Jacques Chirac", quote: "Mangez des pommes !" },
+  { author: "Jacques Chirac", quote: "Notre maison brûle et nous regardons ailleurs." },
+  { author: "Jacques Chirac", quote: "Sumo ? Non merci, déjà mangé." },
+  { author: "Jacques Chirac", quote: "La Corrèze avant le Zambèze." },
+  { author: "Jacques Chirac", quote: "Il vaut mieux avoir affaire au Bon Dieu qu'à ses saints." },
+  { author: "Jacques Chirac", quote: "Les sondages, je les regarde comme ma fille regarde sa Game Boy." },
+  { author: "Jacques Chirac", quote: "L'immobilisme est en marche et rien ne pourra l'arrêter." },
+
+  // François Hollande - Le roi de l'autodérision
+  { author: "François Hollande", quote: "Moi, président de la République..." },
+  { author: "François Hollande", quote: "Je n'aime pas les riches." },
+  { author: "François Hollande", quote: "Dans la vie, il y a trois sortes de gens : ceux qui comptent et ceux qui ne comptent pas." },
+  { author: "François Hollande", quote: "Mon véritable adversaire, c'est le monde de la finance." },
+  { author: "François Hollande", quote: "Ça ne fait pas rêver." },
+  { author: "François Hollande", quote: "Je suis un président normal." },
+  { author: "François Hollande", quote: "La gauche c'est moi, la droite c'est eux." },
+  { author: "François Hollande", quote: "Les sans-dents." },
+  { author: "François Hollande", quote: "Je vais vous dire, les journalistes, c'est comme les saucisses : moins vous savez comment c'est fait, mieux vous vous portez." },
+  { author: "François Hollande", quote: "Maintenant ça va mieux." },
+  { author: "François Hollande", quote: "Je ne suis pas favori. Mais je gagne souvent quand je ne suis pas favori." },
+  { author: "François Hollande", quote: "En ce moment je suis avec Julie. Enfin, je suis avec Julie, vous voyez ce que je veux dire..." },
+  { author: "François Hollande", quote: "Le changement, c'est maintenant !" },
+  { author: "François Hollande", quote: "J'ai fait quinze ans d'ENA. Ce n'est quand même pas pour devenir chômeur !" },
+  { author: "François Hollande", quote: "Les fonctionnaires, c'est un peu comme les livres d'une bibliothèque : les plus haut placés sont ceux qui servent le moins." },
+
+  // Nicolas Sarkozy - L'énergie incarnée
+  { author: "Nicolas Sarkozy", quote: "Casse-toi, pauv' con !" },
+  { author: "Nicolas Sarkozy", quote: "Si vous n'aimez pas ça, vous prenez la porte !" },
+  { author: "Nicolas Sarkozy", quote: "Ensemble, tout devient possible." },
+  { author: "Nicolas Sarkozy", quote: "Travailler plus pour gagner plus." },
+  { author: "Nicolas Sarkozy", quote: "La France, on l'aime ou on la quitte." },
+  { author: "Nicolas Sarkozy", quote: "Quand il n'y en a plus, il y en a encore !" },
+  { author: "Nicolas Sarkozy", quote: "Je vais vous dire : moi, je ne suis pas inquiet." },
+  { author: "Nicolas Sarkozy", quote: "Karcher !" },
+  { author: "Nicolas Sarkozy", quote: "On ne subit pas son destin, on le choisit." },
+
+  // Jean-Luc Mélenchon - La passion révolutionnaire
+  { author: "Jean-Luc Mélenchon", quote: "La République, c'est moi !" },
+  { author: "Jean-Luc Mélenchon", quote: "Je suis un homme en colère." },
+  { author: "Jean-Luc Mélenchon", quote: "Vous êtes une petite frappe de la politique !" },
+  { author: "Jean-Luc Mélenchon", quote: "Qu'ils viennent me chercher !" },
+  { author: "Jean-Luc Mélenchon", quote: "La France insoumise !" },
+  { author: "Jean-Luc Mélenchon", quote: "Le peuple, rien que le peuple, tout le peuple !" },
+
+  // Valéry Giscard d'Estaing - L'élégance aristocratique
+  { author: "Valéry Giscard d'Estaing", quote: "Vous n'avez pas le monopole du cœur." },
+  { author: "Valéry Giscard d'Estaing", quote: "Au revoir." },
+  { author: "Valéry Giscard d'Estaing", quote: "La France est notre patrie, l'Europe est notre avenir." },
+
+  // François Mitterrand - Le sphinx
+  { author: "François Mitterrand", quote: "Vous avez juridiquement tort parce que vous êtes politiquement minoritaire." },
+  { author: "François Mitterrand", quote: "Donnez-moi du temps." },
+  { author: "François Mitterrand", quote: "La France ne le sait pas, mais nous sommes en guerre avec l'Amérique." },
+
+  // Georges Clemenceau - Le Tigre
+  { author: "Georges Clemenceau", quote: "La guerre ! C'est une chose trop grave pour la confier à des militaires." },
+  { author: "Georges Clemenceau", quote: "Il est plus facile de faire la guerre que la paix." },
+
+  // Charles de Gaulle - Le fondateur
+  { author: "Charles de Gaulle", quote: "Comment voulez-vous gouverner un pays qui compte 246 variétés de fromages ?" },
+  { author: "Charles de Gaulle", quote: "Des chercheurs qui cherchent, on en trouve. Des chercheurs qui trouvent, on en cherche." },
+  { author: "Charles de Gaulle", quote: "Vaste programme !" },
+  { author: "Charles de Gaulle", quote: "La politique ne consiste pas à faire taire les problèmes mais à faire taire ceux qui les posent." },
+
+  // Édouard Philippe - Le style maîtrisé
+  { author: "Édouard Philippe", quote: "Je ne suis pas Emmanuel Macron, et lui non plus d'ailleurs." },
+  { author: "Édouard Philippe", quote: "Être Premier ministre, c'est comme être entraîneur de football : vous avez tout le monde contre vous." },
+
+  // Marine Le Pen - La tribune
+  { author: "Marine Le Pen", quote: "Les Français d'abord !" },
+  { author: "Marine Le Pen", quote: "Je suis la candidate du peuple." },
 ]
 
 export default function CitizenQuotesPanel({ quotes, currentIndex, isVisible }: CitizenQuotesPanelProps) {
-  const [chiraquoteIndex, setChiraquoteIndex] = useState(0)
+  const [quoteIndex, setQuoteIndex] = useState(0)
 
-  // Rotate through Chirac quotes every 4 seconds
+  // Rotate through political quotes every 4 seconds
   useEffect(() => {
     if (!isVisible) return
 
     const interval = setInterval(() => {
-      setChiraquoteIndex(prev => (prev + 1) % CHIRAC_QUOTES.length)
+      setQuoteIndex(prev => (prev + 1) % POLITICAL_QUOTES.length)
     }, 4000)
 
     return () => clearInterval(interval)
@@ -77,18 +111,18 @@ export default function CitizenQuotesPanel({ quotes, currentIndex, isVisible }: 
       <div className="relative">
         {/* Quote card - reduced padding */}
         <div className="bg-[#0a0a0a] border border-[#dbff3b]/40 rounded p-3 md:p-4">
-          {/* Label - smaller */}
+          {/* Label - smaller, dynamic author */}
           <div className="flex items-center gap-2 mb-2 opacity-80">
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#dbff3b]/50 to-transparent" />
-            <span className="text-[#dbff3b] text-[10px] font-medium tracking-wider uppercase">
-              Jacques Chirac
+            <span className="text-[#dbff3b] text-[10px] font-medium tracking-wider uppercase transition-all duration-700">
+              {POLITICAL_QUOTES[quoteIndex].author}
             </span>
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#dbff3b]/50 to-transparent" />
           </div>
 
           {/* Quote text - smaller font */}
           <div className="relative min-h-[50px] flex items-center justify-center">
-            {CHIRAC_QUOTES.map((quote, index) => (
+            {POLITICAL_QUOTES.map((item, index) => (
               <p
                 key={index}
                 className={`
@@ -96,7 +130,7 @@ export default function CitizenQuotesPanel({ quotes, currentIndex, isVisible }: 
                   text-xs md:text-sm leading-relaxed
                   text-[#dbff3b] font-light italic
                   transition-all duration-700 ease-in-out
-                  ${index === chiraquoteIndex
+                  ${index === quoteIndex
                     ? 'opacity-100 scale-100'
                     : 'opacity-0 scale-95 pointer-events-none'
                   }
@@ -105,7 +139,7 @@ export default function CitizenQuotesPanel({ quotes, currentIndex, isVisible }: 
                   textShadow: '0 0 20px rgba(219, 255, 59, 0.3)'
                 }}
               >
-                "{quote}"
+                "{item.quote}"
               </p>
             ))}
           </div>
@@ -114,21 +148,21 @@ export default function CitizenQuotesPanel({ quotes, currentIndex, isVisible }: 
 
       {/* Progress indicator - compact */}
       <div className="flex justify-center items-center gap-1 mt-2">
-        {CHIRAC_QUOTES.slice(0, Math.min(CHIRAC_QUOTES.length, 20)).map((_, index) => (
+        {POLITICAL_QUOTES.slice(0, Math.min(POLITICAL_QUOTES.length, 20)).map((_, index) => (
           <div
             key={index}
             className={`
               h-1 rounded-full transition-all duration-500
-              ${index === chiraquoteIndex % 20
+              ${index === quoteIndex % 20
                 ? 'w-8 bg-[#dbff3b]'
                 : 'w-1 bg-[#dbff3b]/30'
               }
             `}
           />
         ))}
-        {CHIRAC_QUOTES.length > 20 && (
+        {POLITICAL_QUOTES.length > 20 && (
           <span className="text-[#dbff3b]/40 text-xs ml-2">
-            +{CHIRAC_QUOTES.length - 20}
+            +{POLITICAL_QUOTES.length - 20}
           </span>
         )}
       </div>
