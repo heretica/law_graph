@@ -1173,7 +1173,7 @@ export default function GraphVisualization3DForce({
             <>
               <div className="inline-block bg-[#0a0a0a] text-[#dbff3b] px-2 py-1 rounded font-medium text-xs mb-1">Sous-graphe</div>
               <div className="text-datack-muted">
-                {new Set(provenanceGraphData.nodes.map(n => n.commune_id || n.properties?.commune_id || n.properties?.source_commune).filter(Boolean)).size} communes
+                {provenanceGraphData.nodes.filter(n => isCommune(n)).length} communes
               </div>
               <div className="text-datack-muted">{provenanceGraphData.nodes.length} noeuds</div>
               <div className="text-datack-muted">{provenanceGraphData.relationships.length} relations</div>
