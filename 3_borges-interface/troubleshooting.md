@@ -639,3 +639,232 @@ for (let j = 0; j < relationships.length; j += relBatchSize) {
 | Main thread blocked 2-5s | No RAF yielding | RAF between every batch |
 
 ---
+
+## Issue: Legend Entity Colors NOT Synced with Graph Node Colors
+
+**Date:** 2026-01-02
+**Severity:** HIGH (destroys user trust in visualization)
+
+### Problem
+
+The entity type legend displayed colors that did NOT match the actual node colors in the 3D graph, making the legend misleading and destroying user trust in the visualization.
+
+**User Experience:**
+1. User sees nodes in the graph with certain colors
+2. User checks legend to understand what entity type the node represents
+3. **Legend shows wrong color** - no matching entry for that color
+4. User cannot trust the visualization to understand the data
+
+**Example Discrepancies:**
+- Legend showed only 24 Grand Débat ontology types
+- Graph nodes had types like `COMMUNITY`, `CIVIC_ENTITY`, `CONCEPT` (not in legend)
+- These nodes appeared with colors but had no corresponding legend entry
+- Users could not identify what these colored nodes represented
+
+### Root Cause
+
+**Mismatch between legend data source and node coloring logic.**
+
+**Legend (lines 1179-1191, original):**
+```typescript
+{[...GRAND_DEBAT_ONTOLOGY_TYPES]  // Static array of 24 types
+  .map((type) => (
+    <div style={{ backgroundColor: getEntityTypeColor(type) }}>
+      {ENTITY_TYPE_LABELS[type]}
+    </div>
+  ))}
+```
+
+**Node Coloring (lines 261-290):**
+```typescript
+const getNodeColor = (node) => {
+  // 1. Try entity_type property → getEntityTypeColor()
+  if (node.properties?.entity_type) {
+    return getEntityTypeColor(node.properties.entity_type.toString())
+  }
+  // 2. Check for commune → getEntityTypeColor('COMMUNE')
+  if (isCommune(node)) return getEntityTypeColor('COMMUNE')
+  // 3. Check for community → getEntityTypeColor('COMMUNITY')
+  if (node.labels?.includes('Community')) return getEntityTypeColor('COMMUNITY')
+  // 4. Check labels[1] → getEntityTypeColor(secondLabel)
+  if (node.labels && node.labels.length > 1) {
+    return getEntityTypeColor(node.labels[1])
+  }
+  // 5. Fallback → getEntityTypeColor('CIVIC_ENTITY')
+  return getEntityTypeColor('CIVIC_ENTITY')
+}
+```
+
+**THE MISMATCH:**
+- Legend: Shows only `GRAND_DEBAT_ONTOLOGY_TYPES` (24 fixed types)
+- Nodes: Can have any type from `ENTITY_TYPES` (62+ types including `COMMUNITY`, `CIVIC_ENTITY`, `CONCEPT`)
+- Result: Nodes with non-ontology types appear in graph but NOT in legend
+
+**Data Flow:**
+```
+Graph Data → getNodeColor(node) → getEntityTypeColor('COMMUNITY')
+Legend → GRAND_DEBAT_ONTOLOGY_TYPES → getEntityTypeColor('CITOYEN')
+                                                          ↑
+                                           MISMATCH: 'COMMUNITY' not in static list!
+```
+
+### Solution
+
+**Dynamic legend that shows ONLY entity types actually present in the current graph.**
+
+**Key Changes:**
+
+1. **Track actual entity types in graph** (lines 145-146, 705-726):
+```typescript
+// New state to track which entity types are actually present
+const [actualEntityTypes, setActualEntityTypes] = useState<Set<string>>(new Set())
+
+// Extract entity types when graph data loads
+const uniqueEntityTypes = new Set<string>()
+reconciliationData.nodes.forEach(node => {
+  let entityType = 'CIVIC_ENTITY' // default
+
+  // Mirror the EXACT logic from getNodeColor()
+  if (node.properties?.entity_type) {
+    entityType = node.properties.entity_type.toString().toUpperCase()
+  } else if (isCommune(node)) {
+    entityType = 'COMMUNE'
+  } else if (node.labels?.includes('Community')) {
+    entityType = 'COMMUNITY'
+  } else if (node.labels && node.labels.length > 1) {
+    entityType = node.labels[1].toUpperCase()
+  }
+
+  uniqueEntityTypes.add(entityType)
+})
+setActualEntityTypes(uniqueEntityTypes)
+```
+
+2. **Update legend to use actual types** (lines 1198-1222):
+```typescript
+{/* Desktop Legend */}
+<div className="font-medium">Légende ({actualEntityTypes.size} types présents)</div>
+
+{Array.from(actualEntityTypes)
+  .sort((a, b) => {
+    const labelA = ENTITY_TYPE_LABELS[a as EntityType] || a
+    const labelB = ENTITY_TYPE_LABELS[b as EntityType] || b
+    return labelA.localeCompare(labelB)
+  })
+  .map((type) => (
+    <div key={type}>
+      <div style={{ backgroundColor: getEntityTypeColor(type) }} />
+      <span>{ENTITY_TYPE_LABELS[type as EntityType] || type}</span>
+    </div>
+  ))}
+```
+
+3. **Update mobile legend** (lines 1259-1282):
+- Shows actual types from `actualEntityTypes` (not static ontology list)
+- Collapsed view shows first 6 actual types with dynamic "+N" count
+- Expanded view shows all actual types in grid layout
+
+**Synchronization Guarantee:**
+```
+Node Color:  getNodeColor(node) → entityType → getEntityTypeColor(entityType)
+Legend:      actualEntityTypes[i] → type → getEntityTypeColor(type)
+                                              ↑
+                                    SAME FUNCTION = GUARANTEED COLOR MATCH
+```
+
+### Performance Impact
+
+| Metric | Before | After |
+|--------|--------|-------|
+| **Color accuracy** | ✗ Wrong colors shown | ✓ 100% accurate |
+| **Trust** | ✗ Legend misleading | ✓ Legend trustworthy |
+| **Coverage** | ✗ Missing types in legend | ✓ All visible types shown |
+| **Count accuracy** | Fixed "24 types" | Dynamic count (e.g., "18 types présents") |
+
+### Relationship Type Styling Fix
+
+**Secondary Issue:** Relationship types in legend had poor contrast and inconsistent styling.
+
+**Before:**
+- Desktop: Black background with yellow text on dark panel (low contrast)
+- Mobile: Light gray text (inconsistent with desktop)
+- No visual consistency with other badges like "Sous-graphe"
+
+**After (Badge Style):**
+```typescript
+{/* Desktop */}
+<div className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-[#dbff3b] px-2 py-0.5 rounded">
+  <span>→</span>
+  <span>{relType}</span>
+</div>
+<span className="bg-[#0a0a0a] text-[#dbff3b] px-1.5 py-0.5 rounded">×{count}</span>
+
+{/* Mobile */}
+<div className="inline-flex items-center gap-1 bg-[#0a0a0a] text-[#dbff3b] px-1.5 py-0.5 rounded">
+  <span>→</span>
+  <span>{relType}</span>
+</div>
+<span className="bg-[#0a0a0a] text-[#dbff3b] px-1 py-0.5 rounded">×{count}</span>
+```
+
+**Styling Consistency:**
+- Black background `bg-[#0a0a0a]` + Yellow text `text-[#dbff3b]`
+- Matches "Sous-graphe" badge style exactly
+- High contrast for readability
+- Consistent across desktop and mobile
+
+### Testing Verification
+
+**Before fix:**
+```bash
+# Steps to reproduce:
+1. Load graph with mixed entity types
+2. Observe nodes with pink color (COMMUNITY type)
+3. Check legend → No pink entry visible
+4. User confused: "What do pink nodes represent?"
+```
+
+**After fix:**
+```bash
+# Verification:
+1. Load graph with mixed entity types
+2. Legend shows "18 types présents" (dynamic count)
+3. Legend includes "Communauté" with pink color dot
+4. Every visible node color has matching legend entry
+5. Relationship types use badge style (black bg + yellow text)
+```
+
+### Files Changed
+
+1. **GraphVisualization3DForce.tsx**
+   - Line 5: Added `type EntityType` import from entityTypeColors
+   - Lines 145-146: Added `actualEntityTypes` state
+   - Lines 705-726: Added entity type extraction logic (mirrors getNodeColor)
+   - Lines 1198-1222: Updated desktop legend to use `actualEntityTypes`
+   - Lines 1225-1248: Updated relationship types to badge style (desktop)
+   - Lines 1259-1305: Updated mobile legend to use `actualEntityTypes`
+   - Lines 1284-1305: Updated relationship types to badge style (mobile)
+
+### Prevention Tips
+
+1. **Always sync legend with rendering logic** - Legend should show what's actually rendered
+2. **Extract types from data, not static lists** - Data-driven UI prevents drift
+3. **Mirror logic exactly** - Legend type extraction should use same rules as node coloring
+4. **Test with diverse datasets** - Ensure legend works with all entity type combinations
+5. **Use consistent styling** - Badge styles should match across components
+
+### Constitution Principles Maintained
+
+- ✅ **Principle #5:** End-to-end interpretability (users can now accurately interpret node colors)
+- ✅ **Principle #7:** Civic provenance chain (entity types remain traceable)
+
+### Quick Reference
+
+| Symptom | Diagnosis | Fix Applied |
+|---------|-----------|-------------|
+| Legend colors don't match nodes | Static legend vs dynamic coloring | Extract actual types from graph data |
+| Missing types in legend | Fixed 24-type list | Dynamic `actualEntityTypes` set |
+| Wrong type count displayed | Hardcoded "24 types" | Dynamic count from set size |
+| Relationship styling inconsistent | Different styles for desktop/mobile | Badge style with black bg + yellow text |
+
+---

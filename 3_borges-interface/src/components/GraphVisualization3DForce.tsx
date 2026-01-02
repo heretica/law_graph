@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react'
 import TextChunkModal from './TextChunkModal'
-import { getEntityTypeColor, getEntityTypeLabel, ENTITY_TYPE_LABELS, ENTITY_TYPES, GRAND_DEBAT_ONTOLOGY_TYPES } from '@/lib/utils/entityTypeColors'
+import { getEntityTypeColor, getEntityTypeLabel, ENTITY_TYPE_LABELS, ENTITY_TYPES, GRAND_DEBAT_ONTOLOGY_TYPES, type EntityType } from '@/lib/utils/entityTypeColors'
 import { getLODSettings, DEFAULT_LOD_CONFIG } from '@/lib/utils/lod-config'
 
 interface Node {
@@ -141,6 +141,9 @@ export default function GraphVisualization3DForce({
 
   // Track unique relationship types from the data
   const [relationshipTypes, setRelationshipTypes] = useState<Set<string>>(new Set())
+
+  // Track unique entity types actually present in the graph (for legend sync)
+  const [actualEntityTypes, setActualEntityTypes] = useState<Set<string>>(new Set())
 
   // LOD: Compute current LOD settings based on camera distance
   const currentLODSettings = useMemo(() => {
@@ -699,6 +702,29 @@ export default function GraphVisualization3DForce({
     setRelationshipTypes(uniqueRelTypes)
     console.log('📋 Found relationship types:', Array.from(uniqueRelTypes))
 
+    // Extract all unique entity types actually present in the graph (for legend color sync)
+    const uniqueEntityTypes = new Set<string>()
+    reconciliationData.nodes.forEach(node => {
+      // Get the actual entity type that will be used for coloring
+      let entityType = 'CIVIC_ENTITY' // default
+
+      if (node.properties?.entity_type) {
+        entityType = node.properties.entity_type.toString().toUpperCase()
+      } else if (isCommune(node)) {
+        entityType = 'COMMUNE'
+      } else if (node.labels?.includes('Community')) {
+        entityType = 'COMMUNITY'
+      } else if (node.labels && node.labels.length > 1) {
+        entityType = node.labels[1].toUpperCase()
+      } else if (node.labels && node.labels.length > 0) {
+        entityType = node.labels[0].toUpperCase()
+      }
+
+      uniqueEntityTypes.add(entityType)
+    })
+    setActualEntityTypes(uniqueEntityTypes)
+    console.log('📋 Found entity types in graph:', Array.from(uniqueEntityTypes))
+
     // Identify all nodes that participate in at least one relationship
     const connectedNodeIds = new Set<string>()
     allValidLinks.forEach(link => {
@@ -1169,30 +1195,34 @@ export default function GraphVisualization3DForce({
         <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-datack-dark border border-datack-border rounded-lg text-xs max-w-sm md:max-h-[70vh] flex flex-col">
           {/* Desktop: Scrollable legend */}
           <div className="hidden md:flex flex-col max-h-[70vh]">
-            <div className="font-medium text-datack-light mb-2 px-3 pt-3 flex-shrink-0">Légende (24 types ontologiques)</div>
+            <div className="font-medium text-datack-light mb-2 px-3 pt-3 flex-shrink-0">Légende ({actualEntityTypes.size} types présents)</div>
 
             {/* Scrollable entity types and relationship types section */}
             <div className="overflow-y-auto flex-1 px-3 pb-3">
               <div className="mb-4">
-                <div className="text-datack-muted text-xs font-medium mb-2 sticky top-0 bg-datack-dark py-1">Types d'entités Grand Débat</div>
+                <div className="text-datack-muted text-xs font-medium mb-2 sticky top-0 bg-datack-dark py-1">Types d'entités dans le graphe</div>
                 <div className="space-y-1">
-                  {[...GRAND_DEBAT_ONTOLOGY_TYPES]
-                    .sort((a, b) => ENTITY_TYPE_LABELS[a].localeCompare(ENTITY_TYPE_LABELS[b]))
+                  {Array.from(actualEntityTypes)
+                    .sort((a, b) => {
+                      const labelA = ENTITY_TYPE_LABELS[a as EntityType] || a
+                      const labelB = ENTITY_TYPE_LABELS[b as EntityType] || b
+                      return labelA.localeCompare(labelB)
+                    })
                     .map((type) => (
                     <div key={type} className="flex items-center gap-2 text-xs">
                       <div
                         className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: getEntityTypeColor(type) }}
                       ></div>
-                      <span className="text-datack-muted truncate" title={ENTITY_TYPE_LABELS[type]}>
-                        {ENTITY_TYPE_LABELS[type]}
+                      <span className="text-datack-muted truncate" title={ENTITY_TYPE_LABELS[type as EntityType] || type}>
+                        {ENTITY_TYPE_LABELS[type as EntityType] || type}
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Relationship Types - Dynamic from API data */}
+              {/* Relationship Types - Badge Style with Black BG + Yellow Text */}
               <div className="border-t border-datack-border pt-3">
                 <div className="text-datack-muted text-xs font-medium mb-2 sticky top-0 bg-datack-dark py-1">
                   Types de relations ({relationshipTypes.size})
@@ -1202,12 +1232,12 @@ export default function GraphVisualization3DForce({
                     Array.from(relationshipTypes).sort().map((relType) => {
                       const count = reconciliationData?.relationships.filter(r => r.type === relType).length || 0
                       return (
-                        <div key={relType} className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-[#0a0a0a]">→</span>
-                            <span className="text-[#dbff3b] font-medium truncate">{relType}</span>
+                        <div key={relType} className="flex items-center justify-between gap-2 text-xs">
+                          <div className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-[#dbff3b] px-2 py-0.5 rounded font-medium flex-1 min-w-0">
+                            <span>→</span>
+                            <span className="truncate">{relType}</span>
                           </div>
-                          <span className="text-[#0a0a0a] ml-2 flex-shrink-0">×{count}</span>
+                          <span className="bg-[#0a0a0a] text-[#dbff3b] px-1.5 py-0.5 rounded flex-shrink-0">×{count}</span>
                         </div>
                       )
                     })
@@ -1224,43 +1254,47 @@ export default function GraphVisualization3DForce({
             onClick={() => setIsLegendExpanded(!isLegendExpanded)}
           >
             {isLegendExpanded ? (
-              /* Expanded: Mobile legend with all 24 ontology types */
+              /* Expanded: Mobile legend with actual entity types in graph */
               <div className="p-3 space-y-2 max-h-60 overflow-y-auto">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-datack-light">Légende (24 types)</span>
+                  <span className="font-medium text-datack-light">Légende ({actualEntityTypes.size} types)</span>
                   <span className="text-datack-gray text-xs">▲</span>
                 </div>
-                {/* All 24 Ontology Entity Types */}
+                {/* Entity Types Actually in Graph */}
                 <div>
-                  <div className="text-datack-muted text-xs font-medium mb-1">Types Grand Débat</div>
+                  <div className="text-datack-muted text-xs font-medium mb-1">Types d'entités</div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    {[...GRAND_DEBAT_ONTOLOGY_TYPES]
-                      .sort((a, b) => ENTITY_TYPE_LABELS[a].localeCompare(ENTITY_TYPE_LABELS[b]))
+                    {Array.from(actualEntityTypes)
+                      .sort((a, b) => {
+                        const labelA = ENTITY_TYPE_LABELS[a as EntityType] || a
+                        const labelB = ENTITY_TYPE_LABELS[b as EntityType] || b
+                        return labelA.localeCompare(labelB)
+                      })
                       .map((type) => (
                       <div key={type} className="flex items-center gap-2">
                         <div
                           className="w-2 h-2 rounded-full flex-shrink-0"
                           style={{ backgroundColor: getEntityTypeColor(type) }}
                         ></div>
-                        <span className="text-datack-muted truncate">{ENTITY_TYPE_LABELS[type]}</span>
+                        <span className="text-datack-muted truncate">{ENTITY_TYPE_LABELS[type as EntityType] || type}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-                {/* Relations - Dynamic from API data */}
+                {/* Relations - Badge Style */}
                 <div className="border-t border-datack-border pt-2">
-                  <div className="text-datack-muted text-xs font-medium mb-1">Relations ({relationshipTypes.size}):</div>
+                  <div className="text-datack-muted text-xs font-medium mb-1">Relations ({relationshipTypes.size})</div>
                   <div className="space-y-1">
                     {relationshipTypes.size > 0 ? (
                       Array.from(relationshipTypes).sort().map((relType) => {
                         const count = reconciliationData?.relationships.filter(r => r.type === relType).length || 0
                         return (
-                          <div key={relType} className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                              <span className="text-[#0a0a0a]">→</span>
-                              <span className="text-datack-light font-medium truncate">{relType}</span>
+                          <div key={relType} className="flex items-center justify-between gap-2 text-xs">
+                            <div className="inline-flex items-center gap-1 bg-[#0a0a0a] text-[#dbff3b] px-1.5 py-0.5 rounded font-medium flex-1 min-w-0">
+                              <span>→</span>
+                              <span className="truncate">{relType}</span>
                             </div>
-                            <span className="text-datack-muted/60 ml-2 flex-shrink-0">×{count}</span>
+                            <span className="bg-[#0a0a0a] text-[#dbff3b] px-1 py-0.5 rounded flex-shrink-0">×{count}</span>
                           </div>
                         )
                       })
@@ -1276,8 +1310,12 @@ export default function GraphVisualization3DForce({
                 <div className="flex items-center gap-1.5">
                   <span className="text-datack-light text-xs font-medium whitespace-nowrap">Légende</span>
                   <div className="flex flex-wrap gap-1">
-                    {[...GRAND_DEBAT_ONTOLOGY_TYPES]
-                      .sort((a, b) => ENTITY_TYPE_LABELS[a].localeCompare(ENTITY_TYPE_LABELS[b]))
+                    {Array.from(actualEntityTypes)
+                      .sort((a, b) => {
+                        const labelA = ENTITY_TYPE_LABELS[a as EntityType] || a
+                        const labelB = ENTITY_TYPE_LABELS[b as EntityType] || b
+                        return labelA.localeCompare(labelB)
+                      })
                       .slice(0, 6)
                       .map((type) => (
                       <div
@@ -1286,7 +1324,9 @@ export default function GraphVisualization3DForce({
                         style={{ backgroundColor: getEntityTypeColor(type) }}
                       ></div>
                     ))}
-                    <div className="text-datack-gray text-xs ml-0.5">+18</div>
+                    {actualEntityTypes.size > 6 && (
+                      <div className="text-datack-gray text-xs ml-0.5">+{actualEntityTypes.size - 6}</div>
+                    )}
                   </div>
                 </div>
                 <span className="text-datack-yellow text-xs ml-auto flex-shrink-0" aria-label="Tap to expand">▼</span>
