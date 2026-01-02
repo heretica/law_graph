@@ -526,7 +526,7 @@ export default function GraphVisualization3DForce({
     }
   }, [currentLODSettings, isGraphReady, cameraDistance])
 
-  // Dynamically add nodes and links progressively
+  // Dynamically add nodes and links progressively with RAF to prevent blocking
   const addNodesProgressively = (nodes: Node[], links: Link[], onComplete?: () => void) => {
     if (!graphRef.current) return
 
@@ -555,15 +555,17 @@ export default function GraphVisualization3DForce({
       return true
     })
 
-    console.log(`📊 Total nodes: ${nodes.length}, Valid links: ${validLinks.length}/${links.length}`)
+    console.log(`📊 Progressive render: ${nodes.length} nodes, ${validLinks.length} valid links`)
     console.log(`🔍 Sample valid links:`, validLinks.slice(0, 3).map(l => `${l.source} -> ${l.target}`))
 
     // Start with fresh data to ensure we only show the selected nodes
     let progressiveNodes: Node[] = []
+    let rafId: number | null = null
 
     const addBatch = () => {
-      // Add nodes in batches of 8-12
-      const nodeBatchSize = Math.min(10, nodes.length - currentNodeIndex)
+      // CRITICAL: Use larger batches (25 nodes) to reduce total RAF cycles
+      // Smaller batches = more RAF calls = more overhead = slower rendering
+      const nodeBatchSize = Math.min(25, nodes.length - currentNodeIndex)
       if (nodeBatchSize > 0) {
         const newNodes = nodes.slice(currentNodeIndex, currentNodeIndex + nodeBatchSize)
 
@@ -584,20 +586,17 @@ export default function GraphVisualization3DForce({
 
         currentNodeIndex += nodeBatchSize
         console.log(`➕ Added ${nodeBatchSize} nodes (${currentNodeIndex}/${nodes.length})`)
+
+        // Update progress for user feedback
+        setRenderProgress({ current: currentNodeIndex, total: nodes.length + validLinks.length })
       }
 
       // Add links in batches only after ALL nodes are added
       if (currentNodeIndex >= nodes.length && processedLinkIndex < validLinks.length) {
-        // Find links that can be added (both nodes exist in our added nodes)
-        const availableLinks = validLinks.slice(processedLinkIndex).filter(link => {
-          const sourceId = typeof link.source === 'string' ? link.source : link.source.toString()
-          const targetId = typeof link.target === 'string' ? link.target : link.target.toString()
-          return addedNodeIds.has(sourceId) && addedNodeIds.has(targetId)
-        })
-
-        const linkBatchSize = Math.min(15, availableLinks.length)
+        // CRITICAL: Use larger link batches (50 links) to reduce RAF cycles
+        const linkBatchSize = Math.min(50, validLinks.length - processedLinkIndex)
         if (linkBatchSize > 0) {
-          const newLinks = availableLinks.slice(0, linkBatchSize)
+          const newLinks = validLinks.slice(processedLinkIndex, processedLinkIndex + linkBatchSize)
 
           // Get current links from the progressive state
           const currentGraphData = graphRef.current.graphData()
@@ -611,28 +610,47 @@ export default function GraphVisualization3DForce({
           } catch (error) {
             console.error('Error adding links to graph:', error)
             // If there's an error, try to continue with the next batch
+            processedLinkIndex += linkBatchSize
+            rafId = requestAnimationFrame(addBatch)
             return
           }
 
           processedLinkIndex += linkBatchSize
-          console.log(`🔗 Added ${linkBatchSize} valid links (${processedLinkIndex}/${validLinks.length})`)
+          console.log(`🔗 Added ${linkBatchSize} links (${processedLinkIndex}/${validLinks.length})`)
+
+          // Update progress for user feedback
+          setRenderProgress({ current: nodes.length + processedLinkIndex, total: nodes.length + validLinks.length })
         }
       }
 
-      // Continue until all nodes are added, then process all links (no hardcoded limit)
+      // Continue until all nodes are added, then process all links
       const shouldContinue = currentNodeIndex < nodes.length ||
                            (currentNodeIndex >= nodes.length && processedLinkIndex < validLinks.length)
 
       if (shouldContinue) {
-        requestAnimationFrame(addBatch) // Sync with display refresh for smoother rendering
+        rafId = requestAnimationFrame(addBatch) // RAF prevents main thread blocking
       } else {
-        console.log(`✅ Graph construction complete: ${nodes.length} nodes, ${processedLinkIndex} links added`)
+        console.log(`✅ Progressive rendering complete: ${nodes.length} nodes, ${processedLinkIndex} links`)
+        setRenderProgress(null) // Clear progress indicator
         if (onComplete) onComplete()
       }
     }
 
-    addBatch()
+    // Start the progressive rendering
+    rafId = requestAnimationFrame(addBatch)
+
+    // Return cleanup function to cancel RAF if component unmounts
+    return () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
+    }
   }
+
+  // Track if we're currently rendering to prevent concurrent renders
+  const isRenderingRef = useRef(false)
+  // Track rendering progress for user feedback
+  const [renderProgress, setRenderProgress] = useState<{ current: number; total: number } | null>(null)
 
   // Load graph when reconciliation data is available
   useEffect(() => {
@@ -643,6 +661,12 @@ export default function GraphVisualization3DForce({
 
     if (!reconciliationData || !graphRef.current || !isGraphReady) {
       console.log('⏸️ Skipping data load - missing reconciliationData, graphRef, or graph not ready')
+      return
+    }
+
+    // Prevent concurrent renders that can cause freezing
+    if (isRenderingRef.current) {
+      console.log('⏸️ Already rendering, skipping concurrent render')
       return
     }
 
@@ -776,24 +800,54 @@ export default function GraphVisualization3DForce({
       return
     }
 
-    // ALWAYS load full graph immediately - provenance subgraph handled by searchPath effect
-    console.log('📊 Loading complete 3D Force Graph immediately...')
+    // CRITICAL FIX: Use progressive rendering to prevent browser freeze
+    // Instead of loading entire graph synchronously, chunk the rendering
+    console.log('📊 Loading 3D Force Graph with progressive rendering to prevent freeze...')
     console.log('  • Graph instance available:', !!graphRef.current)
+
+    isRenderingRef.current = true
+
     try {
-      console.log('🎯 Setting graph data immediately...')
-      graphRef.current.graphData({ nodes: displayNodes, links })
-      console.log('✅ Graph data set successfully!')
+      // For large graphs (>100 nodes), use progressive rendering
+      if (displayNodes.length > 100) {
+        console.log(`🎯 Progressive rendering for ${displayNodes.length} nodes (prevents freeze)`)
 
-      // Store full graph for restoration after provenance view
-      fullGraphDataRef.current = { nodes: displayNodes, links }
-      console.log('💾 Full graph stored for restoration')
+        // Start with empty graph
+        graphRef.current.graphData({ nodes: [], links: [] })
+
+        // Add nodes progressively to prevent blocking
+        addNodesProgressively(displayNodes, links, () => {
+          console.log('✅ Progressive graph rendering complete!')
+          isRenderingRef.current = false
+
+          // Store full graph for restoration after provenance view
+          fullGraphDataRef.current = { nodes: displayNodes, links }
+          console.log('💾 Full graph stored for restoration')
+
+          if (onNodeVisibilityChange) {
+            onNodeVisibilityChange(displayNodes.map(n => n.id))
+          }
+        })
+      } else {
+        // For small graphs (<100 nodes), render immediately (no freeze risk)
+        console.log(`🎯 Immediate rendering for ${displayNodes.length} nodes (small graph)`)
+        graphRef.current.graphData({ nodes: displayNodes, links })
+        console.log('✅ Graph data set successfully!')
+
+        isRenderingRef.current = false
+
+        // Store full graph for restoration after provenance view
+        fullGraphDataRef.current = { nodes: displayNodes, links }
+        console.log('💾 Full graph stored for restoration')
+
+        if (onNodeVisibilityChange) {
+          onNodeVisibilityChange(displayNodes.map(n => n.id))
+        }
+      }
     } catch (error) {
-      console.error('❌ Error loading complete graph:', error)
+      console.error('❌ Error loading graph:', error)
       console.error('Error details:', error)
-    }
-
-    if (onNodeVisibilityChange) {
-      onNodeVisibilityChange(displayNodes.map(n => n.id))
+      isRenderingRef.current = false
     }
 
   }, [reconciliationData, onNodeVisibilityChange, isGraphReady])
@@ -1025,6 +1079,26 @@ export default function GraphVisualization3DForce({
           <div className="text-center">
             <div className="text-2xl mb-2 text-datack-yellow">Initializing...</div>
             <div className="text-datack-muted">Initialisation du graphe 3D...</div>
+          </div>
+        </div>
+      )}
+
+      {/* Progressive Rendering Progress Indicator */}
+      {renderProgress && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="bg-datack-dark border border-datack-yellow p-3 rounded-lg shadow-lg">
+            <div className="text-datack-light text-sm mb-2 text-center">
+              Chargement du graphe...
+            </div>
+            <div className="w-64 h-2 bg-datack-black rounded-full overflow-hidden">
+              <div
+                className="h-full bg-datack-yellow transition-all duration-300 ease-out"
+                style={{ width: `${(renderProgress.current / renderProgress.total) * 100}%` }}
+              />
+            </div>
+            <div className="text-datack-muted text-xs mt-1 text-center">
+              {renderProgress.current} / {renderProgress.total} éléments
+            </div>
           </div>
         </div>
       )}
