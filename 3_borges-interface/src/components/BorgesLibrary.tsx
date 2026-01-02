@@ -210,6 +210,7 @@ function BorgesLibrary() {
   const [provenanceGraphData, setProvenanceGraphData] = useState<ReconciliationGraphData | null>(null)  // MCP subgraph for progressive display
   const [isProcessing, setIsProcessing] = useState(false)
   const [currentProcessingPhase, setCurrentProcessingPhase] = useState<string | null>(null)
+  const [queryProgress, setQueryProgress] = useState(0) // Progress bar percentage (0-100)
   const [currentQuery, setCurrentQuery] = useState<string>('')
   const [queryAnswer, setQueryAnswer] = useState<string>('')
   const [showAnswer, setShowAnswer] = useState(false)
@@ -781,23 +782,33 @@ function BorgesLibrary() {
     setCurrentProcessingPhase('🏛️ Querying Grand Débat National...')
     setCurrentQuery(query)
     setProcessingStats({ nodes: 0, communities: 0 })
+    setQueryProgress(0) // Reset progress bar
 
     try {
       // Single-purpose: Grand Débat National GraphRAG only (Constitution v3.0.0)
       console.log('🏛️ Querying Grand Débat National MCP API')
       setCurrentProcessingPhase('🏛️ Analyzing citizen contributions...')
 
-      // Show extended wait message after 30 seconds
+      // Progress bar: increment smoothly to 95% over 120 seconds
+      const progressInterval = setInterval(() => {
+        setQueryProgress(prev => {
+          if (prev >= 95) return 95 // Cap at 95% until query completes
+          return prev + (100 / 120 / 10) // Increment by ~0.083% every 100ms
+        })
+      }, 100)
+
+      // Show extended wait message after 45 seconds
       const extendedWaitTimer = setTimeout(() => {
         setCurrentProcessingPhase('🏛️ Beaucoup de citoyens se sont exprimés sur cette question... merci de patienter')
-      }, 30000)
+      }, 45000)
 
-      // Create timeout promise (60 seconds)
+      // Create timeout promise (120 seconds - increased for large queries)
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => {
+          clearInterval(progressInterval)
           clearTimeout(extendedWaitTimer)
           reject(new Error('TIMEOUT'))
-        }, 60000)
+        }, 120000)
       })
 
       // Build query params with optional commune filtering
@@ -819,8 +830,10 @@ function BorgesLibrary() {
         timeoutPromise
       ])
 
-      // Clear the extended wait timer since query completed
+      // Clear the extended wait timer and progress interval since query completed
       clearTimeout(extendedWaitTimer)
+      clearInterval(progressInterval)
+      setQueryProgress(100) // Complete the progress bar
 
       if (result.success !== false) {
         setCurrentProcessingPhase('✓ Civic analysis complete')
@@ -1424,6 +1437,21 @@ function BorgesLibrary() {
                     <div className="inline-block px-4 py-2 bg-[#0a0a0a] rounded-lg border border-[#dbff3b]/30">
                       <span className="text-[#dbff3b] text-sm font-medium" style={{ animation: 'textGlow 2s ease-in-out infinite' }}>
                         Nous consultons les contributions des citoyens
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="w-full max-w-md mx-auto mt-4 px-4">
+                    <div className="h-2 bg-[#0a0a0a] rounded-full border border-[#dbff3b]/30 overflow-hidden">
+                      <div
+                        className="h-full bg-[#dbff3b] transition-all duration-300 ease-out rounded-full"
+                        style={{ width: `${queryProgress}%` }}
+                      />
+                    </div>
+                    <div className="text-center mt-1">
+                      <span className="text-[#dbff3b]/60 text-xs font-medium">
+                        {Math.round(queryProgress)}%
                       </span>
                     </div>
                   </div>

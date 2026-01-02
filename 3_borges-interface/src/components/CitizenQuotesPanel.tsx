@@ -72,34 +72,28 @@ export default function CitizenQuotesPanel({ quotes, currentIndex, isVisible }: 
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto mt-8">
-      {/* Quote display with elegant border */}
+    <div className="w-full max-w-xl mx-auto mt-4">
+      {/* Quote display - compact */}
       <div className="relative">
-        {/* Decorative corner accents */}
-        <div className="absolute -top-2 -left-2 w-6 h-6 border-t-2 border-l-2 border-[#dbff3b] opacity-60" />
-        <div className="absolute -top-2 -right-2 w-6 h-6 border-t-2 border-r-2 border-[#dbff3b] opacity-60" />
-        <div className="absolute -bottom-2 -left-2 w-6 h-6 border-b-2 border-l-2 border-[#dbff3b] opacity-60" />
-        <div className="absolute -bottom-2 -right-2 w-6 h-6 border-b-2 border-r-2 border-[#dbff3b] opacity-60" />
-
-        {/* Quote card */}
-        <div className="bg-[#0a0a0a] border border-[#dbff3b]/40 rounded-lg p-6 md:p-8 shadow-2xl">
-          {/* Label */}
-          <div className="flex items-center gap-2 mb-4 opacity-80">
+        {/* Quote card - reduced padding */}
+        <div className="bg-[#0a0a0a] border border-[#dbff3b]/40 rounded p-3 md:p-4">
+          {/* Label - smaller */}
+          <div className="flex items-center gap-2 mb-2 opacity-80">
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#dbff3b]/50 to-transparent" />
-            <span className="text-[#dbff3b] text-xs font-medium tracking-wider uppercase">
-              En attendant... une pensée de Jacques Chirac
+            <span className="text-[#dbff3b] text-[10px] font-medium tracking-wider uppercase">
+              Jacques Chirac
             </span>
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#dbff3b]/50 to-transparent" />
           </div>
 
-          {/* Quote text with fade animation */}
-          <div className="relative min-h-[80px] flex items-center justify-center">
+          {/* Quote text - smaller font */}
+          <div className="relative min-h-[50px] flex items-center justify-center">
             {CHIRAC_QUOTES.map((quote, index) => (
               <p
                 key={index}
                 className={`
                   absolute inset-0 flex items-center justify-center text-center
-                  text-base md:text-lg leading-relaxed
+                  text-xs md:text-sm leading-relaxed
                   text-[#dbff3b] font-light italic
                   transition-all duration-700 ease-in-out
                   ${index === chiraquoteIndex
@@ -115,18 +109,11 @@ export default function CitizenQuotesPanel({ quotes, currentIndex, isVisible }: 
               </p>
             ))}
           </div>
-
-          {/* Attribution */}
-          <div className="mt-6 text-center">
-            <span className="text-[#dbff3b]/60 text-sm">
-              — Jacques Chirac, Président de la République (1995-2007)
-            </span>
-          </div>
         </div>
       </div>
 
-      {/* Progress indicator */}
-      <div className="flex justify-center items-center gap-1 mt-4">
+      {/* Progress indicator - compact */}
+      <div className="flex justify-center items-center gap-1 mt-2">
         {CHIRAC_QUOTES.slice(0, Math.min(CHIRAC_QUOTES.length, 20)).map((_, index) => (
           <div
             key={index}
