@@ -868,3 +868,105 @@ Legend:      actualEntityTypes[i] → type → getEntityTypeColor(type)
 | Relationship styling inconsistent | Different styles for desktop/mobile | Badge style with black bg + yellow text |
 
 ---
+
+
+## Issue: Legend Shows 105 Messy Entity Types Instead of Clean 24-Type Ontology
+
+**Date:** 2026-01-02
+**Severity:** CRITICAL (users furious - legend shows inconsistent, malformed types)
+
+### Problem
+
+The legend was displaying "105 types présents" with duplicates, malformed types, and wrong casing instead of the clean, consistent 24-type Grand Débat ontology.
+
+**User Experience:**
+1. User opens graph visualization
+2. Checks legend to understand entity types
+3. **Sees 105 messy types** - duplicates and malformed entries
+4. Examples:
+   - \`"OPINION\` (quote mark prefix)
+   - \`|"CONCEPT\` (pipe and quote prefix)
+   - Duplicates: \`OPINION\`, \`"OPINION\`, \`|"OPINION\`
+   - Wrong casing: \`Concept\`, \`CONCEPT\`, \`concept\`
+   - Non-ontology types: \`CURANTIDEOLOGIQUE\`, \`COULEURSEMANTIQUE\`
+5. User cannot trust the visualization system
+6. User cannot understand what entities represent
+
+**What Users Expected:**
+- Clean, consistent 24-type Grand Débat ontology
+- Legend as a REFERENCE GUIDE, not a data mirror
+- No duplicates, no malformed types
+- Official types with proper French labels
+
+### Root Cause
+
+**Dynamic entity type extraction showing raw, dirty data instead of normalized ontology.**
+
+**Location:** \`src/components/GraphVisualization3DForce.tsx\`
+
+**Problem Code (lines 145-146, 705-726):**
+\`\`\`typescript
+// Track unique entity types actually present in the graph (for legend sync)
+const [actualEntityTypes, setActualEntityTypes] = useState<Set<string>>(new Set())
+
+// Extract all unique entity types actually present in the graph
+const uniqueEntityTypes = new Set<string>()
+reconciliationData.nodes.forEach(node => {
+  let entityType = 'CIVIC_ENTITY' // default
+
+  // Extract raw entity_type from node properties
+  if (node.properties?.entity_type) {
+    entityType = node.properties.entity_type.toString().toUpperCase()
+  } else if (isCommune(node)) {
+    entityType = 'COMMUNE'
+  } else if (node.labels?.includes('Community')) {
+    entityType = 'COMMUNITY'
+  } else if (node.labels && node.labels.length > 1) {
+    entityType = node.labels[1].toUpperCase()
+  }
+
+  uniqueEntityTypes.add(entityType)  // ← ADDS MALFORMED TYPES DIRECTLY
+})
+setActualEntityTypes(uniqueEntityTypes)
+\`\`\`
+
+**Why It Produced Malformed Types:**
+
+1. **Raw Neo4j data not sanitized** - Property values contain quotes, pipes, etc.
+2. **No normalization** - Types like \`"OPINION\`, \`|"CONCEPT\` added as-is
+3. **No deduplication across casing** - \`CONCEPT\`, \`Concept\`, \`concept\` all added separately
+4. **No ontology validation** - Non-standard types like \`CURANTIDEOLOGIQUE\` added
+5. **Legend became data mirror** - Showed every dirty value instead of clean reference
+
+### Solution
+
+**Reverted to STATIC 24-type Grand Débat ontology for legend (reference guide approach).**
+
+**Key Changes:**
+
+1. **Removed dynamic extraction state** (lines 145-146)
+2. **Removed extraction logic** (lines 705-726)
+3. **Updated desktop legend to static ontology** (lines 1172-1191)
+4. **Updated mobile legend to static ontology** (lines 1225-1290)
+
+**Grand Débat Ontology (24 Types):**
+CITOYEN, CONTRIBUTION, CONSULTATION, QUESTION, THEMATIQUE, ENCODAGE, CLUSTER_SEMANTIQUE, TYPE_REPONDANT, OPINION, PROPOSITION, DOLEANCE, VERBATIM, REFORME_DEMOCRATIQUE, REFORME_FISCALE, NIVEAU_CONFIANCE, ACTEUR_INSTITUTIONNEL, SERVICE_PUBLIC, CONSENSUS, COURANT_IDEOLOGIQUE, TERRITOIRE, TYPE_IMPOT, MODE_SCRUTIN, MESURE_ECOLOGIQUE, COMMUNE
+
+### Performance Impact
+
+| Metric | Before (Dynamic) | After (Static) |
+|--------|------------------|----------------|
+| **Type count** | 105 messy types | 24 clean types |
+| **Duplicates** | Many | Zero |
+| **User trust** | ✗ Looks broken | ✓ Professional |
+
+### Files Changed
+
+1. **GraphVisualization3DForce.tsx**
+   - Line 145-146: REMOVED \`actualEntityTypes\` state
+   - Lines 705-726: REMOVED dynamic entity type extraction logic
+   - Lines 1172-1191: Desktop legend uses \`GRAND_DEBAT_ONTOLOGY_TYPES\` (static)
+   - Lines 1225-1290: Mobile legend uses \`GRAND_DEBAT_ONTOLOGY_TYPES\` (static)
+
+---
+
