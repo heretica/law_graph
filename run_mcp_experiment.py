@@ -218,11 +218,12 @@ async def main():
     logger.info(f"Timeout: {args.timeout}s")
     logger.info("="*70)
 
-    # Initialize MCP GraphRAG client
+    # Initialize MCP GraphRAG client with surgical endpoint
     mcp_client = MCPGraphRAGClient(
         api_url=args.mcp_url,
         timeout=args.timeout,
         default_mode='local',
+        query_endpoint='surgical',  # Use grand_debat_query_all_surgical
     )
 
     # Test MCP connection
@@ -263,12 +264,14 @@ async def main():
             experiment_config={
                 "system": "graphrag_mcp",
                 "mcp_endpoint": args.mcp_url,
+                "mcp_tool": "grand_debat_query_all_surgical",
                 "mode": "local",
-                "architecture": "Surgical RAG (56 Mini-Worlds)",
+                "architecture": "Surgical RAG (56 Mini-Worlds in Parallel)",
                 "optimizations": [
                     "top_k=100 (massive ontological expansion)",
                     "5-hop BFS (deep small worlds reconstitution)",
-                    "Surgical prompt (PRECISION + SURGICAL + EXTREME)",
+                    "Query-focused directness prompt (adaptive length)",
+                    "Parallel mini-world queries (asyncio.gather)",
                     "Civic provenance chain (entity → chunk → commune)"
                 ],
             },

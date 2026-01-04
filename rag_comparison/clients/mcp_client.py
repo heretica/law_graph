@@ -29,6 +29,7 @@ class MCPGraphRAGClient(RAGClient):
         timeout: float = 120.0,
         default_mode: str = "local",
         default_commune: str = "Rochefort",
+        query_endpoint: str = "surgical",  # Options: "fast", "all", "surgical"
     ) -> None:
         """Initialize MCP GraphRAG client.
 
@@ -37,11 +38,16 @@ class MCPGraphRAGClient(RAGClient):
             timeout: Query timeout in seconds.
             default_mode: Query mode ('local' or 'global').
             default_commune: Default commune to query.
+            query_endpoint: Which query endpoint to use:
+                - "fast": grand_debat_query_fast (community-first)
+                - "all": grand_debat_query_all (with mode parameter)
+                - "surgical": grand_debat_query_all_surgical (parallel mini-worlds, RECOMMENDED)
         """
         self.api_url = api_url.rstrip("/")
         self.timeout = timeout
         self.default_mode = default_mode
         self.default_commune = default_commune
+        self.query_endpoint = query_endpoint
         self._session: Optional[aiohttp.ClientSession] = None
         self._session_id: Optional[str] = None
 
@@ -200,12 +206,12 @@ class MCPGraphRAGClient(RAGClient):
         mode: Optional[str] = None,
         commune: Optional[str] = None,
     ) -> QueryResult:
-        """Query GraphRAG via MCP server using fast community-first retrieval.
+        """Query GraphRAG via MCP server.
 
         Args:
             question: The query text.
-            mode: Ignored - fast query uses community-first approach.
-            commune: Ignored - queries across all communes via community matching.
+            mode: Query mode ('local' or 'global'). Uses default_mode if not specified.
+            commune: Ignored - queries across all communes.
 
         Returns:
             QueryResult with answer and metadata.
@@ -216,16 +222,32 @@ class MCPGraphRAGClient(RAGClient):
         try:
             session = await self._get_session()
 
-            # Use grand_debat_query_fast for optimized latency
-            # Community-first retrieval + multi-hop BFS expansion
-            result = await self._call_tool(
-                session,
-                "grand_debat_query_fast",
-                {
+            # Choose tool based on query_endpoint configuration
+            if self.query_endpoint == "surgical":
+                # Use grand_debat_query_all_surgical (parallel mini-worlds, RECOMMENDED)
+                tool_name = "grand_debat_query_all_surgical"
+                arguments = {
                     "query": question,
-                    "max_communes": 50,  # Search across all communes
-                },
-            )
+                    "max_communes": 50,
+                }
+            elif self.query_endpoint == "all":
+                # Use grand_debat_query_all with mode parameter
+                tool_name = "grand_debat_query_all"
+                arguments = {
+                    "query": question,
+                    "mode": mode or self.default_mode,
+                    "max_communes": 50,
+                    "include_sources": True,
+                }
+            else:  # "fast" or legacy
+                # Use grand_debat_query_fast (custom community-first approach)
+                tool_name = "grand_debat_query_fast"
+                arguments = {
+                    "query": question,
+                    "max_communes": 50,
+                }
+
+            result = await self._call_tool(session, tool_name, arguments)
 
             latency_ms = (time.perf_counter() - start_time) * 1000
 
