@@ -155,6 +155,23 @@ def create_task_function(client: MCPGraphRAGClient):
         provenance = raw_resp.get("provenance", {})
         performance = raw_resp.get("performance", {})
 
+        # CRITICAL: Extract LLM context (the actual text sent to gpt5_nano)
+        # For surgical endpoint: context is in mini_worlds array (per commune)
+        # For now, extract from first mini_world if available
+        llm_context = ""
+        mini_worlds = raw_resp.get("mini_worlds", [])
+        if mini_worlds and len(mini_worlds) > 0:
+            first_mini_world = mini_worlds[0]
+            if isinstance(first_mini_world, dict):
+                llm_context = first_mini_world.get("llm_context", "")
+
+        # If not in mini_worlds, check provenance directly (standard endpoint)
+        if not llm_context:
+            llm_context = provenance.get("llm_context", "")
+
+        llm_context_length = len(llm_context)
+        logger.info(f"📋 LLM Context length: {llm_context_length} chars ({llm_context_length/4:.0f} tokens approx)")
+
         # Extract stats (surgical endpoint has nested 'stats' dict)
         stats = provenance.get("stats", {})
 
@@ -211,6 +228,9 @@ def create_task_function(client: MCPGraphRAGClient):
             "sample_entities": sample_entities,
             "sample_relationships": sample_relationships,
             "full_answer_length": answer_length,  # Track original length
+            # CRITICAL: LLM context sent to gpt5_nano for answer generation
+            "llm_context": llm_context,  # Full context with entities, relationships, chunks
+            "llm_context_length": llm_context_length,  # Track context size
             # NOTE: full_provenance removed - too large (164k tokens) for LLM judges
             # "full_provenance": provenance,
         }
