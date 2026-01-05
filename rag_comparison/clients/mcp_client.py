@@ -247,6 +247,7 @@ class MCPGraphRAGClient(RAGClient):
                     "max_communes": 50,
                 }
 
+            logger.info(f"🔧 Calling MCP tool: {tool_name} (endpoint={self.query_endpoint})")
             result = await self._call_tool(session, tool_name, arguments)
 
             latency_ms = (time.perf_counter() - start_time) * 1000
@@ -256,12 +257,30 @@ class MCPGraphRAGClient(RAGClient):
                 error_msg = result.get("error", "Query failed")
                 return QueryResult.error(error_msg, latency_ms)
 
-            # Fast query returns answer directly with performance metadata
-            answer = result.get("answer", "")
+            # Extract answer (surgical endpoint uses 'aggregated_answer', others use 'answer')
+            answer = result.get("aggregated_answer") or result.get("answer", "")
 
-            # Add performance breakdown to raw_response for analysis
+            # Extract performance and provenance (varies by endpoint)
             performance = result.get("performance", {})
-            provenance = result.get("provenance", {})
+
+            # Surgical endpoint stores stats in 'aggregated_stats', others in 'provenance'
+            if "aggregated_stats" in result:
+                # Surgical endpoint response format
+                provenance = {
+                    "entities": [],  # Surgical doesn't return individual entities
+                    "relationships": [],  # Surgical doesn't return individual relationships
+                    "stats": {
+                        "communes_searched": result.get("aggregated_stats", {}).get("total_communes_queried"),
+                        "communes_with_results": len(result.get("aggregated_stats", {}).get("communes_with_results", [])),
+                        "total_entities": result.get("aggregated_stats", {}).get("total_entities", 0),
+                        "total_chunks": result.get("aggregated_stats", {}).get("total_chunks", 0),
+                        "total_relationships": result.get("aggregated_stats", {}).get("total_relationships", 0),
+                    },
+                    "mini_worlds": result.get("mini_worlds", []),
+                }
+            else:
+                # Standard endpoint response format
+                provenance = result.get("provenance", {})
 
             return QueryResult(
                 answer=answer,

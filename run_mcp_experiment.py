@@ -147,16 +147,26 @@ def create_task_function(client: MCPGraphRAGClient):
 
         # Extract context and provenance from raw_response for debugging
         raw_resp = result.raw_response or {}
+
+        # DEBUG: Log raw_response structure
+        logger.info(f"🔍 raw_response keys: {list(raw_resp.keys())}")
+        logger.info(f"🔍 raw_response sample: {str(raw_resp)[:500]}")
+
         provenance = raw_resp.get("provenance", {})
         performance = raw_resp.get("performance", {})
 
+        # Extract stats (surgical endpoint has nested 'stats' dict)
+        stats = provenance.get("stats", {})
+
         context_metadata = {
-            "graph_entities_count": len(provenance.get("entities", [])),
-            "graph_relationships_count": len(provenance.get("relationships", [])),
+            "graph_entities_count": stats.get("total_entities") or len(provenance.get("entities", [])),
+            "graph_relationships_count": stats.get("total_relationships") or len(provenance.get("relationships", [])),
             "graph_communities_count": len(provenance.get("communities", [])),
+            "graph_chunks_count": stats.get("total_chunks", 0),
             "source_quotes_count": len(provenance.get("source_quotes", [])),
-            "communes_searched": provenance.get("stats", {}).get("communes_searched"),
-            "communes_with_results": provenance.get("stats", {}).get("communes_with_results"),
+            "communes_searched": stats.get("communes_searched"),
+            "communes_with_results": stats.get("communes_with_results"),
+            "mini_worlds_count": len(provenance.get("mini_worlds", [])),
             "performance_phases": performance.get("phases", {}),
             "total_seconds": performance.get("total_seconds"),
         }
@@ -171,6 +181,11 @@ def create_task_function(client: MCPGraphRAGClient):
             {"source": r.get("source"), "target": r.get("target"), "type": r.get("type")}
             for r in provenance.get("relationships", [])[:3]
         ]
+
+        # Log context metadata for verification
+        logger.info(f"📊 Context metadata: {context_metadata.get('graph_entities_count', 0)} entities, "
+                   f"{context_metadata.get('graph_relationships_count', 0)} relationships, "
+                   f"{context_metadata.get('communes_searched', 0)} communes searched")
 
         # Return dict with fields needed by metrics + context metadata
         return {
