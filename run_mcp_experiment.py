@@ -78,8 +78,8 @@ def parse_args():
     parser.add_argument(
         '--timeout',
         type=float,
-        default=120.0,
-        help='Query timeout in seconds (default: 120)'
+        default=300.0,
+        help='Query timeout in seconds (default: 300, surgical endpoint needs ~90-120s per query)'
     )
 
     return parser.parse_args()
