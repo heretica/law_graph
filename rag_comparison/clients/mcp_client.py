@@ -228,7 +228,7 @@ class MCPGraphRAGClient(RAGClient):
                 tool_name = "grand_debat_query_all_surgical"
                 arguments = {
                     "query": question,
-                    "max_communes": 50,
+                    "max_communes": 20,  # Reduced to 20 to keep LLM judge under 128k token limit
                 }
             elif self.query_endpoint == "all":
                 # Use grand_debat_query_all with mode parameter

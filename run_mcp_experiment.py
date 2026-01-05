@@ -187,19 +187,32 @@ def create_task_function(client: MCPGraphRAGClient):
                    f"{context_metadata.get('graph_relationships_count', 0)} relationships, "
                    f"{context_metadata.get('communes_searched', 0)} communes searched")
 
+        # CRITICAL: Surgical endpoint returns ~120-150k tokens (50 communes)
+        # LLM judges have 128k token limit, so we need to truncate for evaluation
+        # while preserving full answer in metadata
+        answer_length = len(result.answer)
+        max_chars_for_judges = 50000  # ~25k tokens, leaves room for question + reference
+
+        truncated_answer = result.answer
+        if answer_length > max_chars_for_judges:
+            truncated_answer = result.answer[:max_chars_for_judges] + f"\n\n[... truncated {answer_length - max_chars_for_judges} chars for LLM judge evaluation]"
+            logger.warning(f"⚠️  Answer truncated from {answer_length} to {max_chars_for_judges} chars for LLM judges")
+
         # Return dict with fields needed by metrics + context metadata
         return {
-            "output": result.answer,
+            "output": truncated_answer,  # Truncated for LLM judges
             "reference": expected,
             "input": question,
             "expected_output": expected,
             "latency_ms": result.latency_ms,
             "status": result.status,
-            # NEW: Context debugging metadata
+            # NEW: Context debugging metadata (lightweight for OPIK)
             "context_metadata": context_metadata,
             "sample_entities": sample_entities,
             "sample_relationships": sample_relationships,
-            "full_provenance": provenance,  # Full graph data for deep debugging
+            "full_answer_length": answer_length,  # Track original length
+            # NOTE: full_provenance removed - too large (164k tokens) for LLM judges
+            # "full_provenance": provenance,
         }
 
     return task
