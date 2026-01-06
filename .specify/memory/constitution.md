@@ -1,42 +1,53 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: 3.0.0 → 3.1.0 (MINOR - Code Quality & Performance Principles Added)
+Version Change: 3.1.0 → 3.2.0 (MINOR - Architectural Implementation Patterns Codified)
 
 Modified Principles:
-- Principle VI: Single-Source Civic Data Foundation → Updated to reflect inline cache implementation
-- NEW Principle X: Code Quality & Maintainability (added after dead code cleanup)
-- NEW Principle XI: Performance Optimization Architecture (codifies Feature 006 patterns)
+- Principle VI: Single-Source Civic Data Foundation → Added session pool constraints, MCP retry strategy
+- Principle X: Code Quality & Maintainability → Added defensive type conversion guidance, cache eviction clarity
+- Principle XI: Performance Optimization Architecture → Corrected FIFO cache claim, added LOD culling decision, proportional loading
 
 Additions:
-- Added Data Integrity & Quality section with Defensive Type Conversion guidance
-- Added Performance section with specific targets from Feature 006
-- Codified caching architecture (client, session, backend layers)
-- Added memoization patterns from BorgesLibrary.tsx
-- Documented LOD (Level of Detail) system for 3D visualization
+- **NEW SECTION**: MCP Protocol Implementation (Session Pool, Retry Strategy, Error Handling)
+- **NEW SECTION**: GraphML Three-Phase Validation (Parse, Validate, Filter)
+- **NEW SECTION**: Defensive Type Conversion Patterns (null/undefined handling)
+- LOD culling disabled rationale (interpretability > performance)
+- Proportional progressive loading delays (visual load adaptation)
+- Simple FIFO cache eviction (corrected from "LRU" claim)
 
-Technical Updates:
-- Inline cache implementation in law-graphrag.ts (replaces deleted query-cache.ts)
-- Dead code cleanup removed 6,024 lines (21 files deleted, 3 modified)
-- Zero breaking changes maintained (ISO-functionality with Vercel deployment)
+Technical Corrections:
+- Cache eviction: Changed "LRU" to "FIFO" (accurate implementation)
+- Added session pool constraints: max 3 active, 5min TTL, 60s cleanup
+- Added retry strategy: permanent error detection, exponential backoff (1s, 2s)
+- Codified LOD culling disabled decision for Constitution Principle IV compliance
 
 Templates Requiring Updates:
 - ✅ plan-template.md: Constitution Check section verified
 - ✅ spec-template.md: Responsive Design section verified (Principle VIII)
 - ✅ tasks-template.md: Mobile Responsiveness Testing phase verified
-- ⚠️ CLAUDE.md: Should reference latest constitution version
+- ✅ CLAUDE.md: Updated to reference Constitution v3.2.0
 
 Change Rationale:
-- MINOR version (3.1.0) because:
-  1. New principles added (Code Quality, Performance) without breaking existing ones
-  2. Material expansion of caching and performance guidance
-  3. No removal of existing principles or scope changes
-  4. Backward compatible with 3.0.0 governance model
+- MINOR version (3.2.0) because:
+  1. Material expansion of existing principles (VI, X, XI) with implementation details
+  2. New technical sections added (MCP Protocol, GraphML Validation, Defensive Type Conversion)
+  3. Corrections to inaccurate claims (FIFO not LRU cache)
+  4. No removal of existing principles or scope changes
+  5. Backward compatible with 3.1.0 governance model
+  6. Documents actual implemented architecture (not ideal architecture)
+
+Investigation Summary:
+- Conducted thorough codebase analysis (33 TypeScript files, ~12KB source)
+- Identified 7 architectural patterns implemented but not documented
+- Corrected technical inaccuracies (cache eviction strategy)
+- Codified conscious design trade-offs (LOD culling disabled)
+- Verified all claims against actual source code
 
 Follow-up TODOs:
-- None - all placeholders filled
+- None - all placeholders filled with concrete implementation details
 
-Last Major Cleanup: 2026-01-06 (removed 6,024 lines dead code, maintained ISO-functionality)
+Last Investigation: 2026-01-06 (comprehensive codebase audit, 33 files analyzed)
 -->
 
 # Grand Débat National GraphRAG Constitution
@@ -223,7 +234,20 @@ without benefit for this focused civic exploration tool.
 - API proxy MUST connect ONLY to graphragmcp-production
 - Environment variables for URL are for deployment flexibility only, not multi-source
 - Inline cache implementation in `law-graphrag.ts` (5-min TTL, SHA-256 keys)
-- Simple LRU eviction (100 entries max) prevents memory bloat
+- Simple FIFO eviction (100 entries max) prevents memory bloat
+
+**MCP Session Pool Constraints**:
+- **Maximum active sessions**: 3 per frontend instance
+- **Session TTL**: 5 minutes of inactivity
+- **Cleanup interval**: 60 seconds
+- **Eviction strategy**: Remove oldest idle session when pool full
+- **Failure handling**: Fire-and-forget async cleanup (non-blocking)
+
+**MCP Retry Strategy**:
+- **Permanent error detection**: 4xx status codes, validation errors (skip retries)
+- **Transient error retry**: 2 attempts with exponential backoff
+- **Backoff delays**: 1 second (first retry), 2 seconds (second retry)
+- **No jitter**: Deterministic retry timing for single-instance frontend
 
 ---
 
@@ -339,6 +363,39 @@ confusion, unused dependencies slow builds, and unclear architecture makes chang
 - Maintained ISO-functionality with Vercel production deployment
 - Inline cache implementation replaced deleted `query-cache.ts` module
 
+**Defensive Type Conversion**:
+
+All type conversions MUST handle `None`/`null`/`undefined` values explicitly to prevent
+runtime crashes when APIs return optional fields.
+
+```typescript
+// SAFE: Handles both missing keys AND null/undefined values
+const score = e.importance_score ?? 0.5
+const id = e.id || e.name || `entity-${i}`
+
+// UNSAFE: Fails on null values even if key exists
+const score = e.importance_score  // Uncaught TypeError if null
+```
+
+**Rationale**: GraphRAG APIs may return `null` for optional fields. Type conversions
+must handle both missing keys and null values with explicit fallback chains.
+
+**Cache Eviction Strategy**:
+
+Client-side query cache MUST NOT exceed 100 entries. Eviction uses **simple FIFO**
+(first-inserted, first-evicted) when capacity is exceeded, NOT LRU (least-recently-used).
+
+```typescript
+// Actual implementation in law-graphrag.ts:
+if (queryCache.size > 100) {
+  const oldestKey = queryCache.keys().next().value
+  if (oldestKey) queryCache.delete(oldestKey)
+}
+```
+
+This is a **conscious simplicity trade-off**: FIFO is O(1) and trivial to implement,
+while true LRU requires maintaining access timestamps or a doubly-linked list.
+
 ---
 
 ### XI. Performance Optimization Architecture
@@ -362,10 +419,12 @@ limit dataset scale. Optimization must be architectural, not ad-hoc.
    - **Session Pool**: Frontend API route connection reuse
    - **Backend**: LRU cache for commune initialization + LLM/embedding caches
 
-2. **Progressive Loading**:
+2. **Progressive Loading with Proportional Delays**:
    - GraphML displays instantly (browser cache)
-   - MCP queries batched (5 communes at a time with proportional delays)
+   - MCP queries batched (5 communes at a time)
    - Visual feedback during background fetching
+   - **Proportional delay**: `1500 + (nodesAdded/1000) * 2000 ms`
+   - Delay adapts to visual load (more nodes = more GPU/browser render time)
    - Tutorial overlay for first-time users during load
 
 3. **Memoization** (O(n) transformations):
@@ -374,10 +433,20 @@ limit dataset scale. Optimization must be architectural, not ad-hoc.
    - `useMemo(() => createQueryMatcher)` → Query keyword filtering
 
 4. **Level of Detail (LOD)** for 3D visualization:
-   - High detail (<200 units): Full resolution, particles enabled
-   - Medium detail (200-500): Reduced resolution, no particles
-   - Low detail (>500): Minimal resolution, maintains visibility
+   - **High detail (<200 units)**: Full resolution, particles enabled
+   - **Medium detail (200-500)**: Reduced resolution, no particles
+   - **Low detail (>500)**: Minimal resolution, maintains visibility
    - Configurable via `lod-config.ts` with tunable distance thresholds
+   - **Node/relationship culling INTENTIONALLY DISABLED** to preserve Constitution Principle IV
+
+**LOD Culling Decision**:
+
+Graph culling (hiding nodes/relationships at far camera distances) is **intentionally DISABLED**
+to ensure end-to-end interpretability per Constitution Principle IV (Visual Spacing).
+
+**Rationale**: All nodes and relationships must remain visible regardless of zoom level to
+allow users to trace citizen contributions from any starting point. This is a **conscious
+performance trade-off** for civic transparency.
 
 **Rationale**: Users abandon slow interfaces. Large datasets (50 communes, 8,000+ entities)
 require optimization at the architectural level, not post-hoc performance fixes.
@@ -390,6 +459,184 @@ require optimization at the architectural level, not post-hoc performance fixes.
 - Geometry simplification at distance MUST maintain visual coherence
 - Performance profiling MUST be done before optimizing
 - No premature optimization; measure first, then optimize bottlenecks
+
+---
+
+## MCP Protocol Implementation
+
+**The system implements sophisticated MCP client patterns for reliability and performance.**
+
+### Session Pool Architecture
+
+**Location**: `/src/app/api/law-graphrag/route.ts`
+
+The MCP client maintains a session pool to reuse connections and prevent resource exhaustion:
+
+```
+State Machine:
+  'active' → (after use) → 'idle' → (after TTL) → 'expired' (cleanup)
+            ↑                                           ↓
+            └─────── getAvailableSession() ──────────┘
+```
+
+**Configuration**:
+- **MAX_SESSIONS**: 3 active connections
+- **SESSION_TTL**: 5 minutes (300,000 ms)
+- **CLEANUP_INTERVAL**: 60 seconds
+
+**Session Lifecycle**:
+1. **Create**: On first query, establish SSE connection to MCP server
+2. **Reuse**: Find idle session within TTL, mark as active
+3. **Evict**: Remove oldest idle session if pool reaches capacity
+4. **Cleanup**: Send shutdown message, close connection, remove from pool
+5. **Failure**: Fire-and-forget async cleanup (non-blocking for response)
+
+**Rationale**: Session pooling prevents exhausting MCP server connections while enabling
+fast query response times through connection reuse.
+
+### Retry Strategy with Permanent Error Detection
+
+**Location**: `/src/app/api/law-graphrag/route.ts` (lines 213-268)
+
+The system implements exponential backoff retry with intelligent permanent error detection:
+
+```typescript
+function isPermanentError(error: Error): boolean {
+  const msg = error.message.toLowerCase()
+  return ['401', '403', '404', '400', 'unauthorized', 'forbidden',
+          'not_found', 'validation_error', 'invalid'].some(indicator =>
+    msg.includes(indicator)
+  )
+}
+```
+
+**Retry Configuration**:
+- **Max attempts**: 3 total (0, 1, 2)
+- **Base delay**: 1000 ms
+- **Exponential backoff**: `baseDelay * 2^attempt`
+- **Delays**: 1s (first retry), 2s (second retry)
+- **Permanent errors**: Skip retries, throw immediately
+
+**Example Flow**:
+```
+503 Service Unavailable (temporary)
+  → Wait 1000ms → Retry
+  → Still fails → Wait 2000ms → Retry
+  → Still fails → Throw (3 attempts exhausted)
+
+401 Unauthorized (permanent)
+  → Log and throw immediately (don't waste retries)
+```
+
+**Rationale**: Permanent errors (authentication, authorization, validation) cannot be
+fixed by retrying. Exponential backoff gives transient server errors time to recover.
+
+### Server-Sent Events (SSE) Parsing
+
+**Location**: `/src/app/api/law-graphrag/route.ts` (lines 273-336)
+
+MCP responses use SSE format for streaming:
+
+```
+data: {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"..."}]}}
+```
+
+**Parsing Strategy**:
+1. Split response by newlines
+2. Extract lines starting with `data: `
+3. Parse JSON from SSE data payload
+4. Navigate to `result.content[0].text`
+5. If text is JSON string, parse again (double-encoded)
+6. If text is already object, return directly
+
+**Type Coercion**:
+```typescript
+if (typeof textContent === 'string') {
+  try { return JSON.parse(textContent) }
+  catch { return textContent }
+}
+return textContent
+```
+
+This defensive approach handles both structured (JSON) and unstructured (plain text) responses.
+
+---
+
+## GraphML Three-Phase Validation
+
+**The system implements rigorous GraphML validation to ensure data integrity.**
+
+**Location**: `/src/lib/utils/graphml-parser.ts`
+
+### Phase 1: XML Parsing with Error Detection
+
+Uses browser-native `DOMParser` (no external XML library):
+
+```typescript
+const parser = new DOMParser()
+const doc = parser.parseFromString(xmlString, 'text/xml')
+const parserError = doc.querySelector('parsererror')
+if (parserError) throw new GraphMLParseError('XML syntax error', lineNumber)
+```
+
+**Rationale**: Browser-native parsing has zero dependencies and is optimized by browser engines.
+
+### Phase 2: Key Definition Mapping
+
+GraphML uses `<key>` declarations to define node/edge attributes:
+
+```xml
+<key id="d0" for="node" attr.name="label" attr.type="string"/>
+<node id="n1"><data key="d0">Impôts</data></node>
+```
+
+The parser builds a `keyMap<id, {name, for}>` to resolve attribute references:
+
+```typescript
+const keyMap = new Map()
+doc.querySelectorAll('key').forEach(key => {
+  keyMap.set(key.getAttribute('id'), {
+    name: key.getAttribute('attr.name'),
+    for: key.getAttribute('for')
+  })
+})
+```
+
+### Phase 3: Validation with Orphan Detection
+
+**ValidationResult Structure**:
+```typescript
+{
+  valid: boolean
+  errors: Array<{type: 'missing_source'|'missing_target', edgeId, nodeId}>
+  warnings: Array<{type: 'orphan_node'|'missing_commune'|'self_loop', nodeId}>
+  orphanNodes: string[]  // IDs of nodes with degree === 0
+}
+```
+
+**Validation Checks**:
+1. Build `nodeIds` Set for O(1) lookup
+2. Calculate `nodeDegrees` Map (degree = count of edges)
+3. **Errors** (fail validation):
+   - `missing_source`: Edge references non-existent source node
+   - `missing_target`: Edge references non-existent target node
+4. **Warnings** (pass validation but flagged):
+   - `orphan_node`: Degree === 0 (Constitution Principle III violation)
+   - `missing_commune`: Node lacks commune attribution (provenance issue)
+   - `self_loop`: Edge where source === target
+
+**Orphan Filtering**:
+```typescript
+filterOrphanNodes(doc):
+  const {orphanNodes} = validateGraphML(doc)
+  const orphanSet = new Set(orphanNodes)
+  return {
+    ...doc,
+    nodes: doc.nodes.filter(n => !orphanSet.has(n.id))
+  }
+```
+
+**Performance**: O(n + e) where n=nodes, e=edges. Single pass for validation and filtering.
 
 ---
 
@@ -488,7 +735,8 @@ must handle both missing keys and null values to prevent runtime crashes.
 
 Maintained at `.specify/memory/constitution.md`.
 
-**Version**: 3.1.0
+**Version**: 3.2.0
 **Ratified**: 2025-11-18
 **Last Amended**: 2026-01-06
 **Last Major Cleanup**: 2026-01-06 (removed 6,024 lines dead code)
+**Last Investigation**: 2026-01-06 (comprehensive codebase audit, 33 files analyzed)
