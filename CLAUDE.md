@@ -1,6 +1,6 @@
 # Grand Débat National Interface - Development Guidelines
 
-## Single-Purpose Interface (Constitution v3.0.0)
+## Single-Purpose Interface (Constitution v3.1.0)
 
 This interface connects **EXCLUSIVELY** to the Grand Débat National MCP server.
 - **MCP Server**: `https://graphragmcp-production.up.railway.app/mcp`
@@ -138,4 +138,6 @@ public/data/grand-debat.graphml → useGraphMLData hook → BorgesLibrary → Gr
 - N/A (no new persistence - leverages existing in-memory caches) (006-graph-optimization)
 
 ## Recent Changes
+- **Dead Code Cleanup (2026-01-06)**: Removed 6,024 lines (21 files deleted, 3 modified) while maintaining ISO-functionality with Vercel production
+- **Constitution v3.1.0**: Added Code Quality & Performance principles, documented inline cache implementation
 - **004-ui-consistency**: GraphML infrastructure, commune-centric 3D graph, Borges visual identity, civic provenance chain

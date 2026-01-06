@@ -1,43 +1,42 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: 2.0.0 → 3.0.0 (MAJOR - Single-purpose Grand Débat National interface)
+Version Change: 3.0.0 → 3.1.0 (MINOR - Code Quality & Performance Principles Added)
 
 Modified Principles:
-- Title: Law GraphRAG Constitution → Grand Débat National GraphRAG Constitution
-- Principle IV: Legal Document-Centric → Commune-Centric Architecture (refocused on civic data)
-- Principle V: Cross-Document Legal Analysis → Cross-Commune Civic Analysis
-- Principle VI: Extensible Legal Corpus → Single-Source Civic Data Foundation (scope narrowed)
-- Principle VII: Functional Legal Interface → Functional Civic Interface
+- Principle VI: Single-Source Civic Data Foundation → Updated to reflect inline cache implementation
+- NEW Principle X: Code Quality & Maintainability (added after dead code cleanup)
+- NEW Principle XI: Performance Optimization Architecture (codifies Feature 006 patterns)
 
-Scope Changes:
-- REMOVED: Dual-source toggle (Borges/Law GraphRAG) - now single-purpose
-- REMOVED: Generic "legal document" references - now specifically Grand Débat National data
-- ADDED: Explicit MCP server specification (graphragmcp-production.up.railway.app)
-- ADDED: Commune-based data model (50 communes, Cahiers de Doléances)
+Additions:
+- Added Data Integrity & Quality section with Defensive Type Conversion guidance
+- Added Performance section with specific targets from Feature 006
+- Codified caching architecture (client, session, backend layers)
+- Added memoization patterns from BorgesLibrary.tsx
+- Documented LOD (Level of Detail) system for 3D visualization
 
-Domain Pivot:
-- FROM: Generic legal knowledge graph interface with source selection
-- TO: Single-purpose Grand Débat National citizen contribution explorer
-
-Data Source:
-- Single MCP Server: https://graphragmcp-production.up.railway.app
-- Dataset: Grand Débat National 2019 "Cahiers de Doléances"
-- Coverage: 50 communes in Charente-Maritime
-- Entities: ~8,000+ extracted from citizen contributions
+Technical Updates:
+- Inline cache implementation in law-graphrag.ts (replaces deleted query-cache.ts)
+- Dead code cleanup removed 6,024 lines (21 files deleted, 3 modified)
+- Zero breaking changes maintained (ISO-functionality with Vercel deployment)
 
 Templates Requiring Updates:
-- specs/003-rag-observability-comparison/spec.md: ⚠ needs update to reflect single-purpose
-- specs/003-rag-observability-comparison/plan.md: ⚠ needs update to remove source toggle
-- specs/003-rag-observability-comparison/tasks.md: ⚠ needs update to remove RAGSourceSelector
-- CLAUDE.md: ⚠ needs update to remove Borges references
+- ✅ plan-template.md: Constitution Check section verified
+- ✅ spec-template.md: Responsive Design section verified (Principle VIII)
+- ✅ tasks-template.md: Mobile Responsiveness Testing phase verified
+- ⚠️ CLAUDE.md: Should reference latest constitution version
 
 Change Rationale:
-- MAJOR version (3.0.0) because:
-  1. Fundamental scope change from multi-source to single-source
-  2. Domain pivot from generic legal to specific civic dataset
-  3. Removal of source selection functionality
-  4. Architecture simplification to single MCP server
+- MINOR version (3.1.0) because:
+  1. New principles added (Code Quality, Performance) without breaking existing ones
+  2. Material expansion of caching and performance guidance
+  3. No removal of existing principles or scope changes
+  4. Backward compatible with 3.0.0 governance model
+
+Follow-up TODOs:
+- None - all placeholders filled
+
+Last Major Cleanup: 2026-01-06 (removed 6,024 lines dead code, maintained ISO-functionality)
 -->
 
 # Grand Débat National GraphRAG Constitution
@@ -77,6 +76,7 @@ validation of insights against source material.
 - RAG responses MUST include provenance chains (answer → nodes → relationships → chunks)
 - UI MUST provide click-through navigation across the entire pipeline
 - Source quotes MUST link directly to original citizen text passages
+- `highlightedEntityId` state synchronizes highlighting across components
 
 ---
 
@@ -100,6 +100,8 @@ verify that insights genuinely reflect citizen voices, not system artifacts.
 - API responses MUST include source_quotes with commune attribution
 - The UI MUST display commune origin for all entities and answers
 - Query results MUST show which communes contributed to the answer
+- `commune-mapping.ts` maintains canonical mapping for all 50 communes
+- `getCommuneDisplayName()` provides consistent commune name formatting
 
 ---
 
@@ -123,6 +125,8 @@ clutter the interface with isolated facts that cannot be explored.
 - Graph visualizations MUST validate node connectivity before rendering
 - Backend queries MUST include relationship count validation
 - Frontend components MUST display relationship counts for transparency
+- `filterOrphanNodes()` in `graphml-parser.ts` enforces this at data load time
+- GraphML validation detects and reports orphan node count before filtering
 
 ---
 
@@ -146,10 +150,12 @@ contributions. All queries, visualizations, and explorations contextualize data 
 Preserving this structure enables geographic analysis and local-vs-regional comparison.
 
 **Implementation Requirements**:
-- Queries MUST support commune-level filtering
+- Queries MUST support commune-level filtering via `commune_ids` parameter
 - Multi-commune queries MUST aggregate results with commune attribution
 - API responses MUST include commune metadata for all entities
 - Visualization MUST support commune-based coloring/grouping
+- `isCommune()` detection in `GraphVisualization3DForce.tsx` for special rendering
+- Communes rendered with gold color (#ffd700) and central positioning
 
 ---
 
@@ -177,6 +183,8 @@ dataset lies in revealing patterns across the region's citizen voices.
 - Results MUST include per-commune breakdown
 - Aggregated provenance MUST combine quotes from multiple communes
 - Rate limiting MUST prevent API overload on multi-commune queries
+- `CommuneFilterChips` component enables multi-select commune filtering
+- Progressive loading for large multi-commune result sets
 
 ---
 
@@ -214,6 +222,8 @@ without benefit for this focused civic exploration tool.
 - NO alternative backend configuration
 - API proxy MUST connect ONLY to graphragmcp-production
 - Environment variables for URL are for deployment flexibility only, not multi-source
+- Inline cache implementation in `law-graphrag.ts` (5-min TTL, SHA-256 keys)
+- Simple LRU eviction (100 entries max) prevents memory bloat
 
 ---
 
@@ -242,6 +252,7 @@ Minimalism serves the civic mission.
 - Typography: maximum 2 font families
 - Navigation: Search by query, explore by commune
 - Graph visualization is the ONE exception for visual complexity
+- No decorative UI elements that don't serve exploration workflow
 
 ---
 
@@ -267,6 +278,8 @@ Users may explore during meetings, research sessions, or community discussions.
 - Collapsible navigation for mobile
 - Minimum body text 16px on mobile
 - Target < 3s First Contentful Paint on 3G
+- `CommuneSelectorMobile` component for touch-optimized commune selection
+- Mobile-first CSS in all components (base mobile styles, desktop enhancements)
 
 ---
 
@@ -288,6 +301,95 @@ Users and developers MUST be able to observe how the GraphRAG system processes q
 - Debug mode MUST show processing phases
 - API MUST expose entity selection rationale
 - Performance timing MUST be available for optimization
+- Console logging for cache hits/misses in `law-graphrag.ts`
+- Processing phase state tracking in `BorgesLibrary.tsx`
+
+---
+
+### X. Code Quality & Maintainability
+
+**The codebase MUST remain clean, maintainable, and free of dead code.**
+
+Code quality is a constitutional principle because unclear, bloated codebases
+hinder feature development, introduce bugs, and make onboarding difficult.
+
+**Code Quality Standards**:
+- **Zero dead code**: No unused imports, functions, components, or files
+- **Single responsibility**: Each module serves one clear purpose
+- **Type safety**: Full TypeScript strict mode enforcement
+- **Explicit dependencies**: No hidden coupling between modules
+- **Self-documenting code**: Variable/function names explain intent
+- **Minimal comments**: Code structure should be self-evident; comments explain "why" not "what"
+
+**Rationale**: Professional codebases require ongoing maintenance. Dead code creates
+confusion, unused dependencies slow builds, and unclear architecture makes changes risky.
+
+**Implementation Requirements**:
+- Regular dead code audits before company submissions or major releases
+- TypeScript strict mode MUST be enabled (`tsconfig.json`)
+- Lint rules MUST catch unused variables, imports, and unreachable code
+- Component imports MUST be verified as actually rendered in UI
+- Service methods MUST be verified as actually called
+- Git history preserves all deleted code (no need for commented code)
+- Pre-commit hooks SHOULD run linters and type checks
+
+**Recent Cleanup (2026-01-06)**:
+- Removed 6,024 lines of dead code (21 files deleted, 3 modified)
+- Eliminated duplicates, unused debug components, legacy clients
+- Maintained ISO-functionality with Vercel production deployment
+- Inline cache implementation replaced deleted `query-cache.ts` module
+
+---
+
+### XI. Performance Optimization Architecture
+
+**The system MUST meet defined performance targets through architectural patterns.**
+
+Performance is a constitutional principle because slow interfaces frustrate users and
+limit dataset scale. Optimization must be architectural, not ad-hoc.
+
+**Performance Targets (Feature 006)**:
+- **Startup**: <3s fresh load, <1s cached GraphML
+- **Single query**: <10s
+- **15-commune query**: <30s
+- **50-commune query**: <90s
+- **Graph interaction**: ≥30 fps stable for up to 500 nodes
+
+**Architectural Patterns**:
+
+1. **Three-Layer Caching**:
+   - **Client (5 min TTL)**: Inline cache in `law-graphrag.ts` with SHA-256 keys
+   - **Session Pool**: Frontend API route connection reuse
+   - **Backend**: LRU cache for commune initialization + LLM/embedding caches
+
+2. **Progressive Loading**:
+   - GraphML displays instantly (browser cache)
+   - MCP queries batched (5 communes at a time with proportional delays)
+   - Visual feedback during background fetching
+   - Tutorial overlay for first-time users during load
+
+3. **Memoization** (O(n) transformations):
+   - `useMemo(() => normalizeGraphNodes)` → Add default properties
+   - `useMemo(() => mapNodesToColorEntities)` → Node → visualization format
+   - `useMemo(() => createQueryMatcher)` → Query keyword filtering
+
+4. **Level of Detail (LOD)** for 3D visualization:
+   - High detail (<200 units): Full resolution, particles enabled
+   - Medium detail (200-500): Reduced resolution, no particles
+   - Low detail (>500): Minimal resolution, maintains visibility
+   - Configurable via `lod-config.ts` with tunable distance thresholds
+
+**Rationale**: Users abandon slow interfaces. Large datasets (50 communes, 8,000+ entities)
+require optimization at the architectural level, not post-hoc performance fixes.
+
+**Implementation Requirements**:
+- All data transformations MUST use single-pass algorithms where possible
+- Cache keys MUST be deterministic (SHA-256 of query + communes)
+- Progressive loading MUST provide visual feedback (progress indicators)
+- LOD MUST adapt automatically based on camera distance
+- Geometry simplification at distance MUST maintain visual coherence
+- Performance profiling MUST be done before optimizing
+- No premature optimization; measure first, then optimize bottlenecks
 
 ---
 
@@ -299,6 +401,7 @@ Users and developers MUST be able to observe how the GraphRAG system processes q
 - Entity deduplication MUST occur before visualization
 - Dangling references MUST be prevented
 - Commune attribution MUST be consistent
+- `validateGraphML()` enforces node/relationship schema compliance
 
 ### Source Fidelity
 
@@ -306,6 +409,7 @@ Users and developers MUST be able to observe how the GraphRAG system processes q
 - Entity extractions MUST link back to originating chunks
 - Source texts MUST remain immutable
 - Commune metadata MUST be accurate
+- `getCommuneDisplayName()` provides canonical commune name formatting
 
 ### Defensive Type Conversion
 
@@ -314,7 +418,13 @@ Users and developers MUST be able to observe how the GraphRAG system processes q
 ```python
 # SAFE: Handles both missing keys AND None values
 float(data.get('weight') or 1.0)
+
+# UNSAFE: Fails on None values even if key exists
+float(data.get('weight', 1.0))
 ```
+
+**Rationale**: GraphRAG APIs may return `None` for optional fields. Type conversions
+must handle both missing keys and null values to prevent runtime crashes.
 
 ---
 
@@ -322,10 +432,12 @@ float(data.get('weight') or 1.0)
 
 ### Performance
 
-- Graph queries MUST complete within 2 seconds
+- Graph queries MUST complete within 2 seconds (single-commune local mode)
 - Visualizations MUST render at ≥30 fps for up to 500 nodes
 - API response times MUST stay under 200ms for single-hop queries
-- Progressive loading for large result sets
+- Progressive loading for large result sets (>15 communes)
+- LOD system maintains ≥30 fps at all zoom levels
+- Cache hit rate SHOULD exceed 40% for typical usage patterns
 
 ### Accessibility
 
@@ -333,6 +445,7 @@ float(data.get('weight') or 1.0)
 - Color schemes MUST maintain WCAG AA contrast
 - Keyboard navigation MUST be supported
 - Screen reader compatibility maintained
+- Entity click handlers work with keyboard (Enter/Space)
 
 ### Error Handling
 
@@ -340,6 +453,8 @@ float(data.get('weight') or 1.0)
 - Graph failures MUST degrade gracefully to list views
 - MCP connection errors MUST show clear status
 - System state MUST be recoverable
+- Error boundaries prevent component tree crashes
+- User-friendly error messages (no stack traces in production)
 
 ---
 
@@ -351,22 +466,29 @@ float(data.get('weight') or 1.0)
 
 1. Amendments MUST document:
    - Rationale for change
-   - Impact analysis
-   - Migration plan
+   - Impact analysis on existing principles
+   - Migration plan for affected code
+   - Template updates required
 
 2. Semantic versioning:
-   - **MAJOR**: Scope changes, principle removals
-   - **MINOR**: New principles, material expansions
-   - **PATCH**: Clarifications, wording improvements
+   - **MAJOR**: Scope changes, principle removals, incompatible governance changes
+   - **MINOR**: New principles, material expansions, non-breaking additions
+   - **PATCH**: Clarifications, wording improvements, typo fixes
+
+3. Sync Impact Report MUST be prepended as HTML comment after each amendment
 
 ### Compliance Review
 
-- Features MUST include Constitution Check
-- PRs MUST verify compliance
-- Deviations MUST be justified
+- Features MUST include Constitution Check in plan.md
+- PRs MUST verify compliance with affected principles
+- Deviations MUST be justified in Complexity Tracking table
+- Constitution violations MUST be documented and approved before merge
 
 ### Living Document
 
 Maintained at `.specify/memory/constitution.md`.
 
-**Version**: 3.0.0 | **Ratified**: 2025-11-18 | **Last Amended**: 2025-12-23
+**Version**: 3.1.0
+**Ratified**: 2025-11-18
+**Last Amended**: 2026-01-06
+**Last Major Cleanup**: 2026-01-06 (removed 6,024 lines dead code)
