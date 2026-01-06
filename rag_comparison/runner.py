@@ -209,11 +209,11 @@ class ExperimentRunner:
                 dataset=dataset,
                 task=dust_task,
                 scoring_metrics=dust_metrics,
-                experiment_name=f"{experiment_name}_dust",
+                experiment_name=f"{experiment_name}_Dust",
                 project_name=project,
                 nb_samples=sample_size,
                 experiment_config={
-                    "system": "dust",
+                    "system": "Dust",
                     "base_experiment": experiment_name,
                     "execution_order": execution_order,
                 },
@@ -228,11 +228,11 @@ class ExperimentRunner:
                 dataset=dataset,
                 task=graphrag_task,
                 scoring_metrics=graphrag_metrics,
-                experiment_name=f"{experiment_name}_graphrag",
+                experiment_name=f"{experiment_name}_graphRAG_surgical",
                 project_name=project,
                 nb_samples=sample_size,
                 experiment_config={
-                    "system": "graphrag",
+                    "system": "graphRAG_surgical",
                     "base_experiment": experiment_name,
                     "execution_order": execution_order,
                 },
@@ -313,8 +313,8 @@ class ExperimentRunner:
         return {
             "experiment_name": experiment_name,
             "question_count": question_count,
-            "dust_experiment": f"{experiment_name}_dust",
-            "graphrag_experiment": f"{experiment_name}_graphrag",
+            "dust_experiment": f"{experiment_name}_Dust",
+            "graphrag_experiment": f"{experiment_name}_graphRAG_surgical",
             "dust": {
                 "success_rate": avg(dust_status),
                 "avg_latency_ms": avg(dust_latencies),
