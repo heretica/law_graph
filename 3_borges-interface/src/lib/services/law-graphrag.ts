@@ -14,7 +14,55 @@ import type {
   LawGraphRAGGraphData,
   CommuneInfo,
 } from '@/types/law-graphrag'
-import { getCacheKey, getFromCache, setInCache } from '@/lib/cache/query-cache'
+
+/**
+ * Simple in-memory cache for query results (5 min TTL)
+ */
+interface CacheEntry {
+  queryHash: string
+  queryText: string
+  communes: string[]
+  response: LawGraphRAGResponse
+  answer: string
+  debugInfo: any
+  timestamp: number
+}
+
+const queryCache = new Map<string, CacheEntry>()
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+async function getCacheKey(queryText: string, communes: string[]): Promise<string> {
+  const sortedCommunes = [...communes].sort()
+  const cacheString = `${queryText}|${sortedCommunes.join(',')}`
+  const encoder = new TextEncoder()
+  const data = encoder.encode(cacheString)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+function getFromCache(key: string): CacheEntry | null {
+  const entry = queryCache.get(key)
+  if (!entry) return null
+
+  // Check if expired
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    queryCache.delete(key)
+    return null
+  }
+
+  return entry
+}
+
+function setInCache(key: string, entry: Omit<CacheEntry, 'timestamp'>): void {
+  queryCache.set(key, { ...entry, timestamp: Date.now() })
+
+  // Clean up old entries (simple LRU)
+  if (queryCache.size > 100) {
+    const oldestKey = queryCache.keys().next().value
+    if (oldestKey) queryCache.delete(oldestKey)
+  }
+}
 
 /**
  * Service for interacting with the Law GraphRAG API
