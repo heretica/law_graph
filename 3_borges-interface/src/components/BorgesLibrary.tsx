@@ -92,7 +92,6 @@ const GraphVisualization3DForce = dynamic(() => import('./GraphVisualization3DFo
   )
 })
 import { GraphErrorBoundary } from './GraphErrorBoundary'
-import QueryInterface from './QueryInterface'
 import HighlightedText from './HighlightedText'
 import LoadingWheel3D from './LoadingWheel3D'
 import TutorialOverlay from './TutorialOverlay'
@@ -100,7 +99,6 @@ import TextChunkModal from './TextChunkModal'
 import ProvenancePanel from './ProvenancePanel'
 import EntityDetailModal from './EntityDetailModal'
 import CommuneSelector, { CommuneSelectorMobile, type Commune } from './CommuneSelector'
-// CitizenExtractsPanel merged into EntityDetailModal (Feature 005-agent-orchestration)
 import CitizenQuotesPanel from './CitizenQuotesPanel'
 import CommuneFilterChips from './CommuneFilterChips'
 import { lawGraphRAGService } from '@/lib/services/law-graphrag'
@@ -965,12 +963,6 @@ function BorgesLibrary() {
           })
 
           setQueryResultNodes(subgraphNodes)
-          // Performance fix: Don't replace reconciliationData with subgraph
-          // This avoids rebuilding the entire 3D graph on each query
-          // setReconciliationData({
-          //   nodes: subgraphNodes,
-          //   relationships: subgraphRelationships
-          // })
 
           // Use memoized entity color mapping - Graph Performance Optimization (006-graph-optimization)
           const entitiesToColor = mapNodesToColorEntities(subgraphNodes)
@@ -1075,15 +1067,6 @@ function BorgesLibrary() {
       setCurrentProcessingPhase(null)
     }
   }, [mode, selectedCommunes, availableCommunes])
-
-  // Debug logging for tutorial state - DISABLED to fix freeze
-  // console.log('🖼️ RENDER - Tutorial state:', {
-  //   showTutorial,
-  //   showLoadingOverlay,
-  //   isLoadingGraph,
-  //   isClientMounted,
-  //   isFirstTimeUser: isFirstTimeUserRef.current
-  // })
 
   return (
     <div className="min-h-screen bg-datack-black text-datack-light">

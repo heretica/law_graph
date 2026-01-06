@@ -18,7 +18,6 @@ import logging
 import sys
 from typing import Optional
 
-from rag_comparison.clients.dust_client import DustClient
 from rag_comparison.clients.mcp_client import MCPGraphRAGClient
 from rag_comparison.config import ExperimentConfig
 from rag_comparison.runner import ExperimentRunner
@@ -54,11 +53,6 @@ def parse_args():
         help='Number of questions to evaluate (default: all)'
     )
     parser.add_argument(
-        '--dust-only',
-        action='store_true',
-        help='Run only Dust RAG experiment'
-    )
-    parser.add_argument(
         '--graphrag-only',
         action='store_true',
         help='Run only GraphRAG experiment (production MCP)'
@@ -89,55 +83,17 @@ async def main():
     for warning in warnings:
         logger.warning(warning)
 
-    # Initialize clients based on mode
-    if args.graphrag_only:
-        logger.info("Running GraphRAG-only experiment (production MCP)")
+    # Initialize GraphRAG client
+    logger.info("Running GraphRAG experiment (production MCP)")
 
-        # Use MCPGraphRAGClient with production endpoint
-        graphrag_client = MCPGraphRAGClient(
-            api_url=args.mcp_url,
-            timeout=config.timeout_seconds,
-            default_mode='local',
-        )
+    graphrag_client = MCPGraphRAGClient(
+        api_url=args.mcp_url,
+        timeout=config.timeout_seconds,
+        default_mode='local',
+    )
 
-        # Create a dummy Dust client (won't be used)
-        dust_client = None
-
-    elif args.dust_only:
-        logger.info("Running Dust-only experiment")
-
-        dust_client = DustClient(
-            api_key=config.dust_api_key,
-            workspace_id=config.dust_workspace_id,
-            agent_id=config.dust_agent_id,
-            timeout=config.timeout_seconds,
-        )
-
-        # Create a dummy GraphRAG client (won't be used)
-        graphrag_client = None
-
-    else:
-        logger.info("Running full comparison (Dust vs GraphRAG)")
-
-        dust_client = DustClient(
-            api_key=config.dust_api_key,
-            workspace_id=config.dust_workspace_id,
-            agent_id=config.dust_agent_id,
-            timeout=config.timeout_seconds,
-        )
-
-        graphrag_client = MCPGraphRAGClient(
-            api_url=args.mcp_url,
-            timeout=config.timeout_seconds,
-            default_mode='local',
-        )
-
-    # For single-system experiments, we still need both clients for ExperimentRunner
-    # Just use dummy clients that will be ignored
-    if dust_client is None:
-        dust_client = graphrag_client  # Reuse GraphRAG client as placeholder
-    if graphrag_client is None:
-        graphrag_client = dust_client  # Reuse Dust client as placeholder
+    # Use GraphRAG client for both slots (ExperimentRunner expects dust_client param)
+    dust_client = graphrag_client
 
     # Create runner
     runner = ExperimentRunner(
@@ -166,20 +122,12 @@ async def main():
         print(f"\nView results: {result['opik_dashboard']}")
         print("="*70 + "\n")
 
-        # Print metrics
-        if not args.graphrag_only:
-            print("Dust:")
-            print(f"  Success rate: {result['dust']['success_rate']:.1%}")
-            print(f"  Avg latency: {result['dust']['avg_latency_ms']:.0f}ms")
-            print(f"  LLM precision: {result['dust']['llm_precision']:.1%}")
-            print()
-
-        if not args.dust_only:
-            print("graphRAG_surgical:")
-            print(f"  Success rate: {result['graphrag']['success_rate']:.1%}")
-            print(f"  Avg latency: {result['graphrag']['avg_latency_ms']:.0f}ms")
-            print(f"  LLM precision: {result['graphrag']['llm_precision']:.1%}")
-            print()
+        # Print GraphRAG metrics
+        print("graphRAG_surgical:")
+        print(f"  Success rate: {result['graphrag']['success_rate']:.1%}")
+        print(f"  Avg latency: {result['graphrag']['avg_latency_ms']:.0f}ms")
+        print(f"  LLM precision: {result['graphrag']['llm_precision']:.1%}")
+        print()
 
         return 0
 
