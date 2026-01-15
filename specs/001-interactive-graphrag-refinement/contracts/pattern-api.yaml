@@ -1,0 +1,496 @@
+openapi: 3.0.3
+info:
+  title: Pattern Discovery API
+  description: API for discovering and analyzing ontological patterns across the knowledge graph
+  version: 1.0.0
+  contact:
+    name: Borges Library Team
+
+servers:
+  - url: https://reconciliation-api.railway.app
+    description: Production (Railway)
+  - url: http://localhost:5002
+    description: Local development
+
+paths:
+  /api/patterns/discover:
+    post:
+      summary: Discover ontological patterns
+      description: Analyze the graph to discover recurring relationship motifs across books
+      operationId: discoverPatterns
+      tags:
+        - Patterns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatternDiscoveryRequest'
+      responses:
+        '200':
+          description: Patterns discovered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatternDiscoveryResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Discovery algorithm error
+
+  /api/patterns:
+    get:
+      summary: List saved patterns
+      description: Retrieve all saved ontological patterns with optional filtering
+      operationId: listPatterns
+      tags:
+        - Patterns
+      parameters:
+        - name: min_frequency
+          in: query
+          schema:
+            type: integer
+            default: 3
+          description: Minimum occurrence count
+        - name: min_cross_domain
+          in: query
+          schema:
+            type: integer
+            default: 2
+          description: Minimum number of books pattern appears in
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [frequency, cross_domain_count, significance_score, discovered_at]
+            default: significance_score
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+      responses:
+        '200':
+          description: Pattern list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patterns:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OntologicalPattern'
+                  total:
+                    type: integer
+
+  /api/patterns/{pattern_id}:
+    get:
+      summary: Get pattern details
+      description: Retrieve detailed information about a specific pattern
+      operationId: getPattern
+      tags:
+        - Patterns
+      parameters:
+        - name: pattern_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pattern details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatternDetail'
+        '404':
+          description: Pattern not found
+
+    delete:
+      summary: Delete a saved pattern
+      description: Remove a pattern from saved patterns
+      operationId: deletePattern
+      tags:
+        - Patterns
+      parameters:
+        - name: pattern_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pattern deleted successfully
+        '404':
+          description: Pattern not found
+
+  /api/patterns/{pattern_id}/instances:
+    get:
+      summary: Get pattern instances
+      description: Retrieve all instances where this pattern appears in the graph
+      operationId: getPatternInstances
+      tags:
+        - Patterns
+      parameters:
+        - name: pattern_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: book_id
+          in: query
+          schema:
+            type: string
+          description: Filter instances by book
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Pattern instances retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pattern_id:
+                    type: string
+                  instances:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PatternInstance'
+
+  /api/patterns/{pattern_id}/save:
+    post:
+      summary: Save a discovered pattern
+      description: Mark a discovered pattern as saved for future reference
+      operationId: savePattern
+      tags:
+        - Patterns
+      parameters:
+        - name: pattern_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+              properties:
+                user_id:
+                  type: string
+                custom_name:
+                  type: string
+                  description: Optional custom name for the pattern
+                description:
+                  type: string
+                  description: User's interpretation of the pattern
+      responses:
+        '200':
+          description: Pattern saved successfully
+        '404':
+          description: Pattern not found
+
+  /api/patterns/entity/{entity_id}:
+    get:
+      summary: Find patterns containing entity
+      description: Get all patterns that include a specific entity
+      operationId: getPatternsForEntity
+      tags:
+        - Patterns
+      parameters:
+        - name: entity_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Patterns retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entity_id:
+                    type: string
+                  entity_name:
+                    type: string
+                  patterns:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OntologicalPattern'
+
+  /api/patterns/compare:
+    post:
+      summary: Compare patterns across books
+      description: Analyze how a pattern varies across different books
+      operationId: comparePatterns
+      tags:
+        - Patterns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pattern_id
+                - book_ids
+              properties:
+                pattern_id:
+                  type: string
+                book_ids:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 2
+      responses:
+        '200':
+          description: Comparison completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatternComparison'
+
+components:
+  schemas:
+    PatternDiscoveryRequest:
+      type: object
+      required:
+        - algorithm
+      properties:
+        algorithm:
+          type: string
+          enum: [motif_detection, frequent_subgraph, community_based]
+          default: motif_detection
+          description: Pattern discovery algorithm to use
+        min_frequency:
+          type: integer
+          default: 3
+          description: Minimum number of times pattern must appear
+        min_cross_domain:
+          type: integer
+          default: 2
+          description: Minimum number of books pattern must span
+        pattern_size:
+          type: integer
+          default: 3
+          minimum: 2
+          maximum: 5
+          description: Number of nodes in pattern (2-5)
+        book_ids:
+          type: array
+          items:
+            type: string
+          description: Optional filter to specific books
+        entity_types:
+          type: array
+          items:
+            type: string
+          description: Optional filter to specific entity types
+
+    PatternDiscoveryResponse:
+      type: object
+      required:
+        - patterns
+        - discovery_stats
+      properties:
+        patterns:
+          type: array
+          items:
+            $ref: '#/components/schemas/OntologicalPattern'
+        discovery_stats:
+          type: object
+          properties:
+            total_patterns_found:
+              type: integer
+            execution_time_ms:
+              type: integer
+            books_analyzed:
+              type: integer
+            entities_analyzed:
+              type: integer
+
+    OntologicalPattern:
+      type: object
+      required:
+        - id
+        - pattern_name
+        - motif_structure
+        - frequency
+        - cross_domain_count
+      properties:
+        id:
+          type: string
+          example: "pattern-123e4567"
+        pattern_name:
+          type: string
+          example: "Concept-influences-Person-creates-Work"
+        motif_structure:
+          type: string
+          example: "CONCEPT-RELATED_TO->PERSON-RELATED_TO->BOOK"
+          description: Pattern signature with node types and relationship types
+        frequency:
+          type: integer
+          example: 15
+          description: Total occurrences across all books
+        cross_domain_count:
+          type: integer
+          example: 5
+          description: Number of different books containing pattern
+        significance_score:
+          type: number
+          format: float
+          example: 0.87
+          description: Statistical significance (0.0-1.0)
+        discovered_at:
+          type: string
+          format: date-time
+        saved_by:
+          type: string
+          nullable: true
+        description:
+          type: string
+          description: Pattern description or interpretation
+
+    PatternDetail:
+      allOf:
+        - $ref: '#/components/schemas/OntologicalPattern'
+        - type: object
+          properties:
+            instances:
+              type: array
+              items:
+                $ref: '#/components/schemas/PatternInstance'
+            books_containing:
+              type: array
+              items:
+                type: object
+                properties:
+                  book_id:
+                    type: string
+                  book_title:
+                    type: string
+                  instance_count:
+                    type: integer
+            example_entities:
+              type: array
+              items:
+                type: object
+                properties:
+                  entity_id:
+                    type: string
+                  entity_name:
+                    type: string
+                  entity_type:
+                    type: string
+                  role_in_pattern:
+                    type: string
+
+    PatternInstance:
+      type: object
+      required:
+        - id
+        - pattern_id
+        - book_id
+        - entity_ids
+      properties:
+        id:
+          type: string
+        pattern_id:
+          type: string
+        book_id:
+          type: string
+        book_title:
+          type: string
+        entity_ids:
+          type: array
+          items:
+            type: string
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+        subgraph_hash:
+          type: string
+        context:
+          type: string
+          description: Text context around pattern (if available)
+
+    PatternComparison:
+      type: object
+      properties:
+        pattern_id:
+          type: string
+        pattern_name:
+          type: string
+        books_compared:
+          type: array
+          items:
+            type: object
+            properties:
+              book_id:
+                type: string
+              book_title:
+                type: string
+              instance_count:
+                type: integer
+              unique_entities:
+                type: integer
+              avg_relationship_weight:
+                type: number
+        similarities:
+          type: array
+          items:
+            type: object
+            properties:
+              book1_id:
+                type: string
+              book2_id:
+                type: string
+              similarity_score:
+                type: number
+                description: Similarity between pattern instances (0.0-1.0)
+        differences:
+          type: array
+          items:
+            type: object
+            properties:
+              aspect:
+                type: string
+              description:
+                type: string
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object

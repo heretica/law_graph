@@ -1,0 +1,582 @@
+openapi: 3.0.3
+info:
+  title: Query Comparison API
+  description: API for comparing GraphRAG query results before and after graph edits
+  version: 1.0.0
+  contact:
+    name: Borges Library Team
+
+servers:
+  - url: https://reconciliation-api.railway.app
+    description: Production (Railway)
+  - url: http://localhost:5002
+    description: Local development
+
+paths:
+  /api/queries/rerun:
+    post:
+      summary: Re-run a query after graph edits
+      description: Execute the same question on the modified graph to see impact of edits
+      operationId: rerunQuery
+      tags:
+        - Query Comparison
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RerunQueryRequest'
+      responses:
+        '200':
+          description: Query re-run successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RerunQueryResponse'
+        '400':
+          description: Invalid request
+        '404':
+          description: Original query not found
+
+  /api/queries/compare:
+    post:
+      summary: Compare two query versions
+      description: Detailed comparison of answers, entities, and reasoning between query versions
+      operationId: compareQueries
+      tags:
+        - Query Comparison
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompareQueriesRequest'
+      responses:
+        '200':
+          description: Comparison completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryComparison'
+        '400':
+          description: Invalid request
+        '404':
+          description: One or both queries not found
+
+  /api/queries/{query_id}/versions:
+    get:
+      summary: Get all versions of a query
+      description: Retrieve complete version history for a query
+      operationId: getQueryVersions
+      tags:
+        - Query Comparison
+      parameters:
+        - name: query_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID of any version of the query
+      responses:
+        '200':
+          description: Version history retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryVersionHistory'
+        '404':
+          description: Query not found
+
+  /api/queries/{query_id}/diff:
+    get:
+      summary: Get diff from previous version
+      description: Show textual and semantic differences from parent query
+      operationId: getQueryDiff
+      tags:
+        - Query Comparison
+      parameters:
+        - name: query_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: diff_type
+          in: query
+          schema:
+            type: string
+            enum: [text, semantic, entities, both]
+            default: both
+      responses:
+        '200':
+          description: Diff retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryDiff'
+        '404':
+          description: Query not found or no parent version
+
+  /api/queries/compare/batch:
+    post:
+      summary: Compare multiple query versions
+      description: Batch comparison across multiple versions of same or different queries
+      operationId: batchCompareQueries
+      tags:
+        - Query Comparison
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query_pairs
+              properties:
+                query_pairs:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - query_id_1
+                      - query_id_2
+                    properties:
+                      query_id_1:
+                        type: string
+                      query_id_2:
+                        type: string
+      responses:
+        '200':
+          description: Batch comparison completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  comparisons:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QueryComparison'
+
+  /api/queries/{query_id}/impact:
+    get:
+      summary: Get edit impact on query
+      description: Analyze which specific edits caused answer changes
+      operationId: getEditImpact
+      tags:
+        - Query Comparison
+      parameters:
+        - name: query_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Impact analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditImpactAnalysis'
+
+components:
+  schemas:
+    RerunQueryRequest:
+      type: object
+      required:
+        - original_query_id
+        - user_id
+      properties:
+        original_query_id:
+          type: string
+          description: ID of the query to re-run
+        user_id:
+          type: string
+          description: User requesting the re-run
+        mode:
+          type: string
+          enum: [local, global]
+          description: GraphRAG mode (defaults to original query's mode)
+        note:
+          type: string
+          description: Optional note about why re-running
+
+    RerunQueryResponse:
+      type: object
+      required:
+        - success
+        - new_query_id
+        - comparison_summary
+      properties:
+        success:
+          type: boolean
+        new_query_id:
+          type: string
+          description: ID of the newly created query version
+        original_query_id:
+          type: string
+        comparison_summary:
+          $ref: '#/components/schemas/ComparisonSummary'
+        full_comparison_url:
+          type: string
+          description: URL to view full comparison
+
+    CompareQueriesRequest:
+      type: object
+      required:
+        - query_id_1
+        - query_id_2
+      properties:
+        query_id_1:
+          type: string
+          description: First query ID (typically earlier version)
+        query_id_2:
+          type: string
+          description: Second query ID (typically later version)
+        comparison_options:
+          type: object
+          properties:
+            include_text_diff:
+              type: boolean
+              default: true
+            include_semantic_diff:
+              type: boolean
+              default: true
+            include_entity_diff:
+              type: boolean
+              default: true
+            include_relationship_diff:
+              type: boolean
+              default: true
+
+    QueryComparison:
+      type: object
+      required:
+        - query_1
+        - query_2
+        - comparison_summary
+        - answer_diff
+      properties:
+        query_1:
+          $ref: '#/components/schemas/QuerySummary'
+        query_2:
+          $ref: '#/components/schemas/QuerySummary'
+        comparison_summary:
+          $ref: '#/components/schemas/ComparisonSummary'
+        answer_diff:
+          $ref: '#/components/schemas/AnswerDiff'
+        entity_diff:
+          $ref: '#/components/schemas/EntityDiff'
+        relationship_diff:
+          $ref: '#/components/schemas/RelationshipDiff'
+        edit_attribution:
+          type: array
+          items:
+            $ref: '#/components/schemas/EditAttribution'
+
+    QuerySummary:
+      type: object
+      properties:
+        id:
+          type: string
+        question:
+          type: string
+        answer_text:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: integer
+        entity_count:
+          type: integer
+        relationship_count:
+          type: integer
+
+    ComparisonSummary:
+      type: object
+      properties:
+        answer_changed:
+          type: boolean
+        semantic_similarity:
+          type: number
+          format: float
+          description: Semantic similarity between answers (0.0-1.0)
+        textual_similarity:
+          type: number
+          format: float
+          description: Text-based similarity (0.0-1.0)
+        entities_added:
+          type: integer
+        entities_removed:
+          type: integer
+        entities_unchanged:
+          type: integer
+        relationships_added:
+          type: integer
+        relationships_removed:
+          type: integer
+        impact_level:
+          type: string
+          enum: [major, moderate, minor, none]
+          description: Overall impact of changes
+
+    AnswerDiff:
+      type: object
+      required:
+        - diff_type
+        - changes
+      properties:
+        diff_type:
+          type: string
+          enum: [unified, side_by_side]
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              operation:
+                type: string
+                enum: [add, delete, equal]
+              text:
+                type: string
+              position:
+                type: integer
+        semantic_changes:
+          type: array
+          items:
+            type: object
+            properties:
+              sentence_before:
+                type: string
+              sentence_after:
+                type: string
+              similarity_score:
+                type: number
+              meaning_changed:
+                type: boolean
+        highlighted_html:
+          type: string
+          description: HTML with highlighted changes for display
+
+    EntityDiff:
+      type: object
+      properties:
+        added:
+          type: array
+          items:
+            type: object
+            properties:
+              entity_id:
+                type: string
+              entity_name:
+                type: string
+              entity_type:
+                type: string
+              relevance_score:
+                type: number
+        removed:
+          type: array
+          items:
+            type: object
+            properties:
+              entity_id:
+                type: string
+              entity_name:
+                type: string
+              entity_type:
+                type: string
+              relevance_score:
+                type: number
+        modified:
+          type: array
+          items:
+            type: object
+            properties:
+              entity_id:
+                type: string
+              entity_name:
+                type: string
+              old_relevance_score:
+                type: number
+              new_relevance_score:
+                type: number
+              properties_changed:
+                type: array
+                items:
+                  type: string
+
+    RelationshipDiff:
+      type: object
+      properties:
+        added:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelationshipChange'
+        removed:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelationshipChange'
+        modified:
+          type: array
+          items:
+            $ref: '#/components/schemas/RelationshipChange'
+
+    RelationshipChange:
+      type: object
+      properties:
+        source_entity:
+          type: string
+        target_entity:
+          type: string
+        relationship_type:
+          type: string
+        old_weight:
+          type: number
+          nullable: true
+        new_weight:
+          type: number
+          nullable: true
+        description:
+          type: string
+
+    EditAttribution:
+      type: object
+      description: Links specific edits to answer changes
+      properties:
+        edit_id:
+          type: string
+        edit_type:
+          type: string
+        edit_description:
+          type: string
+        impact_on_answer:
+          type: string
+          description: Which part of the answer this edit affected
+        confidence:
+          type: number
+          format: float
+          description: Confidence in attribution (0.0-1.0)
+        affected_sentences:
+          type: array
+          items:
+            type: string
+
+    QueryVersionHistory:
+      type: object
+      properties:
+        query_chain_id:
+          type: string
+          description: Common ID for all versions
+        versions:
+          type: array
+          items:
+            type: object
+            properties:
+              query_id:
+                type: string
+              version:
+                type: integer
+              timestamp:
+                type: string
+                format: date-time
+              changed_by:
+                type: string
+              change_summary:
+                type: string
+              parent_query_id:
+                type: string
+                nullable: true
+              status:
+                type: string
+                enum: [active, superseded, archived]
+
+    QueryDiff:
+      type: object
+      properties:
+        query_id:
+          type: string
+        parent_query_id:
+          type: string
+        version:
+          type: integer
+        text_diff:
+          $ref: '#/components/schemas/AnswerDiff'
+        semantic_diff:
+          type: object
+          properties:
+            overall_similarity:
+              type: number
+            changed_concepts:
+              type: array
+              items:
+                type: string
+            added_information:
+              type: array
+              items:
+                type: string
+            removed_information:
+              type: array
+              items:
+                type: string
+        entity_changes:
+          $ref: '#/components/schemas/EntityDiff'
+
+    EditImpactAnalysis:
+      type: object
+      properties:
+        query_id:
+          type: string
+        parent_query_id:
+          type: string
+        edits_between_versions:
+          type: array
+          items:
+            type: object
+            properties:
+              edit_id:
+                type: string
+              edit_type:
+                type: string
+              target:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+        impact_breakdown:
+          type: object
+          properties:
+            high_impact_edits:
+              type: array
+              items:
+                type: object
+                properties:
+                  edit_id:
+                    type: string
+                  impact_score:
+                    type: number
+                  description:
+                    type: string
+            medium_impact_edits:
+              type: array
+              items:
+                type: object
+            low_impact_edits:
+              type: array
+              items:
+                type: object
+        causal_chains:
+          type: array
+          description: Chains showing how edits caused specific answer changes
+          items:
+            type: object
+            properties:
+              edit_id:
+                type: string
+              affected_entity:
+                type: string
+              propagation_path:
+                type: array
+                items:
+                  type: string
+              final_answer_impact:
+                type: string

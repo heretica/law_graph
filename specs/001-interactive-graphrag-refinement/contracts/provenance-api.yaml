@@ -1,0 +1,362 @@
+openapi: 3.0.3
+info:
+  title: Provenance API
+  description: API for tracing GraphRAG answers to source knowledge (entities, relationships, chunks)
+  version: 1.0.0
+  contact:
+    name: Borges Library Team
+
+servers:
+  - url: https://reconciliation-api.railway.app
+    description: Production (Railway)
+  - url: http://localhost:5002
+    description: Local development
+
+paths:
+  /api/provenance/{query_id}:
+    get:
+      summary: Get full provenance chain for a query
+      description: Returns complete trace from answer → entities → relationships → text chunks
+      operationId: getProvenance
+      tags:
+        - Provenance
+      parameters:
+        - name: query_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "query-123e4567-e89b-12d3-a456-426614174000"
+          description: Unique query identifier
+        - name: depth
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 3
+            minimum: 1
+            maximum: 5
+          description: Maximum relationship traversal depth
+      responses:
+        '200':
+          description: Provenance chain retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProvenanceChain'
+        '404':
+          description: Query not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/provenance/{query_id}/entities:
+    get:
+      summary: Get entities used in query
+      description: Returns all entities that contributed to the query answer with rankings
+      operationId: getQueryEntities
+      tags:
+        - Provenance
+      parameters:
+        - name: query_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Entity list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_id:
+                    type: string
+                  entities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UsedEntity'
+        '404':
+          description: Query not found
+
+  /api/provenance/{query_id}/relationships:
+    get:
+      summary: Get relationships traversed in query
+      description: Returns all relationships used in GraphRAG traversal
+      operationId: getQueryRelationships
+      tags:
+        - Provenance
+      parameters:
+        - name: query_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Relationship list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_id:
+                    type: string
+                  relationships:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TraversedRelationship'
+
+  /api/provenance/{query_id}/chunks:
+    get:
+      summary: Get source text chunks for query
+      description: Returns all text chunks that provided evidence for entities in the answer
+      operationId: getQueryChunks
+      tags:
+        - Provenance
+      parameters:
+        - name: query_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Chunk list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_id:
+                    type: string
+                  chunks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SourceChunk'
+
+  /api/provenance/{query_id}/history:
+    get:
+      summary: Get query version history
+      description: Returns all versions of a query (original + edited versions)
+      operationId: getQueryHistory
+      tags:
+        - Provenance
+      parameters:
+        - name: query_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Query history retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current_version:
+                    type: integer
+                  versions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QueryVersion'
+
+components:
+  schemas:
+    ProvenanceChain:
+      type: object
+      required:
+        - query_id
+        - question
+        - answer
+        - entities
+        - relationships
+        - chunks
+      properties:
+        query_id:
+          type: string
+          example: "query-123e4567-e89b-12d3-a456-426614174000"
+        question:
+          type: string
+          example: "How do concepts of entropy appear across physics and literature?"
+        answer:
+          type: string
+          example: "Entropy appears as a metaphor for chaos and decay in literature..."
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          example: 1
+        mode:
+          type: string
+          enum: [local, global]
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsedEntity'
+        relationships:
+          type: array
+          items:
+            $ref: '#/components/schemas/TraversedRelationship'
+        communities:
+          type: array
+          items:
+            $ref: '#/components/schemas/CitedCommunity'
+        chunks:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceChunk'
+
+    UsedEntity:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - rank
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: "Entropy"
+        type:
+          type: string
+          example: "CONCEPT"
+        rank:
+          type: integer
+          description: Entity importance rank (1 = most important)
+          example: 1
+        relevance_score:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          example: 0.95
+        order:
+          type: integer
+          description: Order in which entity was accessed
+        contribution:
+          type: string
+          enum: [direct_match, context, community_member]
+        chunks:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceChunk'
+
+    TraversedRelationship:
+      type: object
+      required:
+        - source_id
+        - target_id
+        - type
+        - order
+      properties:
+        source_id:
+          type: string
+        source_name:
+          type: string
+        target_id:
+          type: string
+        target_name:
+          type: string
+        type:
+          type: string
+          example: "INFLUENCES"
+        description:
+          type: string
+        order:
+          type: integer
+          description: Order in traversal sequence
+        weight:
+          type: number
+          format: float
+        hop_distance:
+          type: integer
+          description: Distance from seed entities (1, 2, 3...)
+
+    CitedCommunity:
+      type: object
+      properties:
+        id:
+          type: string
+        summary:
+          type: string
+        relevance_score:
+          type: number
+          format: float
+        summary_used:
+          type: string
+          description: Which part of summary was relevant
+
+    SourceChunk:
+      type: object
+      required:
+        - chunk_id
+        - content
+        - book_id
+      properties:
+        chunk_id:
+          type: string
+        content:
+          type: string
+          example: "In thermodynamics, entropy is a measure of disorder..."
+        book_id:
+          type: string
+        book_title:
+          type: string
+        page:
+          type: integer
+        section:
+          type: string
+        chunk_rank:
+          type: integer
+          description: Relevance rank for this chunk
+        snippet:
+          type: string
+          description: Most relevant snippet from chunk
+
+    QueryVersion:
+      type: object
+      properties:
+        version:
+          type: integer
+        query_id:
+          type: string
+        parent_query_id:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+        answer_text:
+          type: string
+        change_summary:
+          type: string
+          description: What changed from previous version
+        changed_by:
+          type: string
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object

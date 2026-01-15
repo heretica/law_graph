@@ -1,0 +1,356 @@
+openapi: 3.0.3
+info:
+  title: Book Ingestion API (Admin Only)
+  description: |
+    API for administrators to add new books to the Borges Library via the nano-graphRAG pipeline.
+
+    **Access Control**: All endpoints require admin authentication via API key.
+    **Schema Consistency**: New books are processed identically to existing books.
+
+    Based on Constitution Principle VI: Extensible Literature Foundation.
+  version: 1.0.0
+  contact:
+    name: Borges Library Team
+
+servers:
+  - url: https://reconciliation-api.railway.app
+    description: Production (Railway)
+  - url: http://localhost:5002
+    description: Local development
+
+security:
+  - AdminApiKey: []
+
+paths:
+  /admin/ingest:
+    post:
+      summary: Start book ingestion
+      description: |
+        Initiates the nano-graphRAG pipeline for a new book.
+        The book will be processed using identical configuration as existing books.
+        Returns a job ID for tracking progress.
+      operationId: startIngestion
+      tags:
+        - Book Ingestion
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - title
+                - author
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Book file (PDF, EPUB, or plain text)
+                title:
+                  type: string
+                  description: Book title
+                  example: "Les Fleurs du Mal"
+                author:
+                  type: string
+                  description: Author name
+                  example: "Charles Baudelaire"
+                genre:
+                  type: string
+                  description: Literary genre
+                  example: "Poetry"
+                publication_date:
+                  type: string
+                  format: date
+                  description: Publication date
+                  example: "1857-06-25"
+      responses:
+        '202':
+          description: Ingestion job started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestionJobCreated'
+        '400':
+          description: Invalid request (unsupported format, missing fields)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Admin authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Book already exists (duplicate detection)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/ingest/{job_id}:
+    get:
+      summary: Get ingestion job status
+      description: Returns current status and progress of a book ingestion job
+      operationId: getIngestionStatus
+      tags:
+        - Book Ingestion
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "ingestion-123e4567-e89b-12d3-a456-426614174000"
+          description: Ingestion job identifier
+      responses:
+        '200':
+          description: Job status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestionJob'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/ingest/{job_id}/rollback:
+    post:
+      summary: Rollback book ingestion
+      description: |
+        Removes all entities and relationships created by this ingestion job.
+        The book and all associated content will be deleted from the graph.
+      operationId: rollbackIngestion
+      tags:
+        - Book Ingestion
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Ingestion job identifier
+      responses:
+        '200':
+          description: Rollback completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackResult'
+        '400':
+          description: Cannot rollback (job still processing or already rolled back)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /admin/ingest/jobs:
+    get:
+      summary: List all ingestion jobs
+      description: Returns list of all book ingestion jobs with their status
+      operationId: listIngestionJobs
+      tags:
+        - Book Ingestion
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [queued, processing, completed, failed, rolled_back]
+          description: Filter by job status
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: Maximum number of jobs to return
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Offset for pagination
+      responses:
+        '200':
+          description: Job list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestionJobList'
+
+components:
+  securitySchemes:
+    AdminApiKey:
+      type: apiKey
+      in: header
+      name: X-Admin-API-Key
+      description: Admin API key for authentication
+
+  schemas:
+    IngestionJobCreated:
+      type: object
+      properties:
+        job_id:
+          type: string
+          description: Unique job identifier
+          example: "ingestion-123e4567-e89b-12d3-a456-426614174000"
+        book_id:
+          type: string
+          description: Book identifier (will be created)
+          example: "book-456e7890-f12g-34h5-i678-901234567890"
+        status:
+          type: string
+          enum: [queued, processing]
+          example: "processing"
+        message:
+          type: string
+          example: "Book ingestion started. Use GET /admin/ingest/{job_id} to track progress."
+
+    IngestionJob:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Job identifier
+        book_id:
+          type: string
+          description: Associated book identifier
+        file_path:
+          type: string
+          description: Original file path
+        file_format:
+          type: string
+          enum: [pdf, epub, txt]
+        status:
+          type: string
+          enum: [queued, processing, completed, failed, rolled_back]
+        progress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Progress indicator (0.0 to 1.0)
+        chunks_count:
+          type: integer
+          description: Number of text chunks created
+        entities_extracted:
+          type: integer
+          description: Number of entities extracted
+        relationships_created:
+          type: integer
+          description: Number of relationships created
+        inter_book_links:
+          type: integer
+          description: Number of cross-book connections made
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_log:
+          type: string
+          nullable: true
+          description: Error details if failed
+        admin_id:
+          type: string
+          description: Admin who initiated ingestion
+        book_metadata:
+          $ref: '#/components/schemas/BookMetadata'
+
+    BookMetadata:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        genre:
+          type: string
+          nullable: true
+        publication_date:
+          type: string
+          format: date
+          nullable: true
+
+    IngestionJobList:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngestionJob'
+        total:
+          type: integer
+          description: Total number of jobs
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    RollbackResult:
+      type: object
+      properties:
+        job_id:
+          type: string
+        book_id:
+          type: string
+        status:
+          type: string
+          enum: [rolled_back]
+        entities_deleted:
+          type: integer
+        relationships_deleted:
+          type: integer
+        duration_ms:
+          type: integer
+          description: Rollback duration in milliseconds
+        message:
+          type: string
+          example: "Book content successfully removed from graph."
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error context
+
+tags:
+  - name: Book Ingestion
+    description: |
+      Admin-only endpoints for adding new books to the Borges Library.
+
+      **Workflow**:
+      1. POST /admin/ingest with book file and metadata
+      2. Poll GET /admin/ingest/{job_id} for progress
+      3. On completion, new book entities appear in graph
+      4. If needed, POST /admin/ingest/{job_id}/rollback to remove
+
+      **Schema Consistency**:
+      All new books are processed using the same nano-graphRAG configuration
+      as existing books, ensuring identical node labels, relationship types,
+      and property schemas.
